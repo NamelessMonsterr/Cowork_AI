@@ -1,0 +1,359 @@
+"""
+Reliable Executor - Core execution engine with multi-strategy fallback.
+
+This is the heart of the agent's action execution:
+1. Check session permission
+2. Capture before state
+3. Try strategies in priority order with retries
+4. Verify action succeeded
+5. Log result
+6. Escalate to takeover if all fail
+
+The executor ensures reliability through:
+- Multiple fallback strategies
+- Exponential backoff retries
+- Verification after every action
+- Budget tracking
+- Environment safety checks
+"""
+
+import time
+import logging
+from typing import List, Optional, Callable
+from dataclasses import dataclass
+
+from assistant.ui_contracts.schemas import (
+    ActionStep,
+    StepResult,
+    VerificationResult,
+    UISelector,
+)
+from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
+from assistant.safety.budget import ActionBudget, BudgetExceededError
+from assistant.safety.environment import EnvironmentMonitor, EnvironmentState
+from .strategies.base import Strategy, StrategyResult
+from .cache import SelectorCache
+from .verify import Verifier
+
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExecutorConfig:
+    """Configuration for ReliableExecutor."""
+    max_retries_per_strategy: int = 3
+    retry_delays: list[float] = None  # Exponential backoff delays
+    verify_timeout_sec: int = 5
+    capture_screenshots: bool = True
+    use_selector_cache: bool = True
+    
+    def __post_init__(self):
+        if self.retry_delays is None:
+            self.retry_delays = [0.5, 1.0, 2.0]  # Exponential backoff
+
+
+class ReliableExecutor:
+    """
+    Multi-strategy executor with verification and safety checks.
+    
+    Usage:
+        executor = ReliableExecutor(
+            strategies=[uia_strategy, ocr_strategy, vision_strategy, coords_strategy],
+            verifier=verifier,
+            session_auth=session_auth,
+            budget=budget,
+            environment=environment_monitor,
+            cache=selector_cache,
+        )
+        
+        result = executor.execute(step)
+        if not result.success:
+            if result.requires_takeover:
+                # Request human intervention
+            else:
+                # Handle error
+    """
+
+    def __init__(
+        self,
+        strategies: List[Strategy],
+        verifier: Verifier,
+        session_auth: SessionAuth,
+        budget: ActionBudget,
+        environment: Optional[EnvironmentMonitor] = None,
+        cache: Optional[SelectorCache] = None,
+        config: Optional[ExecutorConfig] = None,
+        on_takeover_required: Optional[Callable[[str], None]] = None,
+        on_step_complete: Optional[Callable[[StepResult], None]] = None,
+    ):
+        """
+        Initialize ReliableExecutor.
+        
+        Args:
+            strategies: List of execution strategies (sorted by priority)
+            verifier: Verification engine
+            session_auth: Session permission manager
+            budget: Action budget tracker
+            environment: Environment safety monitor
+            cache: Selector cache for element memory
+            config: Executor configuration
+            on_takeover_required: Callback when human takeover is needed
+            on_step_complete: Callback after each step completes
+        """
+        self._strategies = sorted(strategies, key=lambda s: s.priority)
+        self._verifier = verifier
+        self._session = session_auth
+        self._budget = budget
+        self._environment = environment
+        self._cache = cache or SelectorCache()
+        self._config = config or ExecutorConfig()
+        self._on_takeover = on_takeover_required
+        self._on_step_complete = on_step_complete
+        
+        self._is_paused = False
+        self._pause_reason = ""
+
+    def execute(self, step: ActionStep) -> StepResult:
+        """
+        Execute an action step with full safety and reliability.
+        
+        Args:
+            step: The action step to execute
+            
+        Returns:
+            StepResult with execution details
+        """
+        start_time = time.time()
+        screenshot_before = None
+        screenshot_after = None
+        
+        try:
+            # 1. Check paused state
+            if self._is_paused:
+                return self._make_failed_result(
+                    step, start_time,
+                    error=f"Executor paused: {self._pause_reason}",
+                    requires_takeover=True,
+                    takeover_reason=self._pause_reason,
+                )
+            
+            # 2. Check session permission
+            try:
+                self._session.ensure()
+            except PermissionDeniedError as e:
+                return self._make_failed_result(
+                    step, start_time,
+                    error=str(e),
+                    requires_takeover=True,
+                    takeover_reason="Session permission required",
+                )
+            
+            # 3. Check budget
+            try:
+                self._budget.check_budget()
+            except BudgetExceededError as e:
+                return self._make_failed_result(
+                    step, start_time,
+                    error=str(e),
+                    requires_takeover=True,
+                    takeover_reason=f"Budget exceeded: {e.budget_type}",
+                )
+            
+            # 4. Check environment safety
+            if self._environment:
+                env_state = self._environment.check_state()
+                if env_state != EnvironmentState.NORMAL:
+                    reason = f"Unsafe environment: {env_state.value}"
+                    return self._make_failed_result(
+                        step, start_time,
+                        error=reason,
+                        requires_takeover=True,
+                        takeover_reason=reason,
+                    )
+            
+            # 5. Capture before state
+            before_state = self._verifier.capture_state()
+            screenshot_before = before_state.get("screenshot")
+            
+            # 6. Check selector cache
+            if self._config.use_selector_cache:
+                cached = self._cache.get(step.id)
+                if cached:
+                    step.selector = cached
+                    logger.debug(f"Using cached selector for step {step.id}")
+            
+            # 7. Try strategies in priority order
+            last_error = None
+            strategy_used = None
+            selector_to_cache = None
+            
+            for strategy in self._strategies:
+                if not strategy.can_handle(step):
+                    continue
+                
+                strategy_used = strategy.name
+                
+                # Try with retries
+                for attempt, delay in enumerate(self._config.retry_delays):
+                    if attempt > 0:
+                        time.sleep(delay)
+                        self._budget.record_action(success=False, was_retry=True)
+                    
+                    try:
+                        result = strategy.execute(step)
+                        
+                        if result.success:
+                            selector_to_cache = result.selector
+                            
+                            # 8. Verify if spec provided
+                            verification = None
+                            if step.verify:
+                                verification = self._verifier.verify(step.verify)
+                                
+                                if not verification.success:
+                                    last_error = f"Verification failed: {verification.error}"
+                                    continue  # Try next retry/strategy
+                            
+                            # Success!
+                            self._budget.record_action(success=True, was_retry=attempt > 0)
+                            
+                            # Cache selector
+                            if selector_to_cache and self._config.use_selector_cache:
+                                self._cache.put(
+                                    step.id,
+                                    selector_to_cache,
+                                    step_id=step.id,
+                                    tool=step.tool,
+                                )
+                            
+                            # Capture after screenshot
+                            if self._config.capture_screenshots:
+                                after_state = self._verifier.capture_state()
+                                screenshot_after = after_state.get("screenshot")
+                            
+                            step_result = StepResult(
+                                step_id=step.id,
+                                success=True,
+                                strategy_used=strategy_used,
+                                attempts=attempt + 1,
+                                duration_ms=int((time.time() - start_time) * 1000),
+                                verification=verification,
+                                screenshot_before=screenshot_before,
+                                screenshot_after=screenshot_after,
+                                selector_cached=selector_to_cache,
+                            )
+                            
+                            if self._on_step_complete:
+                                self._on_step_complete(step_result)
+                            
+                            return step_result
+                        
+                        else:
+                            last_error = result.error
+                            
+                    except Exception as e:
+                        last_error = str(e)
+                        logger.exception(f"Strategy {strategy.name} failed on attempt {attempt + 1}")
+            
+            # All strategies failed
+            self._budget.record_action(success=False)
+            
+            return self._make_failed_result(
+                step, start_time,
+                error=f"All strategies failed. Last error: {last_error}",
+                strategy_used=strategy_used,
+                screenshot_before=screenshot_before,
+                requires_takeover=True,
+                takeover_reason="All automation strategies failed",
+            )
+            
+        except Exception as e:
+            logger.exception(f"Executor error on step {step.id}")
+            return self._make_failed_result(
+                step, start_time,
+                error=str(e),
+                screenshot_before=screenshot_before,
+            )
+
+    def pause(self, reason: str) -> None:
+        """Pause execution."""
+        self._is_paused = True
+        self._pause_reason = reason
+        self._budget.pause(reason)
+        logger.info(f"Executor paused: {reason}")
+
+    def resume(self) -> None:
+        """Resume execution."""
+        self._is_paused = False
+        self._pause_reason = ""
+        self._budget.resume()
+        logger.info("Executor resumed")
+
+    def is_paused(self) -> bool:
+        """Check if executor is paused."""
+        return self._is_paused
+
+    def _make_failed_result(
+        self,
+        step: ActionStep,
+        start_time: float,
+        error: str,
+        strategy_used: Optional[str] = None,
+        screenshot_before: Optional[str] = None,
+        requires_takeover: bool = False,
+        takeover_reason: Optional[str] = None,
+    ) -> StepResult:
+        """Create a failed StepResult."""
+        result = StepResult(
+            step_id=step.id,
+            success=False,
+            strategy_used=strategy_used,
+            attempts=1,
+            duration_ms=int((time.time() - start_time) * 1000),
+            error=error,
+            screenshot_before=screenshot_before,
+        )
+        
+        if requires_takeover and self._on_takeover:
+            self._on_takeover(takeover_reason or error)
+        
+        if self._on_step_complete:
+            self._on_step_complete(result)
+        
+        return result
+
+    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+        """
+        Pre-find an element using available strategies.
+        
+        Useful for plan preview or pre-computing selectors.
+        """
+        for strategy in self._strategies:
+            if strategy.can_handle(step):
+                selector = strategy.find_element(step)
+                if selector:
+                    return selector
+        return None
+
+    def validate_cached_selector(self, step_id: str) -> bool:
+        """Check if a cached selector is still valid."""
+        selector = self._cache.get(step_id)
+        if not selector:
+            return False
+        
+        for strategy in self._strategies:
+            if strategy.name == selector.strategy:
+                return strategy.validate_element(selector)
+        
+        return False
+
+    def get_stats(self) -> dict:
+        """Get executor statistics."""
+        return {
+            "is_paused": self._is_paused,
+            "pause_reason": self._pause_reason,
+            "strategies": [s.name for s in self._strategies],
+            "cache_stats": self._cache.get_stats(),
+            "budget": self._budget.get_remaining(),
+        }
