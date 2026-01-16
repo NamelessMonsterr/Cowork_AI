@@ -317,4 +317,4 @@ const styles = {
   }
 };
 
-export default PermissionsPage;
+

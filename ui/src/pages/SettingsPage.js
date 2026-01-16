@@ -434,4 +434,4 @@ const styles = {
   }
 };
 
-export default SettingsPage;
+
