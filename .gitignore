@@ -8,3 +8,4 @@ screenshots/*.png
 .vscode/
 dist/
 build/
+test_phases/
