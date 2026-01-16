@@ -1,11 +1,61 @@
-node_modules/
+# Python
 __pycache__/
-*.pyc
-.env
-venv/
-.DS_Store
-screenshots/*.png
-.vscode/
+*.py[cod]
+
+# Legacy folders (ignore)
+openai-cua-sample-app-main/
+.Python
+*.so
+.eggs/
+*.egg-info/
 dist/
 build/
-test_phases/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Local data
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+*.spec
+*.exe
+
+# Environment
+.env
+!.env.example
+
+# Node (UI)
+node_modules/
+ui/node_modules/
+ui/build/
+ui/dist/
+
+# Electron
+ui/out/
+
+# AppData (created at runtime)
+CoworkAI/

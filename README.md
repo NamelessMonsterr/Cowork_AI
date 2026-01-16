@@ -1,32 +1,39 @@
 # ⚡ Flash Assistant
 
-> **The Production-Grade, Collaborative, Learning Desktop Agent** (v1.0 Gold Standard)
+> **Voice-Controlled Desktop Automation Agent** — The AI that controls your computer.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![React](https://img.shields.io/badge/react-18.0+-61DAFB.svg)](https://reactjs.org/)
-[![Status](https://img.shields.io/badge/status-production--ready-green.svg)](./README.md)
+[![React 18](https://img.shields.io/badge/react-18+-61DAFB.svg)](https://reactjs.org/)
+[![Windows](https://img.shields.io/badge/platform-windows-0078D6.svg)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
-
-**Flash Assistant** (formerly CoworkAI) is a robust, agentic platform that automates complex desktop workflows. It evolves beyond simple automation by supporting **Multi-Agent Teams**, **Cloud Sync**, **Skill Packs**, and **Privacy-First Learning**.
 
 ---
 
 ## 🚀 Quick Start
 
-Get running in 2 minutes.
-
-### 1. Backend
+### 1. Install Dependencies
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Start the Backend (Port 8765)
-# Note: Requires OpenAI API Key in settings or env vars
-python -m uvicorn assistant.main:app --reload --port 8765
 ```
 
-### 2. UI (Electron/React)
+### 2. Set OpenAI Key
+
+```bash
+# Windows
+set OPENAI_API_KEY=sk-your-key
+
+# Or create .env file from example
+copy .env.example .env
+```
+
+### 3. Start Backend
+
+```bash
+python -m uvicorn assistant.main:app --host 127.0.0.1 --port 8765
+```
+
+### 4. Start UI
 
 ```bash
 cd ui
@@ -36,97 +43,94 @@ npm start
 
 ---
 
-## 📂 Architecture Overview
+## ✨ Features
 
-Flash Assistant uses a **biology-inspired architecture**: Brain (Planner), Body (Executor), and Nervous System (Safety).
-
-```mermaid
-graph TD
-    User[User] --> UI["Electron/React UI"]
-    UI --> API["FastAPI Backend"]
-
-    subgraph "Nervous System (Safety)"
-        API --> SessionAuth["SessionAuth (TTL)"]
-        API --> PlanGuard["PlanGuard (Review)"]
-        EnvMon["Environment Monitor"] -.-> Executor
-    end
-
-    subgraph "Brain (Planner)"
-        Planner --> LLM["OpenAI GPT-4"]
-        Planner --> SkillLoader["Skill Packs (W18)"]
-    end
-
-    subgraph "Body (Executor)"
-        Executor --> Strategies["UIA / Vision / Coords"]
-        Executor --> Verifier["Verification Engine"]
-        Executor --> Learning["Learning Store (W20)"]
-    end
-
-    subgraph "Extensions"
-        API --> PluginMgr["Plugin Manager (W16)"]
-        API --> TeamMgr["Team Discovery (W17)"]
-        API --> SyncMgr["Cloud Sync (W19)"]
-    end
-
-    API --> Planner
-    Planner --> Executor
-    Executor --> Computer["Windows Computer"]
-```
+| Feature              | Description                           |
+| :------------------- | :------------------------------------ |
+| **🗣️ Voice Control** | Speak commands, Flash executes them   |
+| **🔄 Self-Healing**  | Auto-recovers from popups, UI changes |
+| **👁️ Hybrid Vision** | UIA + OCR + Coordinates strategies    |
+| **🔌 Plugins**       | Extend with custom tools              |
+| **👥 Team Mode**     | Multi-agent task delegation           |
+| **☁️ Cloud Sync**    | Settings sync across devices          |
+| **🧠 Learning**      | Adapts to your apps over time         |
 
 ---
 
-## ✨ Key Features (W1-W20)
+## 📂 Project Structure
 
-| Phase     | Feature            | Description                                                  | Architecture             |
-| :-------- | :----------------- | :----------------------------------------------------------- | :----------------------- |
-| **W1-11** | **Execution Core** | Hybrid Strategies (UIA/Vision) + Self-Healing.               | `ReliableExecutor`       |
-| **W16**   | **Marketplace** 🛒 | Signed Plugins (`.cowork-plugin`) with Ed25519 verification. | `PluginSigner`           |
-| **W17**   | **Team Mode** 👥   | Peer Discovery (UDP) and Task Delegation API.                | `PeerDiscovery`          |
-| **W18**   | **Skill Packs** 🧠 | Downloadable prompt/knowledge bundles.                       | `SkillLoader`            |
-| **W19**   | **Cloud Sync** ☁️  | E2E Encrypted snapshot sync across devices.                  | `SyncEngine` + `AES-GCM` |
-| **W20**   | **Learning** 🎓    | Privacy-preserving optimization (Stats collection).          | `LearningCollector`      |
+```
+Flash-Assistant/
+├── assistant/           # Backend (Python/FastAPI)
+│   ├── agent/           # Planner + LLM
+│   ├── executor/        # Strategies + Verification
+│   ├── safety/          # SessionAuth, Budget, Guards
+│   ├── plugins/         # Plugin system
+│   ├── learning/        # Adaptive ranking
+│   ├── cloud/           # Sync engine
+│   └── config/          # Settings + Paths
+├── ui/                  # Frontend (React/Electron)
+│   ├── src/
+│   │   ├── pages/       # Settings, Permissions, etc.
+│   │   └── components/  # UI components
+│   └── public/
+│       └── electron.js  # Electron main process
+├── tests/               # Pytest test suite
+└── backend/             # Build scripts
+```
 
 ---
 
 ## 🔒 Security Model
 
-Flash Assistant is built for **Enterprise Safety**:
-
-- **Session Auth:** Commands require a "Session Token" granted via Voice/UI with a strict TTL (30 mins).
-- **PlanGuard:** Destructive actions (delete, send email) require explicit user confirmation.
-- **Environment Monitor:** Background thread that detects "Lock Screen" or "UAC" and auto-pauses execution.
-- **Redaction:** The Learning Collector (W20) automatically ignores sensitive windows (Bank, Login, Password) to prevent data leaks.
-- **Sandboxed Plugins:** Plugins run in a separate process (`plugin_host`) with restricted permissions (W13).
+| Layer                   | Protection                                |
+| :---------------------- | :---------------------------------------- |
+| **SessionAuth**         | 30-min TTL, explicit grant required       |
+| **PlanGuard**           | Reviews actions before execution          |
+| **Kill Switch**         | `Ctrl+Shift+Escape` stops everything      |
+| **Sandboxed Plugins**   | Isolated process with permissions         |
+| **Sensitive Detection** | Excludes bank/login windows from learning |
 
 ---
 
-## 🧪 Verification
+## 🛠️ Configuration
 
-Validate the system using the built-in test suite:
+Settings are stored in `%APPDATA%/CoworkAI/settings.json`:
 
-```bash
-# Verify Marketplace (W16)
-python test_phases/demo_w16_marketplace.py
-
-# Verify Team Delegation (W17)
-python test_phases/demo_w17_team_delegation.py
-
-# Verify Cloud Sync (W19)
-python test_phases/demo_w19_engine.py
-
-# Verify Learning (W20)
-python test_phases/demo_w20_learning.py
+```json
+{
+  "safety": {
+    "session_ttl_minutes": 30,
+    "enable_kill_switch": true
+  },
+  "learning": {
+    "enabled": true,
+    "exclude_sensitive_windows": true
+  },
+  "cloud": {
+    "enabled": false
+  }
+}
 ```
 
 ---
 
-## 📦 Building for Production
+## 📦 Building for Distribution
 
-1.  **Build Backend:** `python backend/build_backend.py`
-2.  **Package UI:** `cd ui && npm run dist`
+```bash
+# Build backend executable
+cd backend
+python build_backend.py
+
+# Build Electron installer
+cd ui
+npm run dist
+```
+
+Output: `ui/dist/Flash-Assistant-Setup.exe`
 
 ---
 
 ## 📄 License
 
-MIT © 2026 Flash Assistant Project
+MIT © 2026 Flash Assistant
