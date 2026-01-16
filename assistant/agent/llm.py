@@ -39,7 +39,8 @@ class LLMClient:
         self, 
         task: str, 
         screenshot_path: Optional[str] = None,
-        context: str = ""
+        context: str = "",
+        system_append: str = ""
     ) -> AgentResponse:
         
         # === LOCAL-FIRST: Try rule-based fallback before hitting API ===
@@ -86,6 +87,9 @@ You MUST respond with valid JSON in this exact format:
         {"action": "speak", "value": "Done!"}
     ]
 }"""
+        
+        if system_append:
+            system_prompt += f"\n\n=== ADDITIONAL SKILL INSTRUCTIONS ===\n{system_append}"
 
         user_prompt = f"User Task: {task}\nContext: {context}"
 

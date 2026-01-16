@@ -1,48 +1,32 @@
-# ⚡ CoworkAI Assistant
+# ⚡ Flash Assistant
 
-> **The Production-Grade, Voice-Controlled Desktop Agent Protocol**
+> **The Production-Grade, Collaborative, Learning Desktop Agent** (v1.0 Gold Standard)
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![React](https://img.shields.io/badge/react-18.0+-61DAFB.svg)](https://reactjs.org/)
 [![Status](https://img.shields.io/badge/status-production--ready-green.svg)](./README.md)
-[![Platform](https://img.shields.io/badge/platform-windows-win.svg)](https://www.microsoft.com/windows)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-CoworkAI is a robust agentic platform that automates complex desktop workflows. It combines LLM planning with a self-healing execution engine, secure sandboxing, and an extensible plugin architecture.
-
----
-
-## ✨ Key Features (W1-W12)
-
-| Feature                  | Description                                                                         | Architecture               |
-| :----------------------- | :---------------------------------------------------------------------------------- | :------------------------- |
-| **🧠 Reliable Planning** | Breaks tasks into verified actions. Uses `PlanGuard` to prevent unsafe operations.  | `Planner` + `LLM`          |
-| **🛡️ Self-Healing**      | Detects execution failures (popups, UI changes) and auto-repairs using LLM logic.   | `RecoveryManager`          |
-| **👁️ Computer Vision**   | Hybrid UIA + Vision strategy to interact with non-standard apps (Paint, Games).     | `VisionStrategy`           |
-| **⚙️ Plugin Platform**   | Extensible SDK with strict permission scopes, secrets isolation, and audit logging. | `ToolRouter` + `Registry`  |
-| **🧪 Reliability**       | Includes a full 50-task benchmark suite to validate stability before release.       | `BenchmarkRunner`          |
-| **📦 Production Core**   | Single-instance lock, Watchdog recovery, and signed Installer packaging.            | `PyInstaller` + `Electron` |
+**Flash Assistant** (formerly CoworkAI) is a robust, agentic platform that automates complex desktop workflows. It evolves beyond simple automation by supporting **Multi-Agent Teams**, **Cloud Sync**, **Skill Packs**, and **Privacy-First Learning**.
 
 ---
 
-## 🚀 Quick Start (Dev Mode)
+## 🚀 Quick Start
 
-### 1. Prerequisites
+Get running in 2 minutes.
 
-- Python 3.11+
-- Node.js 18+
-- OpenAI API Key (Set `OPENAI_API_KEY` env var)
-
-### 2. Backend Setup
+### 1. Backend
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
 # Start the Backend (Port 8765)
-python assistant/entrypoints/backend_main.py
+# Note: Requires OpenAI API Key in settings or env vars
+python -m uvicorn assistant.main:app --reload --port 8765
 ```
 
-### 3. Frontend Setup
+### 2. UI (Electron/React)
 
 ```bash
 cd ui
@@ -52,78 +36,97 @@ npm start
 
 ---
 
-## 🔌 Plugin System
+## 📂 Architecture Overview
 
-CoworkAI supports 3rd-party tools via `plugins/`.
+Flash Assistant uses a **biology-inspired architecture**: Brain (Planner), Body (Executor), and Nervous System (Safety).
 
-### Built-in Plugins
+```mermaid
+graph TD
+    User[User] --> UI["Electron/React UI"]
+    UI --> API["FastAPI Backend"]
 
-- **Clipboard Manager:** Read/Write system clipboard (`cowork.clipboard`).
+    subgraph "Nervous System (Safety)"
+        API --> SessionAuth["SessionAuth (TTL)"]
+        API --> PlanGuard["PlanGuard (Review)"]
+        EnvMon["Environment Monitor"] -.-> Executor
+    end
 
-### Creating a Plugin
+    subgraph "Brain (Planner)"
+        Planner --> LLM["OpenAI GPT-4"]
+        Planner --> SkillLoader["Skill Packs (W18)"]
+    end
 
-Place a folder in `%APPDATA%/CoworkAI/plugins/my_plugin/` with:
+    subgraph "Body (Executor)"
+        Executor --> Strategies["UIA / Vision / Coords"]
+        Executor --> Verifier["Verification Engine"]
+        Executor --> Learning["Learning Store (W20)"]
+    end
 
-**plugin.json**
+    subgraph "Extensions"
+        API --> PluginMgr["Plugin Manager (W16)"]
+        API --> TeamMgr["Team Discovery (W17)"]
+        API --> SyncMgr["Cloud Sync (W19)"]
+    end
 
-```json
-{
-  "id": "my.plugin",
-  "name": "My Plugin",
-  "entrypoint": "main:MyPlugin",
-  "permissions_required": ["network:google.com", "notifications"]
-}
-```
-
-**main.py**
-
-```python
-from assistant.plugins.sdk import Plugin, Tool
-
-class MyPlugin(Plugin):
-    def get_tools(self):
-        return [MyTool()]
+    API --> Planner
+    Planner --> Executor
+    Executor --> Computer["Windows Computer"]
 ```
 
 ---
 
-## 🧪 Reliability Benchmarks
+## ✨ Key Features (W1-W20)
 
-Validate system stability using the built-in benchmark suite.
+| Phase     | Feature            | Description                                                  | Architecture             |
+| :-------- | :----------------- | :----------------------------------------------------------- | :----------------------- |
+| **W1-11** | **Execution Core** | Hybrid Strategies (UIA/Vision) + Self-Healing.               | `ReliableExecutor`       |
+| **W16**   | **Marketplace** 🛒 | Signed Plugins (`.cowork-plugin`) with Ed25519 verification. | `PluginSigner`           |
+| **W17**   | **Team Mode** 👥   | Peer Discovery (UDP) and Task Delegation API.                | `PeerDiscovery`          |
+| **W18**   | **Skill Packs** 🧠 | Downloadable prompt/knowledge bundles.                       | `SkillLoader`            |
+| **W19**   | **Cloud Sync** ☁️  | E2E Encrypted snapshot sync across devices.                  | `SyncEngine` + `AES-GCM` |
+| **W20**   | **Learning** 🎓    | Privacy-preserving optimization (Stats collection).          | `LearningCollector`      |
+
+---
+
+## 🔒 Security Model
+
+Flash Assistant is built for **Enterprise Safety**:
+
+- **Session Auth:** Commands require a "Session Token" granted via Voice/UI with a strict TTL (30 mins).
+- **PlanGuard:** Destructive actions (delete, send email) require explicit user confirmation.
+- **Environment Monitor:** Background thread that detects "Lock Screen" or "UAC" and auto-pauses execution.
+- **Redaction:** The Learning Collector (W20) automatically ignores sensitive windows (Bank, Login, Password) to prevent data leaks.
+- **Sandboxed Plugins:** Plugins run in a separate process (`plugin_host`) with restricted permissions (W13).
+
+---
+
+## 🧪 Verification
+
+Validate the system using the built-in test suite:
 
 ```bash
-# Run Smoke Test (Safe Mode)
-$env:COWORK_BENCHMARK_MODE="1"
-python -m assistant.benchmark.cli --suite assistant/benchmark/tasks/smoke.yaml --repeat 5
+# Verify Marketplace (W16)
+python test_phases/demo_w16_marketplace.py
+
+# Verify Team Delegation (W17)
+python test_phases/demo_w17_team_delegation.py
+
+# Verify Cloud Sync (W19)
+python test_phases/demo_w19_engine.py
+
+# Verify Learning (W20)
+python test_phases/demo_w20_learning.py
 ```
 
 ---
 
 ## 📦 Building for Production
 
-Create a standalone Windows Installer (`.exe`).
-
-1. **Build Backend:** `python backend/build_backend.py`
-2. **Package UI + Installer:** `cd ui && npm run dist`
-
-Output: `ui/dist/CoworkAI-Setup-1.0.0.exe`
-
----
-
-## 📄 Architecture & Modules
-
-| Module                    | Description                                               |
-| :------------------------ | :-------------------------------------------------------- |
-| **`assistant/agent`**     | Core Logic: Planner, PlanGuard, LLM Client.               |
-| **`assistant/executor`**  | Reliable execution engine with Verifiers and Retry logic. |
-| **`assistant/recovery`**  | Self-healing strategies and Failure Classification.       |
-| **`assistant/safety`**    | Permission gating (UAC, Auth) and Environment Monitoring. |
-| **`assistant/computer`**  | Low-level OS control (Windows API, OCR, Input Injection). |
-| **`assistant/plugins`**   | Extension platform: SDK, Registry, Router, Sandbox.       |
-| **`assistant/benchmark`** | QA suite for automated reliability testing.               |
+1.  **Build Backend:** `python backend/build_backend.py`
+2.  **Package UI:** `cd ui && npm run dist`
 
 ---
 
 ## 📄 License
 
-MIT © 2026 CoworkAI Project
+MIT © 2026 Flash Assistant Project

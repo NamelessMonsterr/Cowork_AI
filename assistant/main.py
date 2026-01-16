@@ -25,11 +25,11 @@ from assistant.agent.planner import Planner
 # --- Safety & Execution ---
 from assistant.safety.budget import ActionBudget
 from assistant.safety.environment import EnvironmentMonitor
-from assistant.safety.plan_guard import PlanGuard, ExecutionPlan, PlanGuardConfig
+from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig
 from assistant.computer.windows import WindowsComputer
 from assistant.executor.executor import ReliableExecutor
 from assistant.executor.verify import Verifier
-from assistant.executor.strategies import UIAStrategy, VisionStrategy, CoordsStrategy
+
 from assistant.executor.strategies import UIAStrategy, VisionStrategy, CoordsStrategy
 from assistant.ui_contracts.schemas import ActionStep, StepResult, ExecutionPlan
 
@@ -39,7 +39,37 @@ from assistant.recorder.context import ContextTracker
 from assistant.recorder.converter import SmartConverter
 from assistant.recorder.storage import MacroStorage
 from assistant.recovery.manager import RecoveryManager
+
 from assistant.ui_contracts.events import RECOVERY_STARTED, RECOVERY_FAILED, RECOVERY_SUCCEEDED, RECOVERY_ATTEMPT
+
+# --- Plugins (W12/W13) ---
+from assistant.plugins.registry import ToolRegistry, PluginLoader
+from assistant.plugins.lifecycle import PluginStateManager
+from assistant.plugins.permissions import PermissionManager
+from assistant.plugins.secrets import PluginSecrets
+
+from assistant.plugins.router import ToolRouter
+from assistant.api.plugins import router as plugins_router
+from assistant.api.support import router as support_router
+from assistant.api.support import router as support_router
+from assistant.telemetry.client import TelemetryClient
+from assistant.api.team import router as team_router
+from assistant.team.discovery import PeerDiscovery
+from assistant.skills.loader import SkillLoader
+from assistant.skills.loader import SkillLoader
+from assistant.cloud.auth import router as auth_router
+from assistant.plugins.ipc import IpcClient
+from assistant.cloud.local_store import LocalSyncStore
+from assistant.cloud.crypto import SyncCrypto
+from assistant.cloud.sync_engine import SyncEngine
+
+# --- Learning (W20) ---
+from assistant.learning.store import LearningStore
+from assistant.learning.collector import LearningCollector
+from assistant.learning.ranker import StrategyRanker
+
+# Host Process Handle
+host_process = None
 
 # Setup Logging
 logging.basicConfig(
@@ -74,19 +104,38 @@ class AppState:
         # Safety
         self.budget: Optional[ActionBudget] = None
         self.environment: Optional[EnvironmentMonitor] = None
-        self.budget: Optional[ActionBudget] = None
-        self.environment: Optional[EnvironmentMonitor] = None
         self.verifier: Optional[Verifier] = None
         
         # Recorder (W8)
         self.input_recorder: Optional[InputRecorder] = None
+
         self.context_tracker: Optional[ContextTracker] = None
         self.smart_converter: Optional[SmartConverter] = None
-        self.smart_converter: Optional[SmartConverter] = None
         self.macro_storage: Optional[MacroStorage] = None
+
         self.recovery_manager: Optional[RecoveryManager] = None
         self.current_recording_anchors = []
         
+        # Plugins (W13)
+        self.tool_registry: Optional[ToolRegistry] = None
+        self.plugin_loader: Optional[PluginLoader] = None
+        self.plugin_manager: Optional[PluginStateManager] = None
+        self.tool_router: Optional[ToolRouter] = None
+        self.permission_manager: Optional[PermissionManager] = None
+        self.plugin_secrets: Optional[PluginSecrets] = None
+        
+        # Telemetry (W15.5)
+        self.telemetry = TelemetryClient()
+
+        # Team Mode (W17)
+        self.team_discovery: Optional[PeerDiscovery] = None
+
+        # Skill Packs (W18)
+        self.skill_loader: Optional[SkillLoader] = None
+        
+        # Cloud Sync (W19)
+        self.sync_engine: Optional[SyncEngine] = None
+
         # Runtime
         self.current_task_id: Optional[str] = None
         self.is_executing = False
@@ -136,17 +185,24 @@ async def lifespan(app: FastAPI):
         state.verifier = Verifier(computer=state.computer, strategies=strategies)
         
         # 5. Reliable Executor (The Limb Controller)
+        # W20.3: Initialize Learning Components BEFORE executor
+        learning_db_path = os.path.join(os.getenv('APPDATA'), 'CoworkAI', 'learning.db')
+        learning_store = LearningStore(learning_db_path)
+        state.learning_ranker = StrategyRanker(learning_store)
+        state.learning_collector = LearningCollector(learning_store)
+        
         state.executor = ReliableExecutor(
             strategies=strategies,
             verifier=state.verifier,
             session_auth=state.session_auth,
             budget=state.budget,
             environment=state.environment,
-            on_step_complete=lambda res: handle_step_complete_sync(res)
+            on_step_complete=lambda res: handle_step_complete_sync(res),
+            ranker=state.learning_ranker,
+            collector=state.learning_collector
         )
         
         # 6. Planner (The Brain) - Pure Planning
-        state.planner = Planner(computer=state.computer)
         state.planner = Planner(computer=state.computer)
         state.stt = STT()
         
@@ -180,17 +236,91 @@ async def lifespan(app: FastAPI):
             computer=state.computer
         )
         
-        logger.info("✅ Core Systems Online: Planner, Executor, Safety, Computer, Recorder, Recovery.")
+        # 9. Plugin System (W12/W13/W14)
+        state.tool_registry = ToolRegistry()
+        state.plugin_loader = PluginLoader(state.tool_registry)
+        state.plugin_manager = PluginStateManager()
+        state.permission_manager = PermissionManager()
+        state.plugin_secrets = PluginSecrets()
+        state.tool_router = ToolRouter(state.tool_registry, state.permission_manager, state.plugin_secrets)
+        
+        # Load Plugins
+        # W14: Split Loading
+        # 1. Builtins (Local)
+        state.plugin_loader.load_builtins()
+        
+        # 2. Host Process (External)
+        import subprocess
+        global host_process
+        host_script = os.path.join("assistant", "plugin_host", "main.py")
+        logger.info(f"🚀 Starting Plugin Host: {host_script}")
+        host_process = subprocess.Popen([sys.executable, host_script], cwd=os.getcwd())
+        
+        # Wait for Host
+        client = IpcClient()
+        for i in range(10):
+            if client._refresh_config():
+                break
+            logger.info("Waiting for Plugin Host...")
+        # 2. Start Input/Output
+        # No-op in headless mode usually, but nice to have.
+        
+        if os.environ.get("COWORK_TEST_MODE"):
+            logger.info("🧪 Test Mode: Skipping heavyweight startup (Remote Tools, Discovery, Skills).")
+            yield
+            # Cleanup
+            if state.environment: state.environment.stop()
+            return
+
+        # 3. Load Remote Tools
+        await state.plugin_loader.load_from_host(client)
+
+        # 4. Start Team Discovery (W17)
+        # Assuming port 8765 for this instance. 
+        # In real multi-agent usage, we'd need dynamic ports or config.
+        my_id = str(uuid.uuid4())
+        state.team_discovery = PeerDiscovery(
+            agent_id=my_id, 
+            agent_name=f"Flash-{my_id[:4]}", 
+            port=8765
+        )
+        state.team_discovery.start()
+        
+        # 5. Load Skill Packs (W18)
+        skills_dir = os.path.join(os.getenv('APPDATA'), 'CoworkAI', 'skills')
+        state.skill_loader = SkillLoader(skills_dir)
+        state.skill_loader.load_all()
+
+        # 6. Cloud Sync (W19)
+        sync_db_path = os.path.join(os.getenv('APPDATA'), 'CoworkAI', 'sync.db')
+        sync_store = LocalSyncStore(sync_db_path)
+        sync_crypto = SyncCrypto() 
+        state.sync_engine = SyncEngine(sync_store, sync_crypto)
+
+        logger.info("✅ Core Systems Online: Planner, Executor, Safety, Computer, Recorder, Recovery, Plugins (Hosted), Team Discovery, Skills, Cloud Sync.")
     
     except Exception as e:
         logger.critical(f"❌ Initialization Failed: {e}", exc_info=True)
-        # We don't exit, but system is broken
+        sys.exit(1) # Hard Fail (Engineering Fix 3)
     
     yield
     
     logger.info("Shutting down...")
+    
+    # Kill Host
+    if host_process:
+        logger.info("Stopping Plugin Host...")
+        host_process.terminate()
+        try:
+            host_process.wait(timeout=3)
+        except:
+             host_process.kill()
+
     if state.environment:
         state.environment.stop()
+        
+    if state.team_discovery:
+        state.team_discovery.stop()
 
 def handle_unsafe_environment(env_state, reason):
     """Callback from EnvironmentMonitor (Thread-safe wrapper needed)."""
@@ -210,6 +340,11 @@ def handle_step_complete_sync(result: StepResult):
 
 app = FastAPI(title="Flash AI", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(plugins_router)
+app.include_router(plugins_router)
+app.include_router(support_router)
+app.include_router(team_router)
+app.include_router(auth_router)
 
 # ==================== Execution Logic ====================
 
@@ -313,10 +448,12 @@ async def run_plan_execution(task: str):
                     break
         
         await state.broadcast("execution_finished", {"success": True}) # Or status
+        state.telemetry.track("task_completed", {"task_length": len(task), "steps": len(plan.steps)})
         
     except Exception as e:
         logger.error(f"Execution Error: {e}", exc_info=True)
         await state.broadcast("execution_error", {"error": str(e)})
+        state.telemetry.track("task_failed", {"error": str(e)})
     
     finally:
         state.is_executing = False
@@ -344,7 +481,7 @@ async def revoke_permission():
     await state.broadcast("permission_revoked", {})
     return {"status": "revoked"}
 
-    return {"status": "revoked"}
+
 
 @app.post("/shutdown")
 async def shutdown():
@@ -398,9 +535,7 @@ async def voice_listen():
         logger.error(f"Voice Error: {e}")
         raise HTTPException(500, str(e))
 
-    except Exception as e:
-        logger.error(f"Voice Error: {e}")
-        raise HTTPException(500, str(e))
+
 
 # --- Recorder Routes (W8) ---
 

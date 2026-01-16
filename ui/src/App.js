@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
 import './App.css';
+import { PluginsPanel } from './components/PluginsPanel';
+import { Onboarding } from './components/Onboarding';
 
 const API_URL = 'http://127.0.0.1:8765';
 
@@ -11,7 +12,20 @@ function App() {
   const [history, setHistory] = useState([]);
   const [sessionActive, setSessionActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check Onboarding Status
+  useEffect(() => {
+    const done = localStorage.getItem('flash_onboarding_complete');
+    if (!done) setShowOnboarding(true);
+  }, []);
+
+  const handleOnboardingComplete = () => {
+      localStorage.setItem('flash_onboarding_complete', 'true');
+      setShowOnboarding(false);
+  };
 
   // Update time and format helper
   useEffect(() => {
@@ -231,8 +245,14 @@ function App() {
       <footer className="footer">
         <button className={`footer-btn ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => togglePanel('settings')}>SETTINGS</button>
         <button className={`footer-btn ${activePanel === 'history' ? 'active' : ''}`} onClick={() => togglePanel('history')}>HISTORY</button>
+        <button className={`footer-btn ${activePanel === 'plugins' ? 'active' : ''}`} onClick={() => togglePanel('plugins')}>PLUGINS</button>
         <button className={`footer-btn ${activePanel === 'help' ? 'active' : ''}`} onClick={() => togglePanel('help')}>HELP</button>
       </footer>
+
+      {/* Plugins Panel */}
+      {activePanel === 'plugins' && (
+          <PluginsPanel onClose={() => setActivePanel(null)} />
+      )}
 
       {/* Settings Panel */}
       {activePanel === 'settings' && (
@@ -363,6 +383,11 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Onboarding Wizard */}
+      {showOnboarding && (
+          <Onboarding onComplete={handleOnboardingComplete} />
       )}
     </div>
   );

@@ -54,10 +54,20 @@ class Planner:
         context = f"Active APP: {active_window.title if active_window else 'None'}"
         
         # 2. Think (LLM)
+        # Fetch Skill Prompts
+        skill_prompts = ""
+        try:
+            from assistant.main import state
+            if state.skill_loader:
+                skill_prompts = state.skill_loader.get_active_system_prompts()
+        except ImportError:
+            pass # Circular import or test mode
+
         response: AgentResponse = self.llm.analyze_screen_and_plan(
             task=user_task,
             screenshot_path=screenshot_path,
-            context=context
+            context=context,
+            system_append=skill_prompts
         )
         
         logger.info(f"LLM Thought: {response.thought}")

@@ -35,6 +35,16 @@ from .strategies.base import Strategy, StrategyResult
 from .cache import SelectorCache
 from .verify import Verifier
 
+# W20.3 Learning Integration (Optional)
+try:
+    from assistant.learning.ranker import StrategyRanker
+    from assistant.learning.collector import LearningCollector
+    HAS_LEARNING = True
+except ImportError:
+    HAS_LEARNING = False
+    StrategyRanker = None
+    LearningCollector = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +96,9 @@ class ReliableExecutor:
         config: Optional[ExecutorConfig] = None,
         on_takeover_required: Optional[Callable[[str], None]] = None,
         on_step_complete: Optional[Callable[[StepResult], None]] = None,
+        # W20.3 Learning
+        ranker: Optional["StrategyRanker"] = None,
+        collector: Optional["LearningCollector"] = None,
     ):
         """
         Initialize ReliableExecutor.
@@ -113,6 +126,10 @@ class ReliableExecutor:
         
         self._is_paused = False
         self._pause_reason = ""
+        
+        # W20.3: Learning Components (Optional)
+        self._ranker = ranker
+        self._collector = collector
 
     def execute(self, step: ActionStep) -> StepResult:
         """
@@ -191,12 +208,32 @@ class ReliableExecutor:
                     step.selector = cached
                     logger.debug(f"Using cached selector for {cache_key}")
             
-            # 7. Try strategies in priority order
+            # 7. Try strategies in priority order (W20.3: Use Ranker if available)
             last_error = None
             strategy_used = None
             selector_to_cache = None
             
-            for strategy in self._strategies:
+            # Extract app name from window title for learning
+            app_name = None
+            if current_title:
+                # Simple heuristic: Use the last part of title or process name
+                # In production, we'd get actual process name from Computer
+                parts = current_title.split(" - ")
+                app_name = parts[-1].lower() if parts else "unknown"
+            
+            # W20.3: Reorder strategies based on learned success rates
+            ordered_strategies = self._strategies
+            if self._ranker and app_name:
+                strategy_order = self._ranker.get_strategy_order(app_name)
+                # Reorder self._strategies to match
+                name_to_strat = {s.name: s for s in self._strategies}
+                ordered_strategies = [name_to_strat[n] for n in strategy_order if n in name_to_strat]
+                # Add any strategies not in the order (safety)
+                for s in self._strategies:
+                    if s not in ordered_strategies:
+                        ordered_strategies.append(s)
+
+            for strategy in ordered_strategies:
                 if not strategy.can_handle(step):
                     continue
                 
@@ -250,6 +287,16 @@ class ReliableExecutor:
                             if self._on_step_complete:
                                 self._on_step_complete(step_result)
                             
+                            # W20.3: Record success for learning
+                            if self._collector and app_name:
+                                self._collector.ingest_execution_step(
+                                    app_name=app_name,
+                                    window_title=current_title,
+                                    strategy=strategy_used,
+                                    success=True,
+                                    duration_ms=step_result.duration_ms
+                                )
+                            
                             return step_result
                         
                         else:
@@ -261,6 +308,16 @@ class ReliableExecutor:
             
             # All strategies failed
             self._budget.record_action(success=False)
+            
+            # W20.3: Record failure for learning
+            if self._collector and app_name:
+                self._collector.ingest_execution_step(
+                    app_name=app_name,
+                    window_title=current_title,
+                    strategy=strategy_used or "unknown",
+                    success=False,
+                    duration_ms=int((time.time() - start_time) * 1000)
+                )
             
             return self._make_failed_result(
                 step, start_time,

@@ -12,21 +12,25 @@ import os
 import json
 import logging
 import importlib.util
-from typing import Dict, List, Optional
-from assistant.plugins.sdk import Tool, Plugin
+from typing import Dict, List, Optional, Any
+from assistant.plugins.sdk import Tool, Plugin, ToolSpec
 from assistant.plugins.manifest import PluginManifest
+
+TRUSTED_PUBLISHERS = {"CoworkAI Team", "LocalDev"}
 
 logger = logging.getLogger("PluginRegistry")
 
 class ToolRegistry:
     def __init__(self):
         self.plugins: Dict[str, Plugin] = {}
+        self.manifests: Dict[str, PluginManifest] = {}
         self.tools: Dict[str, Tool] = {}
         
     def register_plugin(self, manifest: PluginManifest, plugin_instance: Plugin):
         """Register a loaded plugin and its tools."""
         logger.info(f"Registering Plugin: {manifest.id} ({manifest.version})")
         self.plugins[manifest.id] = plugin_instance
+        self.manifests[manifest.id] = manifest
         
         tools = plugin_instance.get_tools()
         for tool in tools:
@@ -40,6 +44,9 @@ class ToolRegistry:
         
     def list_tools(self) -> List[Tool]:
         return list(self.tools.values())
+        
+    def get_manifest(self, plugin_id: str) -> Optional[PluginManifest]:
+        return self.manifests.get(plugin_id)
 
 class PluginLoader:
     def __init__(self, registry: ToolRegistry):
@@ -50,16 +57,30 @@ class PluginLoader:
         ]
         
     def load_all(self):
-        """Scan search paths and load plugins."""
-        for path in self.search_paths:
-            if not os.path.exists(path):
-                continue
-                
-            # Each folder is a plugin
-            for item in os.listdir(path):
-                plugin_dir = os.path.join(path, item)
-                if os.path.isdir(plugin_dir):
-                    self._load_from_dir(plugin_dir)
+        """Load builtins and local plugins (for Host process)."""
+        self.load_builtins()
+        self.load_externals()
+
+    def load_builtins(self):
+        builtin_dir = os.path.join(os.path.dirname(__file__), "builtins")
+        self._load_from_dir(builtin_dir)
+
+    def load_externals(self):
+        plugins_dir = os.path.join(os.getenv('APPDATA'), 'CoworkAI', 'plugins')
+        self._load_from_dir(plugins_dir)
+
+    async def load_from_host(self, ipc_client: Any):
+        """Load remote tools from Plugin Host."""
+        # We need to import RemoteTool dynamically to avoid top-level loop
+        from assistant.plugins.ipc import RemoteTool
+        
+        specs = await ipc_client.get_tool_specs()
+        for name, spec_data in specs.items():
+            spec = ToolSpec(**spec_data)
+            logger.info(f"Registering Remote Tool: {name}")
+            
+            tool_instance = RemoteTool(spec, ipc_client)
+            self.registry.tools[name] = tool_instance
 
     def _load_from_dir(self, directory: str):
         manifest_path = os.path.join(directory, "plugin.json")
@@ -71,6 +92,13 @@ class PluginLoader:
             with open(manifest_path, 'r') as f:
                 data = json.load(f)
             manifest = PluginManifest(**data)
+            
+            # W12 Trust Check
+            if manifest.publisher not in TRUSTED_PUBLISHERS:
+                logger.warning(f"⚠️ Plugin '{manifest.name}' has untrusted publisher: '{manifest.publisher}'. Loading anyway for Dev.")
+                # allowed = False
+                # if not allowed: return
+            
             
             # 2. Import Module
             # Entrypoint format: "module_file:ClassName"

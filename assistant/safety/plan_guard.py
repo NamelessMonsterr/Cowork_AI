@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from .session_auth import SessionAuth
+from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
+from assistant.safety.destructive_guard import DestructiveGuard
 
 
 class PlanValidationError(Exception):
@@ -94,6 +96,7 @@ class PlanGuard:
         """
         self._session = session_auth
         self._config = config or PlanGuardConfig()
+        self.destructive_guard = DestructiveGuard()
 
     def validate(self, plan: "ExecutionPlan", allow_high_risk: bool = False) -> None:
         """
@@ -107,6 +110,12 @@ class PlanGuard:
             PlanValidationError: If validation fails
         """
         violations: list[str] = []
+
+        # 0. W15.2 Destructive Actions Check
+        try:
+            self.destructive_guard.validate(plan)
+        except ValueError as e:
+            violations.append(str(e))
         
         # 1. Check step count
         if len(plan.steps) > self._config.max_steps:
@@ -253,20 +262,4 @@ class PlanGuard:
 
 
 # Type hints for plan objects (will be fully defined in ui_contracts)
-class ActionStep(BaseModel):
-    """Placeholder - full definition in ui_contracts/schemas.py"""
-    tool: str
-    args: dict = {}
-    verify: Optional[dict] = None
-    timeout: int = 10
-    retries: int = 3
-    risk_level: str = "low"
 
-
-class ExecutionPlan(BaseModel):
-    """Placeholder - full definition in ui_contracts/schemas.py"""
-    task: str
-    steps: list[ActionStep]
-    estimated_time_sec: int = 0
-    requires_network: bool = False
-    requires_admin: bool = False
