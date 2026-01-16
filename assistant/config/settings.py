@@ -1,170 +1,112 @@
 """
-Application Settings - Centralized configuration.
-
-Uses pydantic-settings for environment variable loading.
-Configuration can be overridden via .env file or environment variables.
+P1.1 - Application Settings (Pydantic).
+Single validated configuration for the entire application.
 """
-
 import os
-from functools import lru_cache
+import json
+import logging
 from typing import Optional, List
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field
+from pathlib import Path
 
+logger = logging.getLogger("Settings")
 
-class Settings(BaseSettings):
-    """
-    Application settings loaded from environment variables.
+# Import paths after defining to avoid circular import
+def _get_settings_path():
+    from assistant.config.paths import get_settings_path
+    return get_settings_path()
+
+class SafetySettings(BaseModel):
+    """Safety-related configuration."""
+    session_ttl_minutes: int = Field(default=30, ge=1, le=120)
+    require_confirmation_for_destructive: bool = True
+    max_actions_per_session: int = Field(default=100, ge=10, le=1000)
+    enable_kill_switch: bool = True
+    kill_switch_hotkey: str = "ctrl+shift+escape"
+
+class PluginSettings(BaseModel):
+    """Plugin system configuration."""
+    dev_mode: bool = False
+    allow_unsigned: bool = False
+    sandbox_enabled: bool = True
+    host_port: int = Field(default=8766, ge=1024, le=65535)
+
+class CloudSettings(BaseModel):
+    """Cloud sync configuration."""
+    enabled: bool = False
+    sync_interval_minutes: int = Field(default=15, ge=5, le=60)
+    sync_plugins: bool = True
+    sync_skills: bool = True
+    sync_settings: bool = True
+
+class LearningSettings(BaseModel):
+    """Learning system configuration."""
+    enabled: bool = True
+    min_samples_for_ranking: int = Field(default=5, ge=1, le=50)
+    exclude_sensitive_windows: bool = True
+
+class VoiceSettings(BaseModel):
+    """Voice input configuration."""
+    mode: str = Field(default="push_to_talk", pattern="^(push_to_talk|wake_word|always_on)$")
+    wake_word: str = "flash"
+    push_to_talk_key: str = "ctrl+space"
+
+class ServerSettings(BaseModel):
+    """Server/network configuration."""
+    host: str = "127.0.0.1"  # Production: localhost only
+    port: int = Field(default=8765, ge=1024, le=65535)
+    cors_enabled: bool = False  # Disabled in production
+    cors_origins: List[str] = ["http://localhost:3000"]  # Dev only
+
+class AppSettings(BaseModel):
+    """Root application settings."""
+    version: str = "1.0.0"
     
-    All settings can be overridden via:
-    - Environment variables (prefix: COWORK_)
-    - .env file in project root
-    """
-
-    # ==================== General ====================
-    app_name: str = "Cowork AI Assistant"
-    debug: bool = False
-    log_level: str = "INFO"
-
-    # ==================== Server ====================
-    server_host: str = "127.0.0.1"
-    server_port: int = 8765
-
-    # ==================== OpenAI ====================
-    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
-    openai_org: Optional[str] = Field(default=None, alias="OPENAI_ORG")
-    openai_model: str = "computer-use-preview"
-
-    # ==================== Session ====================
-    session_ttl_minutes: int = 30
-    session_timeout_on_idle_minutes: int = 5
-
-    # ==================== Safety ====================
-    # Allowed applications (comma-separated)
-    allowed_apps: str = "notepad,chrome,vscode,explorer,terminal,edge,firefox,code"
+    # Sub-configs
+    safety: SafetySettings = Field(default_factory=SafetySettings)
+    plugins: PluginSettings = Field(default_factory=PluginSettings)
+    cloud: CloudSettings = Field(default_factory=CloudSettings)
+    learning: LearningSettings = Field(default_factory=LearningSettings)
+    voice: VoiceSettings = Field(default_factory=VoiceSettings)
+    server: ServerSettings = Field(default_factory=ServerSettings)
     
-    # Allowed folders (comma-separated)
-    allowed_folders: str = "Documents,Downloads,Desktop"
+    # UI preferences
+    theme: str = "dark"
+    show_step_details: bool = True
     
-    # Blocked apps that should never be automated
-    blocked_apps: str = "regedit,cmd,powershell,taskmgr,mmc,gpedit,wt"
-
-    # ==================== Executor ====================
-    max_actions_per_task: int = 50
-    max_retries_per_task: int = 20
-    max_runtime_seconds: int = 180
-    max_consecutive_failures: int = 5
-    max_plan_steps: int = 25
-
-    # ==================== Screen Capture ====================
-    capture_fps_planning: int = 5
-    capture_fps_execution: int = 15
-    capture_fps_idle: int = 1
-    use_dxcam: bool = False  # Set True if dxcam is installed
-
-    # ==================== Voice ====================
-    voice_enabled: bool = True
-    whisper_model: str = "large-v3-turbo"
-    whisper_device: str = "auto"  # "cpu", "cuda", or "auto"
-    tts_voice: str = "en-US-AriaNeural"
-    tts_rate: str = "+0%"
-
-    # ==================== Logging ====================
-    log_actions: bool = True
-    log_screenshots: bool = True
-    log_retention_days: int = 7
-    log_directory: str = "logs"
-
-    # ==================== Cache ====================
-    selector_cache_size: int = 100
-    selector_cache_ttl_seconds: int = 300
-
-    # ==================== Kill Switch ====================
-    kill_switch_hotkey: str = "ctrl+shift+q"
-
-    class Config:
-        env_prefix = "COWORK_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
-
-    def get_allowed_apps_list(self) -> List[str]:
-        """Get allowed apps as list."""
-        return [app.strip().lower() for app in self.allowed_apps.split(",") if app.strip()]
-
-    def get_allowed_folders_list(self) -> List[str]:
-        """Get allowed folders as list."""
-        return [folder.strip() for folder in self.allowed_folders.split(",") if folder.strip()]
-
-    def get_blocked_apps_list(self) -> List[str]:
-        """Get blocked apps as list."""
-        return [app.strip().lower() for app in self.blocked_apps.split(",") if app.strip()]
-
-
-@lru_cache()
-def get_settings() -> Settings:
-    """
-    Get cached settings instance.
+    @classmethod
+    def load(cls) -> "AppSettings":
+        """Load settings from disk or return defaults."""
+        try:
+            path = _get_settings_path()
+            if path.exists():
+                with open(path, 'r') as f:
+                    data = json.load(f)
+                return cls(**data)
+        except Exception as e:
+            logger.warning(f"Failed to load settings: {e}. Using defaults.")
+        return cls()
     
-    Uses lru_cache to avoid re-reading env vars on every call.
-    """
-    return Settings()
+    def save(self):
+        """Persist settings to disk."""
+        path = _get_settings_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(self.model_dump(), f, indent=2)
+        logger.info(f"Settings saved to {path}")
 
+# Global singleton
+_settings: Optional[AppSettings] = None
 
-# Default permissions config (exported as JSON-compatible dict)
-DEFAULT_PERMISSIONS = {
-    "allowed_apps": [
-        "notepad",
-        "chrome",
-        "edge",
-        "firefox",
-        "vscode",
-        "code",
-        "explorer",
-        "terminal",
-        "calculator",
-        "paint",
-    ],
-    "blocked_apps": [
-        "regedit",
-        "cmd",
-        "powershell",
-        "wt",
-        "taskmgr",
-        "mmc",
-        "gpedit",
-        "secpol",
-    ],
-    "allowed_folders": [
-        "Documents",
-        "Downloads",
-        "Desktop",
-        "Pictures",
-        "Videos",
-        "Music",
-    ],
-    "blocked_folders": [
-        "Windows",
-        "Program Files",
-        "Program Files (x86)",
-        "System32",
-        "AppData",
-    ],
-    "blocked_domains": [
-        "*.exe",
-        "registry",
-        "admin",
-    ],
-    "sensitive_patterns": [
-        "password",
-        "sign in",
-        "login",
-        "captcha",
-        "otp",
-        "verification",
-        "2fa",
-        "two-factor",
-        "user account control",
-        "windows security",
-    ],
-}
+def get_settings() -> AppSettings:
+    """Get the application settings singleton."""
+    global _settings
+    if _settings is None:
+        _settings = AppSettings.load()
+    return _settings
+
+def reload_settings():
+    """Force reload settings from disk."""
+    global _settings
+    _settings = AppSettings.load()
+    return _settings

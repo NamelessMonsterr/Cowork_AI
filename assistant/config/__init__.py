@@ -1,17 +1,14 @@
-"""Configuration module for Cowork AI Assistant."""
-
-from .settings import Settings, get_settings
-from .manager import (
-    AppConfig, UIConfig, SafetyConfig, VoiceConfig, PerformanceConfig,
-    ConfigManager, get_config,
+"""
+Flash Assistant Configuration Package.
+"""
+from assistant.config.paths import (
+    get_appdata_dir,
+    get_logs_dir,
+    get_plugins_dir,
+    get_skills_dir,
+    get_learning_db_path,
+    get_sync_db_path,
+    get_settings_path,
+    ensure_dirs
 )
-from .notifications import (
-    Notification, NotificationType, NotificationManager, get_notifications,
-)
-
-__all__ = [
-    "Settings", "get_settings",
-    "AppConfig", "UIConfig", "SafetyConfig", "VoiceConfig", "PerformanceConfig",
-    "ConfigManager", "get_config",
-    "Notification", "NotificationType", "NotificationManager", "get_notifications",
-]
+from assistant.config.settings import get_settings, reload_settings, AppSettings

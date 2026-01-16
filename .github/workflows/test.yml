@@ -1,0 +1,69 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Fast lint on Ubuntu
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check assistant/ --ignore E501
+
+  # Unit tests on Ubuntu (fast)
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pydantic
+          pip install -e . || true
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v --tb=short
+        env:
+          COWORK_TEST_MODE: "1"
+
+  # Integration tests on Windows (slower, but necessary)
+  integration-tests:
+    runs-on: windows-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run integration tests
+        run: pytest tests/integration/ -v --tb=short
+        env:
+          COWORK_TEST_MODE: "1"
+        continue-on-error: true # Integration tests may need Windows-specific setup

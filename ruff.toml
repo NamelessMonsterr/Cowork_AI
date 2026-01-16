@@ -1,0 +1,27 @@
+# Ruff Configuration for Flash Assistant
+# https://docs.astral.sh/ruff/
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "W",      # pycodestyle warnings
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+]
+
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults
+    "B905",   # zip without explicit strict
+]
+
+[lint.per-file-ignores]
+"test_phases/*" = ["E", "F", "I"]  # Less strict for test scripts
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

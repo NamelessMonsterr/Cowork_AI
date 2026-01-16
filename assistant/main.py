@@ -1,6 +1,6 @@
 """
-Flash AI Assistant - Main Application Entry Point.
-Wired with Gold Standard Architecture: Planner -> Guard -> Executor -> Strategies.
+Flash Assistant - Main Application Entry Point.
+Production-grade architecture: Planner -> Guard -> Executor -> Strategies.
 """
 
 import logging
@@ -16,6 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sys
 import signal
+
+# --- Config (P1) ---
+from assistant.config.paths import get_appdata_dir, get_learning_db_path, get_sync_db_path, get_skills_dir, ensure_dirs
+from assistant.config.settings import get_settings, AppSettings
+from assistant.config.startup import StartupValidator
+from assistant.config.port import write_port_file, clear_port_file
 
 # --- Core Modules ---
 from assistant.session_auth import SessionAuth
@@ -47,29 +53,27 @@ from assistant.plugins.registry import ToolRegistry, PluginLoader
 from assistant.plugins.lifecycle import PluginStateManager
 from assistant.plugins.permissions import PermissionManager
 from assistant.plugins.secrets import PluginSecrets
-
 from assistant.plugins.router import ToolRouter
+from assistant.plugins.ipc import IpcClient
 from assistant.api.plugins import router as plugins_router
 from assistant.api.support import router as support_router
-from assistant.api.support import router as support_router
-from assistant.telemetry.client import TelemetryClient
 from assistant.api.team import router as team_router
+from assistant.cloud.auth import router as auth_router
+
+# --- Team/Cloud/Learning ---
+from assistant.telemetry.client import TelemetryClient
 from assistant.team.discovery import PeerDiscovery
 from assistant.skills.loader import SkillLoader
-from assistant.skills.loader import SkillLoader
-from assistant.cloud.auth import router as auth_router
-from assistant.plugins.ipc import IpcClient
 from assistant.cloud.local_store import LocalSyncStore
 from assistant.cloud.crypto import SyncCrypto
 from assistant.cloud.sync_engine import SyncEngine
-
-# --- Learning (W20) ---
 from assistant.learning.store import LearningStore
 from assistant.learning.collector import LearningCollector
 from assistant.learning.ranker import StrategyRanker
 
 # Host Process Handle
 host_process = None
+start_time = time.time()  # For uptime tracking
 
 # Setup Logging
 logging.basicConfig(
@@ -135,6 +139,10 @@ class AppState:
         
         # Cloud Sync (W19)
         self.sync_engine: Optional[SyncEngine] = None
+        
+        # Learning (W20)
+        self.learning_ranker: Optional[StrategyRanker] = None
+        self.learning_collector: Optional[LearningCollector] = None
 
         # Runtime
         self.current_task_id: Optional[str] = None
@@ -157,7 +165,19 @@ state = AppState()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing Flash AI Agent (Gold Standard Architecture)...")
+    logger.info("Initializing Flash Assistant (Production Architecture)...")
+    
+    # P1.2: Run startup validation
+    validator = StartupValidator()
+    if not validator.validate_all():
+        logger.critical("Startup validation failed!")
+        for err in validator.errors:
+            logger.critical(f"  [{err.component}] {err.error}")
+        sys.exit(1)
+    
+    # P2.2: Write port file for Electron discovery
+    settings = get_settings()
+    write_port_file(settings.server.port)
     
     try:
         # 1. Computer & Environment (Senses)
@@ -321,6 +341,9 @@ async def lifespan(app: FastAPI):
         
     if state.team_discovery:
         state.team_discovery.stop()
+    
+    # P2.2: Clear port file on shutdown
+    clear_port_file()
 
 def handle_unsafe_environment(env_state, reason):
     """Callback from EnvironmentMonitor (Thread-safe wrapper needed)."""
@@ -338,9 +361,21 @@ def handle_step_complete_sync(result: StepResult):
 
 # ==================== FastAPI App ====================
 
-app = FastAPI(title="Flash AI", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-app.include_router(plugins_router)
+# Load settings for CORS config
+_settings = get_settings()
+
+app = FastAPI(title="Flash Assistant", lifespan=lifespan)
+
+# P1.4: Strict CORS - Only allow dev origins, disabled in production
+if _settings.server.cors_enabled:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_settings.server.cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+        allow_credentials=True
+    )
+
 app.include_router(plugins_router)
 app.include_router(support_router)
 app.include_router(team_router)
@@ -468,7 +503,33 @@ async def run_plan_execution(task: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "mode": "gold_standard"}
+    """P1.3: Stable health endpoint for Electron watchdog."""
+    return {
+        "status": "ok",
+        "uptime_sec": int(time.time() - start_time),
+        "session_active": state.session_auth.check()
+    }
+
+@app.get("/version")
+async def get_version():
+    """P1.3: Version endpoint."""
+    return {
+        "backend": "1.0.0",
+        "schema": 2,
+        "build": "2026-01-16"
+    }
+
+@app.get("/capabilities")
+async def get_capabilities():
+    """P1.3: Capabilities endpoint."""
+    settings = get_settings()
+    return {
+        "voice": bool(state.stt),
+        "plugins": True,
+        "cloud_sync": settings.cloud.enabled,
+        "learning": settings.learning.enabled,
+        "team_mode": bool(state.team_discovery)
+    }
 
 @app.get("/permission/status")
 async def get_permission_status():
