@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from typing import Optional, Callable, Literal
 from enum import Enum
 
+from .uac import is_secure_desktop
+
 
 class EnvironmentState(str, Enum):
     """Current environment state."""
@@ -158,45 +160,8 @@ class EnvironmentMonitor:
     def _is_secure_desktop(self) -> bool:
         """
         Check if we're on a secure desktop (UAC, lock screen, etc.).
-        
-        The secure desktop is a separate desktop that UAC and the lock screen use.
-        Automation is NOT allowed on the secure desktop.
         """
-        try:
-            # Try to open the input desktop
-            # If we can't, we're probably on the secure desktop
-            hdesk = self._user32.OpenInputDesktop(0, False, self.DESKTOP_READOBJECTS)
-            
-            if hdesk == 0:
-                # Can't open input desktop - likely secure desktop
-                return True
-            
-            # Get the name of the current input desktop
-            name_buffer = ctypes.create_unicode_buffer(256)
-            length = ctypes.c_ulong()
-            
-            result = self._user32.GetUserObjectInformationW(
-                hdesk,
-                2,  # UOI_NAME
-                name_buffer,
-                256 * 2,
-                ctypes.byref(length)
-            )
-            
-            self._user32.CloseDesktop(hdesk)
-            
-            if result:
-                desktop_name = name_buffer.value.lower()
-                # "default" is the normal interactive desktop
-                # "winlogon" is the secure desktop (UAC, lock screen)
-                if "winlogon" in desktop_name or "screensaver" in desktop_name:
-                    return True
-            
-            return False
-            
-        except Exception:
-            # If we can't check, assume safe but log
-            return False
+        return is_secure_desktop()
 
     def _is_workstation_locked(self) -> bool:
         """Check if the workstation is locked."""

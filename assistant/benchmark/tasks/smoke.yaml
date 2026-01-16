@@ -1,0 +1,39 @@
+id: smoke_notepad_basics
+name: "Notepad Smoke Test"
+category: desktop_uia
+risk: low
+iterations: 1
+preconditions:
+  require_session: true
+plan:
+  task: "Open Notepad and type 'Benchmark V1'"
+  steps:
+    - tool: open_app
+      args: { app_name: "notepad.exe" }
+      verify: { type: process_running, value: "notepad.exe", timeout: 5 }
+    - tool: type_text
+      args: { text: "Benchmark V1" }
+      verify: { type: text_present_ocr, value: "Benchmark V1", timeout: 5 }
+reset:
+  close_apps: ["notepad.exe"]
+---
+id: calc_vision_check
+name: "Calculator Visual Check"
+category: vision
+risk: low
+iterations: 1
+preconditions:
+  require_session: true
+plan:
+  task: "Open Calculator and verify 5 key is present"
+  steps:
+    - tool: open_app
+      args: { app_name: "calc.exe" }
+      verify: { type: process_running, value: "calc.exe", timeout: 5 }
+    - tool: wait
+      args: { duration: 1 }
+    - tool: find_on_screen
+      args: { text: "5" } # Vision Step
+      verify: { type: exists, timeout: 2 }
+reset:
+  close_apps: ["calc.exe"]

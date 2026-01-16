@@ -1,97 +1,129 @@
-# ⚡ Flash AI Assistant
+# ⚡ CoworkAI Assistant
 
-> **The High-Performance, Voice-Controlled Desktop Agent**
+> **The Production-Grade, Voice-Controlled Desktop Agent Protocol**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![React](https://img.shields.io/badge/react-18.0+-61DAFB.svg)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
+[![Status](https://img.shields.io/badge/status-production--ready-green.svg)](./README.md)
+[![Platform](https://img.shields.io/badge/platform-windows-win.svg)](https://www.microsoft.com/windows)
 
-Flash is a next-generation desktop assistant that combines **local speed** with **cloud intelligence**. It sees your screen, hears your voice, and executes complex tasks instantly.
+CoworkAI is a robust agentic platform that automates complex desktop workflows. It combines LLM planning with a self-healing execution engine, secure sandboxing, and an extensible plugin architecture.
 
 ---
 
-## ✨ Capabilities
+## ✨ Key Features (W1-W12)
 
-| Feature                  | Description                                                     | Speed              |
-| :----------------------- | :-------------------------------------------------------------- | :----------------- |
-| **⚡ Fast Actions**      | Open apps, take screenshots, lock screen, control media.        | **<100ms** (Local) |
-| **🧠 Deep Intelligence** | "Summarize this window", "Write a poem", "Analyze this error".  | Smart (GPT-4o)     |
-| **👁️ Computer Vision**   | Analyzes screen context to understand what you're looking at.   | Integrated         |
-| **🗣️ Voice I/O**         | Full-duplex conversation. Speaks back to you with frontend TTS. | Real-time          |
-| **💻 System Control**    | Execute ANY PowerShell command ("Create folder", "Check IP").   | Power User         |
+| Feature                  | Description                                                                         | Architecture               |
+| :----------------------- | :---------------------------------------------------------------------------------- | :------------------------- |
+| **🧠 Reliable Planning** | Breaks tasks into verified actions. Uses `PlanGuard` to prevent unsafe operations.  | `Planner` + `LLM`          |
+| **🛡️ Self-Healing**      | Detects execution failures (popups, UI changes) and auto-repairs using LLM logic.   | `RecoveryManager`          |
+| **👁️ Computer Vision**   | Hybrid UIA + Vision strategy to interact with non-standard apps (Paint, Games).     | `VisionStrategy`           |
+| **⚙️ Plugin Platform**   | Extensible SDK with strict permission scopes, secrets isolation, and audit logging. | `ToolRouter` + `Registry`  |
+| **🧪 Reliability**       | Includes a full 50-task benchmark suite to validate stability before release.       | `BenchmarkRunner`          |
+| **📦 Production Core**   | Single-instance lock, Watchdog recovery, and signed Installer packaging.            | `PyInstaller` + `Electron` |
 
-## 🚀 Quick Start
+---
+
+## 🚀 Quick Start (Dev Mode)
 
 ### 1. Prerequisites
 
-- Python 3.10+
-- Node.js 16+
-- OpenAI API Key (Set in `assistant/agent/llm.py` or Environment)
+- Python 3.11+
+- Node.js 18+
+- OpenAI API Key (Set `OPENAI_API_KEY` env var)
 
 ### 2. Backend Setup
 
 ```bash
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Start the Brain (Backend)
-python -m uvicorn assistant.main:app --port 8765
+# Start the Backend (Port 8765)
+python assistant/entrypoints/backend_main.py
 ```
 
 ### 3. Frontend Setup
 
 ```bash
-# Open a new terminal
 cd ui
-
-# Install Node dependencies
 npm install
-
-# Build and Run
 npm start
 ```
 
 ---
 
-## 🎮 Usage Guide
+## 🔌 Plugin System
 
-**Click the Glowing Core** to activate.
+CoworkAI supports 3rd-party tools via `plugins/`.
 
-### Voice Commands
+### Built-in Plugins
 
-- **"Open Notepad"** -> Launches Notepad instantly.
-- **"Take a screenshot"** -> Captures screen to `screenshots/`.
-- **"Play music"** -> Toggles Spotify/YouTube playback.
-- **"Hello"** -> Greets you back.
+- **Clipboard Manager:** Read/Write system clipboard (`cowork.clipboard`).
 
-### Complex Requests
+### Creating a Plugin
 
-- **"Open Notepad and type a story about space."**
-- **"Create a folder named 'Top Secret' on the Desktop."**
-- **"What does the text on my screen say?"**
+Place a folder in `%APPDATA%/CoworkAI/plugins/my_plugin/` with:
+
+**plugin.json**
+
+```json
+{
+  "id": "my.plugin",
+  "name": "My Plugin",
+  "entrypoint": "main:MyPlugin",
+  "permissions_required": ["network:google.com", "notifications"]
+}
+```
+
+**main.py**
+
+```python
+from assistant.plugins.sdk import Plugin, Tool
+
+class MyPlugin(Plugin):
+    def get_tools(self):
+        return [MyTool()]
+```
 
 ---
 
-## 🛠️ Configuration
+## 🧪 Reliability Benchmarks
 
-| Component         | File                         | Description                              |
-| :---------------- | :--------------------------- | :--------------------------------------- |
-| **Local Actions** | `assistant/agent/actions.py` | Add new fast Regex commands here.        |
-| **LLM Logic**     | `assistant/agent/llm.py`     | Configure GPT models and Fallback logic. |
-| **UI Theme**      | `ui/src/App.css`             | Customize the futuristic interface.      |
+Validate system stability using the built-in benchmark suite.
+
+```bash
+# Run Smoke Test (Safe Mode)
+$env:COWORK_BENCHMARK_MODE="1"
+python -m assistant.benchmark.cli --suite assistant/benchmark/tasks/smoke.yaml --repeat 5
+```
 
 ---
 
-## 4. Recommendations & Future Work
+## 📦 Building for Production
 
-### ⚠️ Technical Debt
+Create a standalone Windows Installer (`.exe`).
 
-- **Clicking Accuracy:** The `click` action is primitive (placeholder). To make "Click the Send button" work, we need coordinate mapping (using an accessibility API or vision model like YOLO/UI-Ref).
-- **STT Latency:** Currently using `listen_and_transcribe` which records for fixed blocks. A streaming STT (WebSockets for audio) would feel much snappier.
-- **Security:** The `run_command` capability is unrestricted. In a production shared environment, this would need a sandbox or user confirmation prompt for high-risk commands.
+1. **Build Backend:** `python backend/build_backend.py`
+2. **Package UI + Installer:** `cd ui && npm run dist`
+
+Output: `ui/dist/CoworkAI-Setup-1.0.0.exe`
+
+---
+
+## 📄 Architecture & Modules
+
+| Module                    | Description                                               |
+| :------------------------ | :-------------------------------------------------------- |
+| **`assistant/agent`**     | Core Logic: Planner, PlanGuard, LLM Client.               |
+| **`assistant/executor`**  | Reliable execution engine with Verifiers and Retry logic. |
+| **`assistant/recovery`**  | Self-healing strategies and Failure Classification.       |
+| **`assistant/safety`**    | Permission gating (UAC, Auth) and Environment Monitoring. |
+| **`assistant/computer`**  | Low-level OS control (Windows API, OCR, Input Injection). |
+| **`assistant/plugins`**   | Extension platform: SDK, Registry, Router, Sandbox.       |
+| **`assistant/benchmark`** | QA suite for automated reliability testing.               |
 
 ---
 
 ## 📄 License
 
-MIT © 2024 Flash AI Project
+MIT © 2026 CoworkAI Project

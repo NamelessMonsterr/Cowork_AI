@@ -1,15 +1,19 @@
-"""Execution strategies for different UI automation approaches."""
+"""
+Execution Strategies.
 
-from .base import Strategy, StrategyResult
-from .coords import CoordsStrategy
+Export standard strategies for the executor chain.
+Priority Order:
+1. UIA (Native Object Control)
+2. Vision (Template Match / OCR)
+3. Coords (Fallback)
+"""
+
 from .uia import UIAStrategy
 from .vision import VisionStrategy
+from .coords import CoordsStrategy
+try:
+    from .ocr import OCRStrategy
+except ImportError:
+    pass
 
-__all__ = [
-    "Strategy",
-    "StrategyResult",
-    "CoordsStrategy",
-    "UIAStrategy",
-    "VisionStrategy",
-]
-
+__all__ = ["UIAStrategy", "VisionStrategy", "CoordsStrategy"]

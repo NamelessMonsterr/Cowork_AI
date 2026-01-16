@@ -10,12 +10,48 @@ function App() {
   const [activePanel, setActivePanel] = useState(null); // 'settings', 'history', 'help', or null
   const [history, setHistory] = useState([]);
   const [sessionActive, setSessionActive] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [showSessionModal, setShowSessionModal] = useState(false);
 
-  // Update time
+  // Update time and format helper
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Poll Session Status
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch(`${API_URL}/permission/status`);
+        const data = await res.json();
+        setSessionActive(data.allowed);
+        setTimeLeft(data.time_remaining);
+        
+        // Auto-close modal if active
+        if (data.allowed) setShowSessionModal(false);
+      } catch (err) {
+        console.warn("Session check failed", err);
+      }
+    };
+    
+    const interval = setInterval(checkSession, 5000); // Check every 5s
+    checkSession(); // Initial check
+    return () => clearInterval(interval);
+  }, []);
+
+  // Countdown Timer
+  useEffect(() => {
+    if (!sessionActive || timeLeft <= 0) return;
+    const timer = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [sessionActive, timeLeft]);
 
   // WebSocket with reconnection
   useEffect(() => {
@@ -55,6 +91,8 @@ function App() {
           setSessionActive(false);
           setStatus("I AM VENGEANCE");
           setTranscript(msg.data?.reason || "Session expired. Click core to restart.");
+          // Show Modal
+          setShowSessionModal(true);
         }
       };
 
@@ -116,6 +154,19 @@ function App() {
     setActivePanel(activePanel === panel ? null : panel);
   };
 
+  const handleRevoke = async () => {
+    try {
+      await fetch(`${API_URL}/permission/revoke`, { method: 'POST' });
+      setSessionActive(false);
+      setTimeLeft(0);
+      setStatus("I AM VENGEANCE");
+      setTranscript("Session revoked.");
+      setActivePanel(null); // Close settings
+    } catch (err) {
+      console.error("Revoke failed:", err);
+    }
+  };
+
   return (
     <div className="app">
       {/* Scan Line Effect */}
@@ -133,7 +184,11 @@ function App() {
         <div className="header-info">
           <div>TIME: <span>{time}</span></div>
           <div>STATUS: <span>{status}</span></div>
-          <div>SESSION: <span className={sessionActive ? 'session-active' : 'session-inactive'}>{sessionActive ? 'ACTIVE' : 'INACTIVE'}</span></div>
+          <div>
+             SESSION: <span className={sessionActive ? 'session-active' : 'session-inactive'}>
+               {sessionActive ? `ACTIVE (${formatTime(timeLeft)})` : 'INACTIVE'}
+             </span>
+          </div>
         </div>
       </header>
 
@@ -208,6 +263,22 @@ function App() {
                 <label>Backend URL</label>
                 <span className="setting-value">localhost:8765</span>
               </div>
+              <div className="setting-item" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                <label>Session Control</label>
+                <button 
+                  onClick={handleRevoke}
+                  style={{ 
+                    background: 'rgba(255, 50, 50, 0.2)', 
+                    color: '#ff4444', 
+                    border: '1px solid #ff4444',
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  REVOKE SESSION
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -265,6 +336,30 @@ function App() {
                 <h3>🦸 About Flash</h3>
                 <p>Flash is your AI-powered desktop assistant, ready to execute voice commands at superhuman speed.</p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Expired Modal */}
+      {showSessionModal && (
+        <div className="panel-overlay">
+          <div className="panel" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="panel-header" style={{ justifyContent: 'center' }}>
+              <h2 style={{ color: '#ff4444' }}>⚠️ SESSION EXPIRED</h2>
+            </div>
+            <div className="panel-content">
+              <p>Your secure session has timed out or was revoked.</p>
+              <br/>
+              <p>Click the <strong>Core</strong> to re-authenticate.</p>
+              <br/>
+              <button 
+                className="footer-btn active" 
+                style={{ width: '100%', marginTop: '10px' }}
+                onClick={() => setShowSessionModal(false)}
+              >
+                CLOSE
+              </button>
             </div>
           </div>
         </div>

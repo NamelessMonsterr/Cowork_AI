@@ -177,11 +177,19 @@ class ReliableExecutor:
             screenshot_before = before_state.get("screenshot")
             
             # 6. Check selector cache
+            cache_key = None
             if self._config.use_selector_cache:
-                cached = self._cache.get(step.id)
+                current_title = ""
+                if hasattr(self._verifier, "_computer") and self._verifier._computer:
+                    win = self._verifier._computer.get_active_window()
+                    if win:
+                        current_title = win.title
+                        
+                cache_key = self._cache.generate_key(step.tool, step.args, current_title)
+                cached = self._cache.get(cache_key)
                 if cached:
                     step.selector = cached
-                    logger.debug(f"Using cached selector for step {step.id}")
+                    logger.debug(f"Using cached selector for {cache_key}")
             
             # 7. Try strategies in priority order
             last_error = None
@@ -219,13 +227,8 @@ class ReliableExecutor:
                             self._budget.record_action(success=True, was_retry=attempt > 0)
                             
                             # Cache selector
-                            if selector_to_cache and self._config.use_selector_cache:
-                                self._cache.put(
-                                    step.id,
-                                    selector_to_cache,
-                                    step_id=step.id,
-                                    tool=step.tool,
-                                )
+                            if selector_to_cache and self._config.use_selector_cache and cache_key:
+                                self._cache.set(cache_key, selector_to_cache)
                             
                             # Capture after screenshot
                             if self._config.capture_screenshots:

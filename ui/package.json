@@ -12,16 +12,46 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "concurrently": "^8.0.0",
-    "wait-on": "^7.0.0"
+    "wait-on": "^7.0.0",
+    "electron-builder": "^24.6.4",
+    "electron-updater": "^6.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "electron": "electron .",
+    "dist": "npm run build && electron-builder",
     "dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\""
   },
   "browserslist": {
     "production": [">0.2%", "not dead"],
     "development": ["last 1 chrome version"]
+  },
+  "build": {
+    "appId": "com.cowork.aiassistant",
+    "productName": "CoworkAI",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/electron.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/assistant-backend.exe",
+        "to": "backend/assistant-backend.exe"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "win": {
+      "target": ["nsis", "zip"],
+      "requestedExecutionLevel": "asInvoker"
+    }
   }
 }

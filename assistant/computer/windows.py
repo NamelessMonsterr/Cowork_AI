@@ -1,12 +1,6 @@
 """
 Windows Computer Control Module - PRODUCTION IMPLEMENTATION
-
-Provides low-level access to Windows OS:
-- Process management (Launch, Kill)
-- Window management (Find, Focus, Resize)
-- Input simulation (Mouse, Keyboard)
-- Screen capture
-- Safe execution contexts
+Provides low-level access to Windows OS: Process, Window, Input (SendInput), Screen Capture (DXCam).
 """
 
 import os
@@ -17,20 +11,25 @@ import ctypes
 import pyautogui
 import keyboard
 from typing import Optional, List, Dict, Any, Tuple
-from pathlib import Path
 from dataclasses import dataclass
+
+from .input_protocol import (
+    INPUT, INPUT_UNION, MOUSEINPUT, KEYBDINPUT,
+    INPUT_MOUSE, INPUT_KEYBOARD,
+    MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP
+)
+from assistant.screen.capture import ScreenCapture
 
 try:
     import pywinauto
-    from pywinauto.application import Application
     from pywinauto import Desktop
 except ImportError:
-    # Fallback or error, but for production we expect these
     pass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Computer")
-
 
 @dataclass
 class WindowInfo:
@@ -40,150 +39,166 @@ class WindowInfo:
     rect: Tuple[int, int, int, int]
     is_active: bool
 
-
 class WindowsComputer:
-    """
-    Production-grade Windows Automation Controller.
-    
-    Uses pywinauto for reliable handle-based control, falling back
-    to low-level Win32 APIs where necessary.
-    """
-
     def __init__(self):
-        self.desktop = Desktop(backend="uia")
-        self._active_app: Optional[Application] = None
+        self.screen_capture = ScreenCapture(monitor_idx=0)
+        self.width, self.height = pyautogui.size()
+        self.user32 = ctypes.windll.user32
         
-        # Safety: Fail-safe corner
+        # Safety Callback (to be set by SessionAuth)
+        self.session_verifier = None
+        
+        # Fail-safes
         pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = 0.1
 
-    def launch_app(self, app_name: str) -> bool:
-        """
-        Launch an application by name or path.
-        
-        Args:
-            app_name: "notepad", "chrome", or full path "C:\\...\\app.exe"
-        """
-        logger.info(f"Launching app: {app_name}")
-        try:
-            # Common shortcuts
-            shortcuts = {
-                "notepad": "notepad.exe",
-                "calc": "calc.exe",
-                "explorer": "explorer.exe",
-                "cmd": "cmd.exe",
-                "terminal": "wt.exe",
-                "chrome": "chrome.exe",  # Assumes in PATH
-                "edge": "msedge.exe"
-            }
-            
-            executable = shortcuts.get(app_name.lower(), app_name)
-            
-            # Start process non-blocking
-            subprocess.Popen(executable, shell=True)
-            
-            # Wait for any window to appear (heuristic)
-            time.sleep(2) 
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to launch {app_name}: {e}")
-            return False
+    def set_session_verifier(self, callback):
+        """Register a callback that raises PermissionError if session invalid."""
+        self.session_verifier = callback
 
-    def run_shell_command(self, command: str) -> bool:
-        """
-        Execute an arbitrary shell command (PowerShell/CMD).
-        """
-        logger.info(f"Running command: {command}")
-        try:
-            # Use PowerShell for more power
-            full_cmd = f'powershell.exe -Command "{command}"'
-            subprocess.Popen(full_cmd, shell=True)
-            return True
-        except Exception as e:
-            logger.error(f"Command execution failed: {e}")
-            return False
+    def _ensure_permission(self):
+        if self.session_verifier:
+            self.session_verifier()
+
+    def set_fps(self, fps: float):
+        """Set capture target FPS (W7.1)."""
+        self.screen_capture.set_target_fps(fps)
 
     def get_active_window(self) -> Optional[WindowInfo]:
-        """Get details about the currently focused window."""
-        try:
-            hwnd = ctypes.windll.user32.GetForegroundWindow()
-            length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
-            buff = ctypes.create_unicode_buffer(length + 1)
-            ctypes.windll.user32.GetWindowTextW(hwnd, buff, length + 1)
-            title = buff.value
-            
-            pid = ctypes.c_ulong()
-            ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            
-            rect = ctypes.wintypes.RECT()
-            ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-            
-            return WindowInfo(
-                title=title,
-                handle=hwnd,
-                process_id=pid.value,
-                rect=(rect.left, rect.top, rect.right, rect.bottom),
-                is_active=True
-            )
-        except Exception as e:
-            logger.error(f"Error getting active window: {e}")
+        """Get information about the currently active window."""
+        hwnd = self.user32.GetForegroundWindow()
+        if not hwnd:
             return None
+            
+        length = self.user32.GetWindowTextLengthW(hwnd)
+        buff = ctypes.create_unicode_buffer(length + 1)
+        self.user32.GetWindowTextW(hwnd, buff, length + 1)
+        title = buff.value
+        
+        # Get Process ID
+        pid = ctypes.c_ulong()
+        self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        
+        # Get Rect
+        rect = ctypes.wintypes.RECT()
+        self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+        
+        return WindowInfo(
+            title=title,
+            handle=hwnd,
+            process_id=pid.value,
+            rect=(rect.left, rect.top, rect.right, rect.bottom),
+            is_active=True
+        )
 
-    def type_text(self, text: str, interval: float = 0.05):
-        """Simulate keyboard input naturally."""
-        logger.info(f"Typing text: {text}")
+    def _to_absolute(self, x: int, y: int) -> Tuple[int, int]:
+        """Convert pixel coords to 0-65535 absolute coords."""
+        abs_x = int(x * 65535 / self.width)
+        abs_y = int(y * 65535 / self.height)
+        return abs_x, abs_y
+
+    def _send_input(self, inputs: List[INPUT]):
+        """Low-level SendInput wrapper."""
+        self._ensure_permission()
+        n = len(inputs)
+        lp_inputs = (INPUT * n)(*inputs)
+        cb_size = ctypes.sizeof(INPUT)
+        self.user32.SendInput(n, lp_inputs, cb_size)
+
+    def mouse_move(self, x: int, y: int, duration: float = 0):
+        """Move mouse using SendInput (Absolute)."""
+        abs_x, abs_y = self._to_absolute(x, y)
+        
+        mi = MOUSEINPUT(
+            dx=abs_x, dy=abs_y,
+            mouseData=0,
+            dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+            time=0, dwExtraInfo=None
+        )
+        inp = INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=mi))
+        self._send_input([inp])
+        
+        # Optional: Sleep for natural movement if duration > 0 (SendInput is instant)
+        if duration > 0:
+            time.sleep(duration)
+
+    def mouse_click(self, x: int, y: int, double: bool = False):
+        """Reliable click using SendInput."""
+        self.mouse_move(x, y)
+        time.sleep(0.05)
+        
+        # Down + Up
+        down = MOUSEINPUT(0, 0, 0, MOUSEEVENTF_LEFTDOWN, 0, None)
+        up = MOUSEINPUT(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, None)
+        
+        inputs = [
+            INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=down)),
+            INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=up))
+        ]
+        
+        self._send_input(inputs)
+        
+        if double:
+            time.sleep(0.1)
+            self._send_input(inputs)
+
+    def type_text(self, text: str, interval: float = 0.01):
+        """Type text using keyboard module (simpler than manual ScanCodes for text)."""
+        self._ensure_permission()
+        logger.info(f"Typing: {text}")
         keyboard.write(text, delay=interval)
 
     def press_keys(self, keys: str):
-        """
-        Press a hotkey combination.
-        Example: "ctrl+s", "alt+tab"
-        """
-        logger.info(f"Pressing keys: {keys}")
+        self._ensure_permission()
+        logger.info(f"Pressing: {keys}")
         keyboard.send(keys)
 
-    def mouse_click(self, x: int, y: int, double: bool = False):
-        """Click at absolute screen coordinates."""
-        logger.info(f"Clicking at ({x}, {y}) double={double}")
-        if double:
-            pyautogui.doubleClick(x, y)
-        else:
-            pyautogui.click(x, y)
-
-    def mouse_move(self, x: int, y: int, duration: float = 0.2):
-        """Move mouse naturally to coordinates."""
-        pyautogui.moveTo(x, y, duration=duration)
+    def screenshot_base64(self) -> Optional[str]:
+        """Return screenshot as base64 string."""
+        import io
+        import base64
+        img = self.screen_capture.capture()
+        if img:
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return None
 
     def take_screenshot(self) -> Optional[str]:
-        """Capture screen to temp file and return path."""
-        try:
-            import mss
-            with mss.mss() as sct:
-                # Capture primary monitor
-                monitor = sct.monitors[1]
-                timestamp = int(time.time() * 1000)
-                filename = f"screenshot_{timestamp}.png"
-                path = os.path.join(os.getcwd(), "screenshots", filename)
-                
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                sct.shot(mon=1, output=path)
-                
-                return path
-        except ImportError:
-            # Fallback to pyautogui
-            try:
-                path = f"screenshot_{int(time.time())}.png"
-                pyautogui.screenshot(path)
-                return path
-            except:
-                logger.error("Screenshot failed")
-                return None
+        """Capture screen using DXCam/MSS."""
+        img = self.screen_capture.capture()
+        if img:
+            timestamp = int(time.time() * 1000)
+            filename = f"screenshot_{timestamp}.png"
+            path = os.path.join(os.getcwd(), "screenshots", filename)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            img.save(path)
+            return path
+        return None
 
-    def find_element_text(self, text_query: str) -> Optional[Tuple[int, int]]:
-        """
-        Production: Use OCR or UIA to find text on screen.
-        (Placeholder for the specific strategy implementation)
-        """
-        # In a real impl, this calls the OCR engine
-        pass
+    def launch_app(self, app_name: str) -> bool:
+        """Launch application."""
+        self._ensure_permission()
+        shortcuts = {
+            "notepad": "notepad.exe",
+            "calc": "calc.exe",
+            "cmd": "cmd.exe",
+            "chrome": "chrome.exe",
+            "explorer": "explorer.exe"
+        }
+        exe = shortcuts.get(app_name.lower(), app_name)
+        try:
+            subprocess.Popen(exe, shell=True)
+            time.sleep(1)
+            return True
+        except Exception as e:
+            logger.error(f"Launch failed: {e}")
+            return False
+
+    def run_shell_command(self, command: str) -> bool:
+        self._ensure_permission()
+        try:
+            subprocess.Popen(f'powershell.exe -Command "{command}"', shell=True)
+            return True
+        except Exception as e:
+            logger.error(f"Command failed: {e}")
+            return False

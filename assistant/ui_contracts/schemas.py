@@ -155,6 +155,8 @@ class StepResult(BaseModel):
     screenshot_before: Optional[str] = None  # Base64 or path
     screenshot_after: Optional[str] = None
     selector_cached: Optional[UISelector] = None  # For selector memory
+    requires_takeover: bool = False
+    takeover_reason: Optional[str] = None
 
 
 # ==================== Execution Plan ====================

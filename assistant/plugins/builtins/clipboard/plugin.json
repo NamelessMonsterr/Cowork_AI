@@ -1,0 +1,10 @@
+{
+  "id": "cowork.clipboard",
+  "name": "Clipboard Manager",
+  "version": "1.0.0",
+  "author": "CoworkAI Team",
+  "description": "Read and write to system clipboard.",
+  "entrypoint": "clipboard_plugin:ClipboardPlugin",
+  "permissions_required": ["clipboard"],
+  "tools": ["read_clipboard", "write_clipboard"]
+}

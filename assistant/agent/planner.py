@@ -1,34 +1,53 @@
 """
-Planner Module - Orchestrates high-level logic.
+Planner Module - Orchestrates high-level reasoning and plan generation.
 
 1. Receives user request
 2. Gets computer state (Screenshot + Window info)
 3. Consults LLM
-4. Generates Execution Plan
+4. Generates Execution Plan (ActionSteps)
+
+Note: Execution is handled by the ReliableExecutor, not this class.
 """
 
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional
+
 from assistant.computer.windows import WindowsComputer
 from assistant.agent.llm import LLMClient, AgentResponse
-from assistant.voice.tts import TTS
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
+from assistant.recovery.context import RecoveryContext
 
 logger = logging.getLogger("Planner")
 
 class Planner:
-    def __init__(self):
-        self.computer = WindowsComputer()
+    def __init__(self, computer: WindowsComputer = None):
+        """
+        Initialize Planner.
+        
+        Args:
+            computer: WindowsComputer instance for OBSERVATION only.
+                      Execution is done by ReliableExecutor.
+        """
+        self.computer = computer or WindowsComputer()
+        self.computer = computer or WindowsComputer()
         self.llm = LLMClient() 
-        self.tts = TTS()
+        # W12.6: Plugin Integration placeholder
+        # In full implementation, we would inject:
+        # self.tool_registry = ToolRegistry()
+        # self.tool_router = ToolRouter(...) 
         
     async def create_plan(self, user_task: str) -> List[Dict[str, Any]]:
         """
         Generate a plan for the user task based on current state.
+        
+        Returns:
+            List of step dictionaries (compatible with ActionStep schema)
         """
         logger.info(f"Planning for task: {user_task}")
         
         # 1. Observe
+        # We use strict observation methods (no side effects)
         screenshot_path = self.computer.take_screenshot()
         active_window = self.computer.get_active_window()
         
@@ -45,71 +64,70 @@ class Planner:
         
         plan = response.plan
         
-
-        
         # 3. Handle Voice Reply
-        # If the LLM wants to say something (clarification or narration), 
-        # we add it as a "speak" step at the start.
         if response.reply_text:
             speak_step = {
-                "action": "speak",
-                "target": "user",
-                "value": response.reply_text
+                "id": "voice_reply",
+                "tool": "speak",
+                "args": {"text": response.reply_text},
+                "description": "Reply to user"
             }
-            # Prepend to plan
             plan.insert(0, speak_step)
 
-        # 4. Clean up screenshot
-        if screenshot_path and "screenshot_" in screenshot_path:
-             try:
-                 pass 
-             except: 
-                 pass
+        # 4. Cleanup
+        # (Optional cleanup of screenshot file if needed to save space)
 
         return plan
 
-    async def execute_step(self, step: Dict[str, Any]):
+    async def generate_repair_plan(self, context: RecoveryContext) -> ExecutionPlan:
         """
-        Execute a single planned step using Computer.
+        Generate a short, safe Repair Plan (W9.3).
+        
+        Constraints:
+        - Max 5 steps
+        - Safe tools only (focus, scroll, ocr)
         """
-        action = step.get("action")
-        target = step.get("target") 
-        value = step.get("value")   
+        logger.info(f"Generating Repair Plan for {context.failure_type.value}...")
         
-        logger.info(f"Executing: {action} -> {target}")
-
-
+        # 1. Observe (Fresh state)
+        screenshot_path = self.computer.take_screenshot()
         
-        if action == "launch_app":
-            self.computer.launch_app(target)
+        # 2. Ask LLM
+        # We construct a specific prompt for repair
+        prompt_context = context.to_prompt_context()
+        
+        # NOTE: In a real implementation, we'd add specific LLM method or modify existing.
+        # For this phase, we reuse analyze_screen_and_plan but with "REPAIR MODE" prefix.
+        
+        repair_task = f"""
+        [REPAIR MODE]
+        The previous step failed.
+        Context: {prompt_context}
+        
+        Goal: Fix the state so we can retry the failed step.
+        Rules:
+        1. Max 5 steps.
+        2. Use safe tools: focus_window, scroll, click (if safe), ocr.
+        3. Do NOT assume the element is visible. Find it.
+        """
+        
+        response: AgentResponse = self.llm.analyze_screen_and_plan(
+            task=repair_task,
+            screenshot_path=screenshot_path,
+            context=f"REPAIRING: {context.failed_step.tool}"
+        )
+        
+        steps = []
+        for s in response.plan:
+            steps.append(ActionStep(**s))
             
-        elif action == "type_text":
-            self.computer.type_text(value or target)
+        # Hard constraint enforcement (W9 Safety)
+        if len(steps) > 5:
+            logger.warning("Repair plan too long, truncating to 5 steps.")
+            steps = steps[:5]
             
-        elif action == "press_keys":
-            self.computer.press_keys(value or target)
-            
-        elif action == "click":
-            # Real implementation would use coordinate finding strategies here
-            pass
-
-        elif action == "speak":
-            # New Voice capability
-            await self.tts.speak(value)
-            
-        elif action == "wait":
-            import time
-            time.sleep(float(value or 1.0))
-            
-        elif action == "take_screenshot":
-            path = self.computer.take_screenshot()
-            logger.info(f"Screenshot saved to: {path}")
-            await self.tts.speak("Screenshot taken")
-            
-        elif action == "run_command":
-            logger.info(f"Running shell command: {value}")
-            self.computer.run_shell_command(value)
-            await self.tts.speak("Executing command")
-
-        else:
-            logger.warning(f"Unknown action: {action}")
+        return ExecutionPlan(
+            id=f"repair_{context.step_id}",
+            task=f"Repair {context.failure_type.value}",
+            steps=steps
+        )
