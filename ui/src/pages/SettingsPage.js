@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
  * P3.1 Settings Page
  * Full configuration UI with tabs for all settings.
  */
-const SettingsPage = ({ apiUrl }) => {
+export default function SettingsPage({ apiUrl }) {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
   const [saving, setSaving] = useState(false);
@@ -14,54 +14,55 @@ const SettingsPage = ({ apiUrl }) => {
     fetchSettings();
   }, []);
 
-  const fetchSettings = async () => {
+  async function fetchSettings() {
     try {
       const res = await fetch(`${apiUrl}/settings`);
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
       } else {
-        // Use defaults if endpoint doesn't exist yet
         setSettings(getDefaultSettings());
       }
     } catch (e) {
       console.error('Failed to fetch settings:', e);
       setSettings(getDefaultSettings());
     }
-  };
+  }
 
-  const getDefaultSettings = () => ({
-    safety: {
-      session_ttl_minutes: 30,
-      require_confirmation_for_destructive: true,
-      max_actions_per_session: 100,
-      enable_kill_switch: true,
-      kill_switch_hotkey: 'ctrl+shift+escape'
-    },
-    plugins: {
-      dev_mode: false,
-      allow_unsigned: false,
-      sandbox_enabled: true
-    },
-    cloud: {
-      enabled: false,
-      sync_interval_minutes: 15
-    },
-    learning: {
-      enabled: true,
-      min_samples_for_ranking: 5,
-      exclude_sensitive_windows: true
-    },
-    voice: {
-      mode: 'push_to_talk',
-      wake_word: 'flash',
-      push_to_talk_key: 'ctrl+space'
-    },
-    theme: 'dark',
-    show_step_details: true
-  });
+  function getDefaultSettings() {
+    return {
+      safety: {
+        session_ttl_minutes: 30,
+        require_confirmation_for_destructive: true,
+        max_actions_per_session: 100,
+        enable_kill_switch: true,
+        kill_switch_hotkey: 'ctrl+shift+escape'
+      },
+      plugins: {
+        dev_mode: false,
+        allow_unsigned: false,
+        sandbox_enabled: true
+      },
+      cloud: {
+        enabled: false,
+        sync_interval_minutes: 15
+      },
+      learning: {
+        enabled: true,
+        min_samples_for_ranking: 5,
+        exclude_sensitive_windows: true
+      },
+      voice: {
+        mode: 'push_to_talk',
+        wake_word: 'flash',
+        push_to_talk_key: 'ctrl+space'
+      },
+      theme: 'dark',
+      show_step_details: true
+    };
+  }
 
-  const saveSettings = async () => {
+  async function saveSettings() {
     setSaving(true);
     try {
       await fetch(`${apiUrl}/settings`, {
@@ -75,9 +76,9 @@ const SettingsPage = ({ apiUrl }) => {
       console.error('Failed to save settings:', e);
     }
     setSaving(false);
-  };
+  }
 
-  const updateSetting = (category, key, value) => {
+  function updateSetting(category, key, value) {
     setSettings(prev => ({
       ...prev,
       [category]: {
@@ -85,7 +86,13 @@ const SettingsPage = ({ apiUrl }) => {
         [key]: value
       }
     }));
-  };
+  }
+
+  function getSaveButtonText() {
+    if (saving) return 'Saving...';
+    if (saved) return 'Saved!';
+    return 'Save Settings';
+  }
 
   if (!settings) return <div style={styles.container}>Loading settings...</div>;
 
@@ -348,12 +355,12 @@ const SettingsPage = ({ apiUrl }) => {
       {/* Save Button */}
       <div style={styles.footer}>
         <button onClick={saveSettings} style={styles.saveBtn} disabled={saving}>
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+          {getSaveButtonText()}
         </button>
       </div>
     </div>
   );
-};
+}
 
 const styles = {
   container: {

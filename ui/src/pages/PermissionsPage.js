@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
  * P3.2 Permissions Editor
  * Manage app/folder/network permissions.
  */
-const PermissionsPage = ({ apiUrl }) => {
+export default function PermissionsPage({ apiUrl }) {
   const [permissions, setPermissions] = useState({
     apps: [],
     folders: [],
@@ -19,7 +19,7 @@ const PermissionsPage = ({ apiUrl }) => {
     fetchPermissions();
   }, []);
 
-  const fetchPermissions = async () => {
+  async function fetchPermissions() {
     try {
       const res = await fetch(`${apiUrl}/permissions`);
       if (res.ok) {
@@ -28,9 +28,9 @@ const PermissionsPage = ({ apiUrl }) => {
     } catch (e) {
       console.error('Failed to fetch permissions:', e);
     }
-  };
+  }
 
-  const savePermissions = async () => {
+  async function savePermissions() {
     try {
       await fetch(`${apiUrl}/permissions`, {
         method: 'POST',
@@ -41,9 +41,9 @@ const PermissionsPage = ({ apiUrl }) => {
     } catch (e) {
       console.error('Failed to save:', e);
     }
-  };
+  }
 
-  const addApp = () => {
+  function addApp() {
     if (newApp && !permissions.apps.find(a => a.name === newApp)) {
       setPermissions({
         ...permissions,
@@ -51,25 +51,25 @@ const PermissionsPage = ({ apiUrl }) => {
       });
       setNewApp('');
     }
-  };
+  }
 
-  const toggleApp = (name) => {
+  function toggleApp(name) {
     setPermissions({
       ...permissions,
       apps: permissions.apps.map(a => 
         a.name === name ? { ...a, allowed: !a.allowed } : a
       )
     });
-  };
+  }
 
-  const removeApp = (name) => {
+  function removeApp(name) {
     setPermissions({
       ...permissions,
       apps: permissions.apps.filter(a => a.name !== name)
     });
-  };
+  }
 
-  const addFolder = () => {
+  function addFolder() {
     if (newFolder && !permissions.folders.find(f => f.path === newFolder)) {
       setPermissions({
         ...permissions,
@@ -77,9 +77,9 @@ const PermissionsPage = ({ apiUrl }) => {
       });
       setNewFolder('');
     }
-  };
+  }
 
-  const addDomain = () => {
+  function addDomain() {
     if (newDomain && !permissions.network.find(n => n.domain === newDomain)) {
       setPermissions({
         ...permissions,
@@ -87,7 +87,7 @@ const PermissionsPage = ({ apiUrl }) => {
       });
       setNewDomain('');
     }
-  };
+  }
 
   return (
     <div style={styles.container}>
@@ -217,7 +217,7 @@ const PermissionsPage = ({ apiUrl }) => {
       </div>
     </div>
   );
-};
+}
 
 const styles = {
   container: {
