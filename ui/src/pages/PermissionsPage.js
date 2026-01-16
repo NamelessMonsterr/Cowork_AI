@@ -1,9 +1,113 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * P3.2 Permissions Editor
- * Manage app/folder/network permissions.
- */
+const styles = {
+  container: {
+    padding: '20px',
+    color: '#fff',
+    maxWidth: '800px',
+    margin: '0 auto'
+  },
+  header: {
+    borderBottom: '1px solid #444',
+    paddingBottom: '10px',
+    marginBottom: '20px'
+  },
+  section: {
+    marginBottom: '30px',
+    background: 'rgba(255,255,255,0.05)',
+    padding: '15px',
+    borderRadius: '8px'
+  },
+  warning: {
+    background: 'rgba(255, 100, 100, 0.2)',
+    border: '1px solid #ff4444',
+    color: '#ffcccc',
+    padding: '10px',
+    borderRadius: '4px',
+    marginBottom: '10px',
+    fontSize: '0.9em'
+  },
+  toggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    cursor: 'pointer',
+    userSelect: 'none'
+  },
+  on: { color: '#0f0', fontWeight: 'bold' },
+  off: { color: '#888' },
+  muted: {
+    color: '#888',
+    fontSize: '0.9em',
+    marginBottom: '10px'
+  },
+  addRow: {
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '10px'
+  },
+  input: {
+    flex: 1,
+    padding: '8px',
+    borderRadius: '4px',
+    border: '1px solid #555',
+    background: '#333',
+    color: '#fff'
+  },
+  addBtn: {
+    padding: '8px 20px',
+    background: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.9em'
+  },
+  list: {
+    listStyle: 'none',
+    padding: 0
+  },
+  allowed: { color: '#0f0' },
+  blocked: { color: '#f44' },
+  smallBtn: {
+    padding: '4px 8px',
+    fontSize: '0.8em',
+    marginRight: '5px',
+    background: '#444',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '3px',
+    cursor: 'pointer'
+  },
+  removeBtn: {
+    padding: '4px 8px',
+    fontSize: '0.8em',
+    background: 'rgba(255,0,0,0.3)',
+    color: '#ffcccc',
+    border: 'none',
+    borderRadius: '3px',
+    cursor: 'pointer'
+  },
+  footer: {
+    marginTop: '20px',
+    textAlign: 'right'
+  },
+  saveBtn: {
+    padding: '12px 30px',
+    borderRadius: '6px',
+    border: 'none',
+    background: '#4CAF50',
+    color: '#fff',
+    fontSize: '16px',
+    cursor: 'pointer'
+  }
+};
+
 export default function PermissionsPage({ apiUrl }) {
   const [permissions, setPermissions] = useState({
     apps: [],

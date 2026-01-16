@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
 
-/**
- * P3.1 Settings Page
- * Full configuration UI with tabs for all settings.
- */
 export default function SettingsPage({ apiUrl }) {
+// ... implementation
+}
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
   const [saving, setSaving] = useState(false);
