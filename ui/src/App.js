@@ -1,14 +1,17 @@
 import './App.css';
 import { PluginsPanel } from './components/PluginsPanel';
 import { Onboarding } from './components/Onboarding';
+import SettingsPage from './pages/SettingsPage'; // Import P3.1 Page
 
-const API_URL = 'http://127.0.0.1:8765';
+// P2: Use dynamic port from Electron or default to 8765
+const API_URL = window.BACKEND_URL || 'http://127.0.0.1:8765';
+const WS_URL = API_URL.replace('http', 'ws') + '/ws';
 
 function App() {
   const [status, setStatus] = useState("I AM VENGEANCE");
   const [transcript, setTranscript] = useState("Click the core to activate voice command");
   const [time, setTime] = useState(new Date().toLocaleTimeString());
-  const [activePanel, setActivePanel] = useState(null); // 'settings', 'history', 'help', or null
+  const [activePanel, setActivePanel] = useState(null); // 'settings', 'history', 'help', 'plugins', null
   const [history, setHistory] = useState([]);
   const [sessionActive, setSessionActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -22,10 +25,10 @@ function App() {
     if (!done) setShowOnboarding(true);
   }, []);
 
-  const handleOnboardingComplete = () => {
+  function handleOnboardingComplete() {
       localStorage.setItem('flash_onboarding_complete', 'true');
       setShowOnboarding(false);
-  };
+  }
 
   // Update time and format helper
   useEffect(() => {
@@ -72,8 +75,9 @@ function App() {
     let socket = null;
     let reconnectTimeout = null;
 
-    const connect = () => {
-      socket = new WebSocket('ws://127.0.0.1:8765/ws');
+    function connect() {
+      // Use dynamic URL
+      socket = new WebSocket(WS_URL);
       
       socket.onopen = () => {
         console.log('✅ WebSocket connected successfully');
@@ -93,9 +97,7 @@ function App() {
           setStatus("EXECUTING");
           setTranscript("Executing your command...");
         } else if (msg.event === 'voice_speak') {
-          // Frontend TTS
           const utterance = new SpeechSynthesisUtterance(msg.data.text);
-          // Optional: Select a specific voice if desired
           window.speechSynthesis.speak(utterance);
         } else if (msg.event === 'voice_error') {
           setStatus("I AM VENGEANCE");
@@ -105,7 +107,6 @@ function App() {
           setSessionActive(false);
           setStatus("I AM VENGEANCE");
           setTranscript(msg.data?.reason || "Session expired. Click core to restart.");
-          // Show Modal
           setShowSessionModal(true);
         }
       };
@@ -118,7 +119,7 @@ function App() {
         console.warn('⚠️ WebSocket disconnected. Reconnecting in 3s...', e.reason);
         reconnectTimeout = setTimeout(() => connect(), 3000);
       };
-    };
+    }
 
     connect();
 
@@ -262,43 +263,8 @@ function App() {
               <h2>⚙️ SETTINGS</h2>
               <button className="panel-close" onClick={() => setActivePanel(null)}>✕</button>
             </div>
-            <div className="panel-content">
-              <div className="setting-item">
-                <label>Voice Activation</label>
-                <span className="toggle on">ON</span>
-              </div>
-              <div className="setting-item">
-                <label>Theme</label>
-                <span className="setting-value">Justice League</span>
-              </div>
-              <div className="setting-item">
-                <label>Language</label>
-                <span className="setting-value">English</span>
-              </div>
-              <div className="setting-item">
-                <label>AI Model</label>
-                <span className="setting-value">Gemini Pro</span>
-              </div>
-              <div className="setting-item">
-                <label>Backend URL</label>
-                <span className="setting-value">localhost:8765</span>
-              </div>
-              <div className="setting-item" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
-                <label>Session Control</label>
-                <button 
-                  onClick={handleRevoke}
-                  style={{ 
-                    background: 'rgba(255, 50, 50, 0.2)', 
-                    color: '#ff4444', 
-                    border: '1px solid #ff4444',
-                    padding: '5px 10px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  REVOKE SESSION
-                </button>
-              </div>
+            <div className="panel-content" style={{ padding: 0 }}>
+              <SettingsPage apiUrl={API_URL} />
             </div>
           </div>
         </div>
