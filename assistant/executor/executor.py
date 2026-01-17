@@ -45,6 +45,9 @@ except ImportError:
     StrategyRanker = None
     LearningCollector = None
 
+from assistant.safety.focus_guard import FocusGuard, FocusLostError
+from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
+
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +90,8 @@ class ReliableExecutor:
                 # Handle error
     """
 
+
+
     def __init__(
         self,
         strategies: List[Strategy],
@@ -98,23 +103,15 @@ class ReliableExecutor:
         config: Optional[ExecutorConfig] = None,
         on_takeover_required: Optional[Callable[[str], None]] = None,
         on_step_complete: Optional[Callable[[StepResult], None]] = None,
+        # V24 Safety
+        focus_guard: Optional[FocusGuard] = None,
+        rate_limiter: Optional[InputRateLimiter] = None,
         # W20.3 Learning
         ranker: Optional["StrategyRanker"] = None,
         collector: Optional["LearningCollector"] = None,
     ):
         """
         Initialize ReliableExecutor.
-        
-        Args:
-            strategies: List of execution strategies (sorted by priority)
-            verifier: Verification engine
-            session_auth: Session permission manager
-            budget: Action budget tracker
-            environment: Environment safety monitor
-            cache: Selector cache for element memory
-            config: Executor configuration
-            on_takeover_required: Callback when human takeover is needed
-            on_step_complete: Callback after each step completes
         """
         self._strategies = sorted(strategies, key=lambda s: s.priority)
         self._verifier = verifier
@@ -125,6 +122,10 @@ class ReliableExecutor:
         self._config = config or ExecutorConfig()
         self._on_takeover = on_takeover_required
         self._on_step_complete = on_step_complete
+        
+        # V24 Safety Components
+        self._focus_guard = focus_guard
+        self._rate_limiter = rate_limiter
         
         self._is_paused = False
         self._pause_reason = ""
@@ -200,6 +201,36 @@ class ReliableExecutor:
                         error=reason,
                         requires_takeover=True,
                         takeover_reason=reason,
+                    )
+
+            # 4.5 Safety Hardening (V24)
+            # Check Focus
+            if self._focus_guard:
+                focus_res = self._focus_guard.check_focus()
+                if not focus_res.is_focused:
+                    return self._make_failed_result(
+                        step, start_time,
+                        error=f"Focus lost: {focus_res.error or 'Active window mismatch'}",
+                        requires_takeover=True,
+                        takeover_reason="Focus Guard: Execution paused due to focus loss",
+                    )
+            
+            # Check Rate Limit
+            if self._rate_limiter:
+                try:
+                    if step.tool in ["type_text", "press_key"]:
+                        count = 1
+                        if step.tool == "type_text" and "text" in step.args:
+                            count = len(step.args["text"])
+                        self._rate_limiter.record_keystroke(count)
+                    elif step.tool in ["click", "double_click", "right_click"]:
+                        self._rate_limiter.record_click()
+                except RateLimitExceededError as e:
+                    return self._make_failed_result(
+                        step, start_time,
+                        error=str(e),
+                        requires_takeover=True,
+                        takeover_reason=f"Rate Limiter: {str(e)}",
                     )
             
             # 5. Capture before state

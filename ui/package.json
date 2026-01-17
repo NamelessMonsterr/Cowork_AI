@@ -10,22 +10,34 @@
     "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
+    "@playwright/test": "^1.57.0",
     "concurrently": "^8.0.0",
-    "wait-on": "^7.0.0",
+    "electron": "^28.0.0",
     "electron-builder": "^24.6.4",
-    "electron-updater": "^6.1.4"
+    "electron-updater": "^6.1.4",
+    "wait-on": "^7.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "electron": "electron .",
     "dist": "npm run build && electron-builder",
-    "dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\""
+    "dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:slow": "playwright test --grep @slow",
+    "build:backend": "cd .. && python -m PyInstaller backend.spec --noconfirm",
+    "build:all": "npm run build && npm run build:backend && npm run dist"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead"],
-    "development": ["last 1 chrome version"]
+    "production": [
+      ">0.2%",
+      "not dead"
+    ],
+    "development": [
+      "last 1 chrome version"
+    ]
   },
   "build": {
     "appId": "com.cowork.aiassistant",
@@ -39,8 +51,8 @@
     ],
     "extraResources": [
       {
-        "from": "../backend/dist/assistant-backend.exe",
-        "to": "backend/assistant-backend.exe"
+        "from": "../dist/cowork-backend",
+        "to": "backend/cowork-backend"
       }
     ],
     "nsis": {
@@ -50,7 +62,10 @@
       "createDesktopShortcut": true
     },
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "requestedExecutionLevel": "asInvoker"
     }
   }

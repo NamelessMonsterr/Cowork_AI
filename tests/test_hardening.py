@@ -69,6 +69,68 @@ class TestHardening:
         result_safe = executor.execute(step_safe)
         assert "blocked by Safe Mode" not in result_safe.error
         
+    def test_focus_guard_integration(self, mock_executor_components):
+        """Test that FocusGuard blocks execution when focus is lost."""
+        from assistant.executor.executor import ReliableExecutor
+        from assistant.safety.focus_guard import FocusGuard, FocusCheckResult
+        from assistant.ui_contracts.schemas import ActionStep
+        
+        session, budget, verifier, config = mock_executor_components
+        
+        # Mock FocusGuard
+        mock_fg = MagicMock(spec=FocusGuard)
+        mock_fg.check_focus.return_value = FocusCheckResult(
+            is_focused=False,
+            expected_title="Notepad",
+            actual_title="Chrome",
+            error="Focus mismatch"
+        )
+        
+        executor = ReliableExecutor(
+            strategies=[],
+            verifier=verifier,
+            session_auth=session,
+            budget=budget,
+            config=config,
+            focus_guard=mock_fg
+        )
+        
+        step = ActionStep(id="1", tool="type_text", args={"text": "Secret"})
+        result = executor.execute(step)
+        
+        assert result.success is False
+        assert "Focus lost" in result.error
+        assert result.requires_takeover is True
+
+    def test_rate_limiter_integration(self, mock_executor_components):
+        """Test that RateLimiter blocks aggressive typing."""
+        from assistant.executor.executor import ReliableExecutor
+        from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
+        from assistant.ui_contracts.schemas import ActionStep
+        
+        session, budget, verifier, config = mock_executor_components
+        
+        # Mock RateLimiter to raise error
+        mock_rl = MagicMock(spec=InputRateLimiter)
+        mock_rl.record_keystroke.side_effect = RateLimitExceededError("Too fast")
+        
+        executor = ReliableExecutor(
+            strategies=[],
+            verifier=verifier,
+            session_auth=session,
+            budget=budget,
+            config=config,
+            rate_limiter=mock_rl
+        )
+        
+        step = ActionStep(id="1", tool="type_text", args={"text": "FastTyping"})
+        result = executor.execute(step)
+        
+        assert result.success is False
+        assert "Rate Limiter" in result.error
+        assert "Too fast" in result.error
+        assert result.requires_takeover is True
+        
     @pytest.mark.asyncio
     async def test_main_enforces_timeout(self):
         """Test that run_plan_execution in main.py enforces timeout."""

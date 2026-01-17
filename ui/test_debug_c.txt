@@ -1,0 +1,73 @@
+
+> cowork-ui@1.0.0 test:e2e
+> playwright test
+
+
+Running 3 tests using 1 worker
+
+[1A[2K[1/3] [chromium] › playwright\tests\flash-ai.spec.ts:27:7 › Flash AI E2E › A: UI Loads + WebSocket Connects
+[1A[2K[2/3] [chromium] › playwright\tests\flash-ai.spec.ts:41:8 › Flash AI E2E › B: Permission grant flow works via UI
+[1A[2K[3/3] [chromium] › playwright\tests\flash-ai.spec.ts:73:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:73:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+PAGE LOG: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+
+[1A[2KC: Granting permission...
+
+[1A[2KPAGE LOG: Context: WebSocket Connected
+
+[1A[2KC: Typing command...
+
+[1A[2KC: Clicking Execute...
+
+[1A[2KC: Executed Click
+
+[1A[2KC: Waiting for preview panel...
+
+[1A[2K  1) [chromium] › playwright\tests\flash-ai.spec.ts:73:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByTestId('plan-preview')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for getByTestId('plan-preview')[22m
+
+
+       95 |     console.log('C: Waiting for preview panel...');
+       96 |     const previewPanel = page.getByTestId('plan-preview');
+    >  97 |     await expect(previewPanel).toBeVisible({ timeout: 15000 });
+          |                                ^
+       98 |
+       99 |     console.log('C: Clicking Approve...');
+      100 |     await page.getByTestId('plan-approve-button').click();
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:97:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  1 failed
+    [chromium] › playwright\tests\flash-ai.spec.ts:73:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 
+  1 skipped
+  1 passed (28.2s)
+
+[36m  Serving HTML report at http://localhost:62244. Press Ctrl+C to quit.[39m

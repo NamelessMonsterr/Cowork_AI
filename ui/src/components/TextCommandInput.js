@@ -78,6 +78,7 @@ export function TextCommandInput({ onSubmit, disabled = false, placeholder = "Ty
                 placeholder={placeholder}
                 disabled={disabled || isSubmitting}
                 style={styles.input}
+                data-testid="command-input"
             />
             <button 
                 type="submit" 

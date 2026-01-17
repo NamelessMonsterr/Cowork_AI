@@ -1,0 +1,664 @@
+# 50-Task Endurance Suite for Flash AI
+# Run with: python -m assistant.benchmark.runner --suite suites/50_tasks.yaml
+#
+# Categories:
+# - app_launch: Open applications
+# - file_ops: File system operations
+# - text_input: Typing and clipboard
+# - navigation: UI navigation
+# - browser: Web browser tasks
+#
+# Success Target: >95%
+
+---
+id: task_001
+name: Open Notepad
+category: app_launch
+plan:
+  task: "Open Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+verification:
+  type: window_title
+  contains: "Notepad"
+---
+id: task_002
+name: Open Calculator
+category: app_launch
+plan:
+  task: "Open Calculator"
+  steps:
+    - action: run
+      command: calc.exe
+verification:
+  type: window_title
+  contains: "Calculator"
+---
+id: task_003
+name: Type Hello World in Notepad
+category: text_input
+plan:
+  task: "Type Hello World in Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "Hello World!"
+verification:
+  type: text_present
+  text: "Hello World!"
+---
+id: task_004
+name: Open Paint
+category: app_launch
+plan:
+  task: "Open Paint"
+  steps:
+    - action: run
+      command: mspaint.exe
+verification:
+  type: window_title
+  contains: "Paint"
+---
+id: task_005
+name: Open File Explorer
+category: app_launch
+plan:
+  task: "Open File Explorer"
+  steps:
+    - action: run
+      command: explorer.exe
+verification:
+  type: window_title
+  contains: "File Explorer"
+---
+id: task_006
+name: Create New Text File
+category: file_ops
+plan:
+  task: "Create test.txt in temp folder"
+  steps:
+    - action: shell
+      command: "New-Item -Path $env:TEMP\\flash_test.txt -ItemType File -Force"
+verification:
+  type: file_exists
+  path: "%TEMP%\\flash_test.txt"
+---
+id: task_007
+name: Open Settings App
+category: app_launch
+plan:
+  task: "Open Windows Settings"
+  steps:
+    - action: run
+      command: ms-settings:
+verification:
+  type: window_title
+  contains: "Settings"
+---
+id: task_008
+name: Type Multiline Text
+category: text_input
+plan:
+  task: "Type multiline text in Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "Line 1\nLine 2\nLine 3"
+verification:
+  type: text_present
+  text: "Line 3"
+---
+id: task_009
+name: Open Task Manager
+category: app_launch
+plan:
+  task: "Open Task Manager"
+  steps:
+    - action: run
+      command: taskmgr.exe
+verification:
+  type: window_title
+  contains: "Task Manager"
+---
+id: task_010
+name: Open Command Prompt
+category: app_launch
+plan:
+  task: "Open CMD"
+  steps:
+    - action: run
+      command: cmd.exe
+verification:
+  type: window_title
+  contains: "Command Prompt"
+---
+id: task_011
+name: Navigate to Desktop
+category: navigation
+plan:
+  task: "Open Desktop folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:Desktop
+verification:
+  type: window_title
+  contains: "Desktop"
+---
+id: task_012
+name: Open Snipping Tool
+category: app_launch
+plan:
+  task: "Open Snipping Tool"
+  steps:
+    - action: run
+      command: snippingtool.exe
+verification:
+  type: window_title
+  contains: "Snipping"
+---
+id: task_013
+name: Type Special Characters
+category: text_input
+plan:
+  task: "Type special characters"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+verification:
+  type: text_present
+  text: "@#$"
+---
+id: task_014
+name: Open Downloads Folder
+category: navigation
+plan:
+  task: "Open Downloads folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:Downloads
+verification:
+  type: window_title
+  contains: "Downloads"
+---
+id: task_015
+name: Open Device Manager
+category: app_launch
+plan:
+  task: "Open Device Manager"
+  steps:
+    - action: run
+      command: devmgmt.msc
+verification:
+  type: window_title
+  contains: "Device Manager"
+---
+id: task_016
+name: Create Folder in Temp
+category: file_ops
+plan:
+  task: "Create folder"
+  steps:
+    - action: shell
+      command: "New-Item -Path $env:TEMP\\flash_test_folder -ItemType Directory -Force"
+verification:
+  type: file_exists
+  path: "%TEMP%\\flash_test_folder"
+---
+id: task_017
+name: Open WordPad
+category: app_launch
+plan:
+  task: "Open WordPad"
+  steps:
+    - action: run
+      command: wordpad.exe
+verification:
+  type: window_title
+  contains: "WordPad"
+---
+id: task_018
+name: Type Long Paragraph
+category: text_input
+plan:
+  task: "Type paragraph"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "The quick brown fox jumps over the lazy dog. This is a test of the Flash AI automation system."
+verification:
+  type: text_present
+  text: "quick brown fox"
+---
+id: task_019
+name: Open Control Panel
+category: app_launch
+plan:
+  task: "Open Control Panel"
+  steps:
+    - action: run
+      command: control
+verification:
+  type: window_title
+  contains: "Control Panel"
+---
+id: task_020
+name: Navigate to Documents
+category: navigation
+plan:
+  task: "Open Documents folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:Personal
+verification:
+  type: window_title
+  contains: "Documents"
+---
+id: task_021
+name: Open Disk Cleanup
+category: app_launch
+plan:
+  task: "Open Disk Cleanup"
+  steps:
+    - action: run
+      command: cleanmgr.exe
+verification:
+  type: window_title
+  contains: "Disk"
+---
+id: task_022
+name: Type Numbers
+category: text_input
+plan:
+  task: "Type numbers"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "1234567890"
+verification:
+  type: text_present
+  text: "12345"
+---
+id: task_023
+name: Open Character Map
+category: app_launch
+plan:
+  task: "Open Character Map"
+  steps:
+    - action: run
+      command: charmap.exe
+verification:
+  type: window_title
+  contains: "Character Map"
+---
+id: task_024
+name: Write to File
+category: file_ops
+plan:
+  task: "Write content to file"
+  steps:
+    - action: shell
+      command: "'Test Content' | Out-File -FilePath $env:TEMP\\flash_content.txt"
+verification:
+  type: file_exists
+  path: "%TEMP%\\flash_content.txt"
+---
+id: task_025
+name: Open Event Viewer
+category: app_launch
+plan:
+  task: "Open Event Viewer"
+  steps:
+    - action: run
+      command: eventvwr.msc
+verification:
+  type: window_title
+  contains: "Event Viewer"
+---
+id: task_026
+name: Type Tab Separated
+category: text_input
+plan:
+  task: "Type tab separated values"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "Column1\tColumn2\tColumn3"
+verification:
+  type: text_present
+  text: "Column"
+---
+id: task_027
+name: Navigate to Pictures
+category: navigation
+plan:
+  task: "Open Pictures folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:MyPictures
+verification:
+  type: window_title
+  contains: "Pictures"
+---
+id: task_028
+name: Open System Info
+category: app_launch
+plan:
+  task: "Open System Information"
+  steps:
+    - action: run
+      command: msinfo32.exe
+verification:
+  type: window_title
+  contains: "System Information"
+---
+id: task_029
+name: Type Date Time
+category: text_input
+plan:
+  task: "Type date and time"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "2026-01-17 16:45:00"
+verification:
+  type: text_present
+  text: "2026"
+---
+id: task_030
+name: Open Resource Monitor
+category: app_launch
+plan:
+  task: "Open Resource Monitor"
+  steps:
+    - action: run
+      command: resmon.exe
+verification:
+  type: window_title
+  contains: "Resource Monitor"
+---
+id: task_031
+name: Navigate to Music
+category: navigation
+plan:
+  task: "Open Music folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:MyMusic
+verification:
+  type: window_title
+  contains: "Music"
+---
+id: task_032
+name: Open Magnifier
+category: app_launch
+plan:
+  task: "Open Magnifier"
+  steps:
+    - action: run
+      command: magnify.exe
+verification:
+  type: process_running
+  name: Magnify.exe
+---
+id: task_033
+name: Type Email Format
+category: text_input
+plan:
+  task: "Type email"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "user@example.com"
+verification:
+  type: text_present
+  text: "@example"
+---
+id: task_034
+name: Navigate to Videos
+category: navigation
+plan:
+  task: "Open Videos folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:MyVideos
+verification:
+  type: window_title
+  contains: "Videos"
+---
+id: task_035
+name: Open DirectX Diag
+category: app_launch
+plan:
+  task: "Open DirectX Diagnostics"
+  steps:
+    - action: run
+      command: dxdiag.exe
+verification:
+  type: window_title
+  contains: "DirectX"
+---
+id: task_036
+name: Type URL Format
+category: text_input
+plan:
+  task: "Type URL"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "https://www.example.com/path?query=value"
+verification:
+  type: text_present
+  text: "https://"
+---
+id: task_037
+name: Delete Test File
+category: file_ops
+plan:
+  task: "Delete test file"
+  steps:
+    - action: shell
+      command: "Remove-Item -Path $env:TEMP\\flash_test.txt -Force -ErrorAction SilentlyContinue"
+verification:
+  type: file_not_exists
+  path: "%TEMP%\\flash_test.txt"
+---
+id: task_038
+name: Open OnScreen Keyboard
+category: app_launch
+plan:
+  task: "Open On-Screen Keyboard"
+  steps:
+    - action: run
+      command: osk.exe
+verification:
+  type: process_running
+  name: osk.exe
+---
+id: task_039
+name: Type JSON Format
+category: text_input
+plan:
+  task: "Type JSON"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "{\"name\": \"Flash\", \"version\": 1.0}"
+verification:
+  type: text_present
+  text: "Flash"
+---
+id: task_040
+name: Navigate to AppData
+category: navigation
+plan:
+  task: "Open AppData folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:AppData
+verification:
+  type: window_title
+  contains: "Roaming"
+---
+id: task_041
+name: Open Registry Editor (View Only)
+category: app_launch
+plan:
+  task: "Open Registry Editor"
+  steps:
+    - action: run
+      command: regedit.exe
+verification:
+  type: window_title
+  contains: "Registry"
+---
+id: task_042
+name: Type Code Snippet
+category: text_input
+plan:
+  task: "Type Python code"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "def hello():\n    print('Hello World')"
+verification:
+  type: text_present
+  text: "def hello"
+---
+id: task_043
+name: Open Performance Monitor
+category: app_launch
+plan:
+  task: "Open Performance Monitor"
+  steps:
+    - action: run
+      command: perfmon.exe
+verification:
+  type: window_title
+  contains: "Performance"
+---
+id: task_044
+name: Navigate to Startup
+category: navigation
+plan:
+  task: "Open Startup folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:Startup
+verification:
+  type: window_title
+  contains: "Startup"
+---
+id: task_045
+name: Open Disk Management
+category: app_launch
+plan:
+  task: "Open Disk Management"
+  steps:
+    - action: run
+      command: diskmgmt.msc
+verification:
+  type: window_title
+  contains: "Disk Management"
+---
+id: task_046
+name: Type Markdown
+category: text_input
+plan:
+  task: "Type markdown"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "# Heading\n\n- Item 1\n- Item 2"
+verification:
+  type: text_present
+  text: "# Heading"
+---
+id: task_047
+name: Navigate to Fonts
+category: navigation
+plan:
+  task: "Open Fonts folder"
+  steps:
+    - action: run
+      command: explorer.exe shell:Fonts
+verification:
+  type: window_title
+  contains: "Fonts"
+---
+id: task_048
+name: Open Sound Settings
+category: app_launch
+plan:
+  task: "Open Sound settings"
+  steps:
+    - action: run
+      command: mmsys.cpl
+verification:
+  type: window_title
+  contains: "Sound"
+---
+id: task_049
+name: Type SQL Query
+category: text_input
+plan:
+  task: "Type SQL"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "SELECT * FROM users WHERE active = 1;"
+verification:
+  type: text_present
+  text: "SELECT"
+---
+id: task_050
+name: Open PowerShell
+category: app_launch
+plan:
+  task: "Open PowerShell"
+  steps:
+    - action: run
+      command: powershell.exe
+verification:
+  type: window_title
+  contains: "PowerShell"

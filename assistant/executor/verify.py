@@ -43,6 +43,39 @@ class Verifier:
         self._user32 = ctypes.windll.user32
         self.logger = logging.getLogger("Verifier")
 
+    def capture_state(self) -> Dict[str, Any]:
+        """Capture current system state (screenshot + active window)."""
+        state = {"timestamp": time.time()}
+        
+        # Capture screenshot if computer available
+        if self._computer:
+            try:
+                # Use base64 for embedding in logs/results
+                start = time.time()
+                # Use screenshot_base64 for speed or take_screenshot for file?
+                # Executor saves screenshot_before/after in result.
+                # Let's save to file for easier debugging, or base64?
+                # WindowsComputer.take_screenshot saves to file.
+                path = self._computer.take_screenshot()
+                if path:
+                    state["screenshot"] = path
+            except Exception as e:
+                self.logger.warning(f"Failed to capture screenshot: {e}")
+                
+            # Capture active window
+            try:
+                win = self._computer.get_active_window()
+                if win:
+                    state["active_window"] = {
+                        "title": win.title,
+                        "process_id": win.process_id,
+                        "rect": win.rect
+                    }
+            except Exception as e:
+                self.logger.warning(f"Failed to get active window: {e}")
+                
+        return state
+
     def verify(self, spec: VerifySpec) -> VerificationResult:
         """Perform tiered verification."""
         start_time = time.time()

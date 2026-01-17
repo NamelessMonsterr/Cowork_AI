@@ -208,3 +208,7 @@ class WindowsComputer:
         except Exception as e:
             logger.error(f"Command failed: {e}")
             return False
+
+    def run_shell(self, command: str) -> bool:
+        """Alias for run_shell_command."""
+        return self.run_shell_command(command)

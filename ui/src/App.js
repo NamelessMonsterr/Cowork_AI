@@ -118,29 +118,44 @@ function AppContent() {
   // --- Handlers ---
 
   const handleCoreClick = async () => {
-    if (status !== "I AM VENGEANCE") return;
+    console.log('[App] Core Clicked. Status:', status, 'Session:', sessionActive ? 'ACTIVE' : 'INACTIVE');
+    if (status !== "I AM VENGEANCE") {
+      console.log('[App] Core click ignored: Status is not "I AM VENGEANCE". Current status:', status);
+      return;
+    }
 
     // Visual mic check (optional)
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setTimeout(() => stream.getTracks().forEach(t => t.stop()), 6000);
-    } catch (e) { /* ignore */ }
+        console.log('[App] Mic check successful.');
+    } catch (e) {
+      console.warn('[App] Mic check failed or permission denied:', e);
+      /* ignore */
+    }
 
     setStatus("LISTENING");
     setTranscript("Listening for your command...");
+    console.log('[App] Status set to LISTENING, transcript updated.');
 
     try {
       // Grant session first
+      console.log('[App] Requesting permission grant...');
       await fetch(`${API_URL}/permission/grant`, { method: "POST" });
       setSessionActive(true);
+      console.log('[App] Permission granted, session active.');
       
       // Then call voice/listen
+      console.log('[App] Calling /voice/listen...');
       const response = await fetch(`${API_URL}/voice/listen`, { method: "POST" });
       const data = await response.json();
       if (!data.success) {
         setStatus("I AM VENGEANCE");
         setTranscript(data.message || "No speech detected.");
         setSessionActive(false);
+        console.log('[App] Voice listen failed:', data.message || "No speech detected.");
+      } else {
+        console.log('[App] Voice listen initiated successfully.');
       }
     } catch (err) {
       setStatus("I AM VENGEANCE");
@@ -255,6 +270,7 @@ function AppContent() {
             {['settings', 'history', 'plugins', 'help'].map(panel => (
                 <button 
                     key={panel}
+                    data-testid={`footer-btn-${panel}`}
                     className={`footer-btn ${activePanel === panel ? "active" : ""}`}
                     onClick={() => setActivePanel(activePanel === panel ? null : panel)}
                 >

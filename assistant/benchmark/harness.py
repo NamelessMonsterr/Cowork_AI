@@ -18,8 +18,8 @@ from assistant.executor.executor import ReliableExecutor
 from assistant.executor.verify import Verifier
 from assistant.executor.strategies import UIAStrategy, VisionStrategy, CoordsStrategy
 from assistant.recovery.manager import RecoveryManager
-from assistant.safety.plan_guard import PlanGuard, ExecutionPlan
-from assistant.safety.budget import ActionBudget
+from assistant.safety.plan_guard import PlanGuard, ExecutionPlan, PlanGuardConfig
+from assistant.safety.budget import ActionBudget, BudgetConfig
 from assistant.safety.environment import EnvironmentMonitor
 from assistant.session_auth import SessionAuth
 from assistant.recorder.context import ContextTracker
@@ -35,12 +35,35 @@ class TaskHarness:
         
         # We need a SessionAuth wrapper that respects Benchmark Mode
         self.session_auth = SessionAuth() 
+        # Grant all permissions for benchmark
+        from assistant.ui_contracts.schemas import PermissionGrant
+        self.session_auth.grant(apps=["*"], folders=["*"], mode="session")
+        
         # Note: BenchmarkRunner enfores Mode + Session at start.
         
         self.environment = EnvironmentMonitor(on_unsafe=self._on_unsafe)
-        self.budget = ActionBudget(max_actions=50) # Strict budget for benchmarks
+        self.budget = ActionBudget(config=BudgetConfig(max_actions_per_task=50)) # Strict budget for benchmarks
         
-        strategies = [UIAStrategy(), VisionStrategy(), CoordsStrategy()]
+        # Inline SystemStrategy to handle OS actions
+        from assistant.executor.strategies.base import Strategy, StrategyResult
+        class SystemStrategy(Strategy):
+            def __init__(self, computer): self.computer = computer
+            @property
+            def name(self): return "system"
+            @property
+            def priority(self): return 1
+            def can_handle(self, step): return step.tool in ["open_app", "run_shell", "shell"]
+            def execute(self, step):
+                try:
+                    if step.tool == "open_app":
+                        self.computer.launch_app(step.args.get("app_name"))
+                    elif step.tool in ["run_shell", "shell"]:
+                        self.computer.run_shell(step.args.get("command"))
+                    return StrategyResult(success=True)
+                except Exception as e:
+                    return StrategyResult(success=False, error=str(e))
+        
+        strategies = [SystemStrategy(self.computer), UIAStrategy(), VisionStrategy(), CoordsStrategy()]
         self.verifier = Verifier(self.computer, strategies)
         
         self.executor = ReliableExecutor(
@@ -52,7 +75,10 @@ class TaskHarness:
         )
         
         self.planner = Planner(self.computer)
-        self.plan_guard = PlanGuard(self.session_auth)
+        self.plan_guard = PlanGuard(
+            self.session_auth, 
+            config=PlanGuardConfig(require_verification=False)
+        )
         
         self.recovery_manager = RecoveryManager(
             planner=self.planner,
@@ -76,8 +102,67 @@ class TaskHarness:
         try:
             # 1. Plan Generation (Or Static Loading)
             # Benchmarks usually have static steps for determinism.
+            # 1. Plan Generation (Or Static Loading)
             raw_steps = task_config.get('steps', [])
-            action_steps = [ActionStep(**s) for s in raw_steps]
+            action_steps = []
+            
+            # Global verification spec for the task
+            verify_config = task_config.get('verification')
+            verify_spec = None
+            if verify_config:
+                # Map YAML fields to VerifySpec
+                v_type = verify_config.get('type')
+                v_value = (
+                    verify_config.get('contains') or 
+                    verify_config.get('text') or 
+                    verify_config.get('path') or 
+                    verify_config.get('name') or 
+                    ""
+                )
+                from assistant.ui_contracts.schemas import VerifySpec
+                try:
+                    verify_spec = VerifySpec(
+                        type=v_type,
+                        value=v_value,
+                        timeout=verify_config.get('timeout', 5)
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse verify spec: {e}")
+
+            for i, s in enumerate(raw_steps):
+                # Map 'action' to 'tool'
+                tool = s.pop('action', None)
+                if not tool:
+                    # Fallback if 'tool' key exists
+                    tool = s.pop('tool', 'unknown')
+                
+                # Map 'run' to 'open_app' (standard schema)
+                if tool == 'run':
+                    tool = 'open_app'
+                    # Map 'command' to 'app_name' if needed, but executor probably expects app_name or command
+                    if 'command' in s:
+                        s['app_name'] = s.pop('command')
+                
+                step_id = s.pop('id', str(i+1))
+                
+                # Extract known fields for ActionStep
+                known_fields = ['timeout', 'retries', 'risk_level', 'verify', 'unverifiable', 'description']
+                step_kwargs = {k: s.pop(k) for k in known_fields if k in s}
+                
+                # Remaining items are args for the tool
+                args = s.copy()
+                
+                # Attach verification to the LAST step if not present
+                if i == len(raw_steps) - 1 and verify_spec and not step_kwargs.get('verify'):
+                    step_kwargs['verify'] = verify_spec
+
+                step = ActionStep(
+                    id=step_id,
+                    tool=tool,
+                    args=args,
+                    **step_kwargs
+                )
+                action_steps.append(step)
             
             # Ensure IDs
             for i, s in enumerate(action_steps):

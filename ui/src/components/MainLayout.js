@@ -32,7 +32,7 @@ export const MainLayout = ({ children, time, status, sessionActive, timeLeft }) 
           <div>STATUS: <span>{status}</span></div>
           <div>
             SESSION:{" "}
-            <span className={sessionActive ? "session-active" : "session-inactive"}>
+            <span className={sessionActive ? "session-active" : "session-inactive"} data-testid="session-status">
               {sessionActive ? `ACTIVE (${formatTime(timeLeft)})` : "INACTIVE"}
             </span>
           </div>

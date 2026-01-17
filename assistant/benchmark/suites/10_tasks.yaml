@@ -1,0 +1,131 @@
+# 10-Task Validation Suite (Subset of 50-Task Benchmark)
+# Triggered by user request for >10 tasks verification.
+
+---
+id: task_001
+name: Open Notepad
+category: app_launch
+plan:
+  task: "Open Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+verification:
+  type: window_title
+  contains: "Notepad"
+---
+id: task_002
+name: Open Calculator
+category: app_launch
+plan:
+  task: "Open Calculator"
+  steps:
+    - action: run
+      command: calc.exe
+verification:
+  type: window_title
+  contains: "Calculator"
+---
+id: task_003
+name: Type Hello World in Notepad
+category: text_input
+plan:
+  task: "Type Hello World in Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "Hello World!"
+verification:
+  type: text_present
+  text: "Hello World!"
+---
+id: task_004
+name: Open Paint
+category: app_launch
+plan:
+  task: "Open Paint"
+  steps:
+    - action: run
+      command: mspaint.exe
+verification:
+  type: window_title
+  contains: "Paint"
+---
+id: task_005
+name: Open File Explorer
+category: app_launch
+plan:
+  task: "Open File Explorer"
+  steps:
+    - action: run
+      command: explorer.exe
+verification:
+  type: window_title
+  contains: "File Explorer"
+---
+id: task_006
+name: Create New Text File
+category: file_ops
+plan:
+  task: "Create test.txt in temp folder"
+  steps:
+    - action: shell
+      command: "New-Item -Path $env:TEMP\\flash_test_10.txt -ItemType File -Force"
+verification:
+  type: file_exists
+  path: "%TEMP%\\flash_test_10.txt"
+---
+id: task_007
+name: Open Settings App
+category: app_launch
+plan:
+  task: "Open Windows Settings"
+  steps:
+    - action: run
+      command: ms-settings:
+verification:
+  type: window_title
+  contains: "Settings"
+---
+id: task_008
+name: Type Multiline Text
+category: text_input
+plan:
+  task: "Type multiline text in Notepad"
+  steps:
+    - action: run
+      command: notepad.exe
+    - action: wait
+      duration: 1
+    - action: type
+      text: "Line 1\nLine 2\nLine 3"
+verification:
+  type: text_present
+  text: "Line 3"
+---
+id: task_009
+name: Open Task Manager
+category: app_launch
+plan:
+  task: "Open Task Manager"
+  steps:
+    - action: run
+      command: taskmgr.exe
+verification:
+  type: window_title
+  contains: "Task Manager"
+---
+id: task_010
+name: Open Command Prompt
+category: app_launch
+plan:
+  task: "Open CMD"
+  steps:
+    - action: run
+      command: cmd.exe
+verification:
+  type: window_title
+  contains: "Command Prompt"

@@ -61,8 +61,28 @@ class SessionAuth:
         return SessionStatus(
             allowed=self.check(),
             time_remaining=self.time_remaining(),
+            granted_apps=self.permit.granted_apps,
+            granted_folders=self.permit.granted_folders,
+            allow_network=self.permit.mode == "session" and False, # logic to store network param needed?
             mode=self.permit.mode
         )
+
+    def is_app_allowed(self, app_name: str) -> bool:
+        """Check if app is allowed."""
+        if not self.check(): return False
+        if "*" in self.permit.granted_apps: return True
+        return any(app_name.lower() in allowed.lower() for allowed in self.permit.granted_apps)
+
+    def is_folder_allowed(self, path: str) -> bool:
+        """Check if folder path is allowed."""
+        if not self.check(): return False
+        if "*" in self.permit.granted_folders: return True
+        # Simple check (expand this for real path matching)
+        return any(path.lower().startswith(allowed.lower()) for allowed in self.permit.granted_folders)
+
+    def is_network_allowed(self) -> bool:
+        """Check if network is allowed."""
+        return self.check() # Simplified, assumes implied if session active or add field to Permit
 
 @dataclass
 class SessionStatus:

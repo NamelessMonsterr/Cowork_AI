@@ -64,7 +64,7 @@ class ServerSettings(BaseModel):
     host: str = "127.0.0.1"  # Production: localhost only
     port: int = Field(default=8765, ge=1024, le=65535)
     cors_enabled: bool = True  # Enabled for Beta/Dev
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001"]  # Dev only
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"]  # Dev only
 
 class AppSettings(BaseModel):
     """Root application settings."""

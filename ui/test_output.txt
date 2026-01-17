@@ -1,0 +1,169 @@
+
+Running 3 tests using 3 workers
+
+[1A[2K[1/3] [chromium] › playwright\tests\flash-ai.spec.ts:40:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+[1A[2K[2/3] [chromium] › playwright\tests\flash-ai.spec.ts:12:7 › Flash AI E2E › A: UI Loads + WebSocket Connects
+[1A[2K[3/3] [chromium] › playwright\tests\flash-ai.spec.ts:25:7 › Flash AI E2E › B: Permission grant flow works via UI
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:40:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+C: Granting permission...
+
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:25:7 › Flash AI E2E › B: Permission grant flow works via UI
+B: Clicking core button...
+
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:40:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+C: Typing command...
+
+[1A[2K  1) [chromium] › playwright\tests\flash-ai.spec.ts:40:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByPlaceholder('Type a command...')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByPlaceholder('Type a command...')[22m
+
+
+      47 |     console.log('C: Typing command...');
+      48 |     const input = page.getByPlaceholder('Type a command...');
+    > 49 |     await expect(input).toBeVisible();
+         |                         ^
+      50 |     await input.fill('Open Notepad and type hello');
+      51 |     
+      52 |     console.log('C: Clicking Execute...');
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:49:25
+
+    [31mTearing down "context" exceeded the test timeout of 30000ms.[39m
+
+    Error: apiRequestContext._wrapApiCall: Test ended.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2) [chromium] › playwright\tests\flash-ai.spec.ts:25:7 › Flash AI E2E › B: Permission grant flow works via UI 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    [31mTearing down "context" exceeded the test timeout of 30000ms.[39m
+
+    Error: locator.click: Test ended.
+    Call log:
+    [2m  - waiting for getByTestId('core-button')[22m
+    [2m    - locator resolved to <div data-testid="core-button" class="hex-frame i-am-vengeance">…</div>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <div class="panel-overlay">…</div> intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <div class="panel-overlay">…</div> intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    22 × waiting for element to be visible, enabled and stable[22m
+    [2m       - element is visible, enabled and stable[22m
+    [2m       - scrolling into view if needed[22m
+    [2m       - done scrolling[22m
+    [2m       - <div class="panel-overlay">…</div> intercepts pointer events[22m
+    [2m     - retrying click action[22m
+    [2m       - waiting 500ms[22m
+
+
+      27 |
+      28 |     console.log('B: Clicking core button...');
+    > 29 |     await page.getByTestId('core-button').click();
+         |                                           ^
+      30 |
+      31 |     // Expect status to change to LISTENING (immediate UI update)
+      32 |     console.log('B: Waiting for LISTENING status...');
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:29:43
+
+    Error: browserContext.close: Target page, context or browser has been closed
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  3) [chromium] › playwright\tests\flash-ai.spec.ts:12:7 › Flash AI E2E › A: UI Loads + WebSocket Connects 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByTestId('session-status')
+    Expected substring: [32m"[7mIN[27mACTIVE"[39m
+    Received string:    [31m"ACTIVE[7m (29:44)[27m"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for getByTestId('session-status')[22m
+    [2m    3 × locator resolved to <span class="session-active" data-testid="session-status">ACTIVE (29:47)</span>[22m
+    [2m      - unexpected value "ACTIVE (29:47)"[22m
+    [2m    - locator resolved to <span class="session-active" data-testid="session-status">ACTIVE (29:46)</span>[22m
+    [2m    - unexpected value "ACTIVE (29:46)"[22m
+    [2m    - locator resolved to <span class="session-active" data-testid="session-status">ACTIVE (29:44)</span>[22m
+    [2m    - unexpected value "ACTIVE (29:44)"[22m
+
+
+      20 |     
+      21 |     // Check Session Status default
+    > 22 |     await expect(page.getByTestId('session-status')).toContainText('INACTIVE');
+         |                                                      ^
+      23 |   });
+      24 |
+      25 |   test('B: Permission grant flow works via UI', async ({ page }) => {
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:22:54
+
+    [31mTearing down "context" exceeded the test timeout of 30000ms.[39m
+
+    Error: browserContext.close: Target page, context or browser has been closed
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-A-UI-Loads-WebSocket-Connects-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-A-UI-Loads-WebSocket-Connects-chromium\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-A-UI-Loads-WebSocket-Connects-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-A-UI-Loads-WebSocket-Connects-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  3 failed
+    [chromium] › playwright\tests\flash-ai.spec.ts:12:7 › Flash AI E2E › A: UI Loads + WebSocket Connects 
+    [chromium] › playwright\tests\flash-ai.spec.ts:25:7 › Flash AI E2E › B: Permission grant flow works via UI 
+    [chromium] › playwright\tests\flash-ai.spec.ts:40:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 

@@ -1,0 +1,154 @@
+
+> cowork-ui@1.0.0 test:e2e
+> playwright test
+
+
+Running 3 tests using 1 worker
+
+[1A[2K[1/3] [chromium] › playwright\tests\flash-ai.spec.ts:27:7 › Flash AI E2E › A: UI Loads + WebSocket Connects
+[1A[2K[2/3] [chromium] › playwright\tests\flash-ai.spec.ts:41:7 › Flash AI E2E › B: Permission grant flow works via UI
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:41:7 › Flash AI E2E › B: Permission grant flow works via UI
+PAGE LOG: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+
+[1A[2KPAGE LOG: Context: WebSocket Connected
+
+[1A[2KB: Clicking core button...
+
+[1A[2KPAGE LOG: [App] Core Clicked. Status: I AM VENGEANCE Session: INACTIVE
+
+[1A[2KB: Waiting for LISTENING status...
+
+[1A[2KPAGE LOG: [App] Mic check failed or permission denied: NotAllowedError: Permission denied by system
+
+[1A[2KPAGE LOG: [App] Status set to LISTENING, transcript updated.
+
+[1A[2KPAGE LOG: [App] Requesting permission grant...
+
+[1A[2KPAGE LOG: [App] Permission granted, session active.
+
+[1A[2KPAGE LOG: [App] Calling /voice/listen...
+
+[1A[2KPAGE LOG: [App] Voice listen failed: No speech detected.
+
+[1A[2K  1) [chromium] › playwright\tests\flash-ai.spec.ts:41:7 › Flash AI E2E › B: Permission grant flow works via UI 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  getByTestId('app-status')
+    Expected: [32m"LISTENING"[39m
+    Received: [31m"I AM VENGEANCE"[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 10000ms[22m
+    [2m  - waiting for getByTestId('app-status')[22m
+    [2m    13 × locator resolved to <div class="status-main" data-testid="app-status">I AM VENGEANCE</div>[22m
+    [2m       - unexpected value "I AM VENGEANCE"[22m
+
+
+      53 |     // Expect status to change to LISTENING (immediate UI update)
+      54 |     console.log('B: Waiting for LISTENING status...');
+    > 55 |     await expect(page.getByTestId('app-status')).toHaveText('LISTENING', { timeout: 10000 });
+         |                                                  ^
+      56 |
+      57 |     // Verify session becomes ACTIVE (polling interval is 5s)
+      58 |     console.log('B: Waiting for ACTIVE session...');
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:55:50
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-B-Permission-grant-flow-works-via-UI-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[3/3] [chromium] › playwright\tests\flash-ai.spec.ts:62:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+[1A[2K[chromium] › playwright\tests\flash-ai.spec.ts:62:7 › Flash AI E2E › C: Plan preview -> approve triggers execution
+PAGE LOG: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+
+[1A[2KPAGE LOG: Context: WebSocket Connected
+
+[1A[2KC: Granting permission...
+
+[1A[2KC: Typing command...
+
+[1A[2KC: Clicking Execute...
+
+[1A[2K  2) [chromium] › playwright\tests\flash-ai.spec.ts:62:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: '⚡ EXECUTE' })[22m
+    [2m    - locator resolved to <button type="submit">⚡ EXECUTE</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <main class="main">…</main> intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is visible, enabled and stable[22m
+    [2m      - scrolling into view if needed[22m
+    [2m      - done scrolling[22m
+    [2m      - <main class="main">…</main> intercepts pointer events[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    61 × waiting for element to be visible, enabled and stable[22m
+    [2m       - element is visible, enabled and stable[22m
+    [2m       - scrolling into view if needed[22m
+    [2m       - done scrolling[22m
+    [2m       - <main class="main">…</main> intercepts pointer events[22m
+    [2m     - retrying click action[22m
+    [2m       - waiting 500ms[22m
+
+
+      79 |     
+      80 |     console.log('C: Clicking Execute...');
+    > 81 |     await page.getByRole('button', { name: '⚡ EXECUTE' }).click();
+         |                                                           ^
+      82 |     
+      83 |     console.log('C: Waiting for preview panel...');
+      84 |     const previewPanel = page.getByTestId('plan-preview');
+        at C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts:81:59
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\flash-ai-Flash-AI-E2E-C-Pl-ca678--approve-triggers-execution-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2 failed
+    [chromium] › playwright\tests\flash-ai.spec.ts:41:7 › Flash AI E2E › B: Permission grant flow works via UI 
+    [chromium] › playwright\tests\flash-ai.spec.ts:62:7 › Flash AI E2E › C: Plan preview -> approve triggers execution 
+  1 passed (58.7s)
+
+[36m  Serving HTML report at http://localhost:62063. Press Ctrl+C to quit.[39m

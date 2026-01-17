@@ -1,0 +1,151 @@
+name: CI Release Gates
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # Job 1: Python Linting with Ruff
+  lint:
+    name: 🔍 Ruff Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Linter
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff Formatter Check
+        run: ruff format --check .
+
+  # Job 2: Python Tests with Pytest
+  pytest:
+    name: 🧪 Pytest
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run Tests
+        run: |
+          pytest tests/ -v --cov=assistant --cov-report=xml --cov-report=term-missing
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # Job 3: Secrets Scan with Gitleaks
+  secrets-scan:
+    name: 🔐 Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for scanning
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job 4: Playwright E2E (matrix for Windows/Ubuntu)
+  e2e:
+    name: 🎭 Playwright E2E
+    runs-on: ${{ matrix.os }}
+    needs: [lint, pytest]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start Backend
+        run: |
+          python -m uvicorn assistant.main:app --host 127.0.0.1 --port 8765 &
+          # Wait for backend
+          for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/8765) >/dev/null 2>&1 && break || sleep 1; done
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright Tests
+        working-directory: ui
+        run: npx playwright test --reporter=github
+
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: ui/playwright-report/
+          retention-days: 14
+
+  # Summary Job (requires all gates)
+  release-ready:
+    name: ✅ Release Ready
+    runs-on: ubuntu-latest
+    needs: [lint, pytest, secrets-scan, e2e]
+    if: always()
+    steps:
+      - name: Check All Gates
+        run: |
+          if [[ "${{ needs.lint.result }}" == "success" && \
+                "${{ needs.pytest.result }}" == "success" && \
+                "${{ needs.secrets-scan.result }}" == "success" && \
+                "${{ needs.e2e.result }}" == "success" ]]; then
+            echo "✅ All release gates passed!"
+            exit 0
+          else
+            echo "❌ Release gates failed:"
+            echo "  lint: ${{ needs.lint.result }}"
+            echo "  pytest: ${{ needs.pytest.result }}"
+            echo "  secrets-scan: ${{ needs.secrets-scan.result }}"
+            echo "  e2e: ${{ needs.e2e.result }}"
+            exit 1
+          fi

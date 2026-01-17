@@ -1,0 +1,24 @@
+
+> cowork-ui@1.0.0 test:e2e
+> playwright test
+
+SyntaxError: C:\Users\91701\Downloads\Cowork\ui\playwright\tests\flash-ai.spec.ts: Unexpected token (152:0)
+
+[0m [90m 150 |[39m   })[33m;[39m
+ [90m 151 |[39m })[33m;[39m
+[31m[1m>[22m[39m[90m 152 |[39m
+ [90m     |[39m [31m[1m^[22m[39m[0m
+
+   at flash-ai.spec.ts:152
+
+  150 |   });
+  151 | });
+> 152 |
+
+Error: No tests found
+
+[1A[2K
+To open last HTML report run:
+[36m[39m
+[36m  npx playwright show-report[39m
+[36m[39m

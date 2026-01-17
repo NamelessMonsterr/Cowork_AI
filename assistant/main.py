@@ -32,6 +32,8 @@ from assistant.agent.planner import Planner
 from assistant.safety.budget import ActionBudget
 from assistant.safety.environment import EnvironmentMonitor
 from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig
+from assistant.safety.focus_guard import FocusGuard
+from assistant.safety.rate_limiter import InputRateLimiter
 from assistant.computer.windows import WindowsComputer
 from assistant.executor.executor import ReliableExecutor
 from assistant.executor.verify import Verifier
@@ -109,6 +111,10 @@ class AppState:
         self.budget: Optional[ActionBudget] = None
         self.environment: Optional[EnvironmentMonitor] = None
         self.verifier: Optional[Verifier] = None
+        
+        # V24 Hardening
+        self.focus_guard: Optional[FocusGuard] = None
+        self.rate_limiter: Optional[InputRateLimiter] = None
         
         # Recorder (W8)
         self.input_recorder: Optional[InputRecorder] = None
@@ -201,6 +207,10 @@ async def lifespan(app: FastAPI):
         state.budget = ActionBudget()
         state.plan_guard = PlanGuard(state.session_auth)
         
+        # V24 Hardening
+        state.focus_guard = FocusGuard(state.computer)
+        state.rate_limiter = InputRateLimiter()
+        
         # 4. Strategies (W6)
         strategies = [
             UIAStrategy(),
@@ -225,6 +235,8 @@ async def lifespan(app: FastAPI):
             budget=state.budget,
             environment=state.environment,
             on_step_complete=lambda res: handle_step_complete_sync(res),
+            focus_guard=state.focus_guard,
+            rate_limiter=state.rate_limiter,
             ranker=state.learning_ranker,
             collector=state.learning_collector
         )
@@ -430,6 +442,13 @@ try:
 except ImportError:
     pass
 
+try:
+    from assistant.api.settings_routes import router as settings_router
+    app.include_router(settings_router)
+except ImportError:
+    logger.warning("Settings router could not be imported")
+    pass
+
 # ==================== Execution Logic ====================
 
 async def run_plan_execution(task: str):
@@ -599,6 +618,25 @@ async def grant_permission(req: PermissionGrantRequest = PermissionGrantRequest(
     state.session_auth.grant(mode=req.mode, ttl_sec=ttl_sec)
     await state.broadcast("permission_granted", {"ttl_sec": ttl_sec})
     return {"status": "granted", "ttl_sec": ttl_sec}
+
+
+@app.post("/debug/crash")
+async def debug_crash():
+    """Trigger a backend crash for recovery testing."""
+    # Security: Require active session
+    if not state.session_auth.check():
+        raise HTTPException(403, "Forbidden")
+        
+    logger.critical("💥 SIMULATING CRASH (Debug Endpoint) 💥")
+    
+    # Force immediate exit with error code
+    def crash_it():
+        time.sleep(0.5)
+        os._exit(1)
+    
+    import threading
+    threading.Thread(target=crash_it).start()
+    return {"status": "crashing"}
 
 
 

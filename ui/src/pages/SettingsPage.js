@@ -193,6 +193,7 @@ export default function SettingsPage({ apiUrl }) {
         {tabs.map(tab => (
           <button
             key={tab.id}
+            data-testid={`tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             style={{
               ...styles.tab,

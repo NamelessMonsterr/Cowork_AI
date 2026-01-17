@@ -65,27 +65,37 @@ async def list_audio_devices():
         }
 
 
-@router.get("/test")
+@router.post("/test")
 async def test_stt(request: Request, seconds: int = 3):
     """
     Quick STT test - record and transcribe.
     Useful for verifying STT configuration.
+    
+    Returns:
+        engine: STT engine used
+        transcript: Recognized text
+        duration_ms: Total processing time in milliseconds
     """
+    import time
+    start = time.time()
+    
     state = request.app.state
     
     try:
         text = await state.stt.listen(duration=seconds)
         engine = state.stt.engine_name
+        duration_ms = int((time.time() - start) * 1000)
         
         return {
             "success": True,
             "engine": engine,
             "transcript": text,
-            "duration_seconds": seconds
+            "duration_ms": duration_ms
         }
     except Exception as e:
         logger.error(f"[Voice] Test failed: {e}")
         return {
             "success": False,
-            "error": str(e)
+            "error": str(e),
+            "duration_ms": int((time.time() - start) * 1000)
         }

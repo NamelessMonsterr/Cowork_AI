@@ -120,7 +120,7 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
 
     return (
         <div style={styles.overlay} onClick={onCancel}>
-            <div style={styles.panel} onClick={e => e.stopPropagation()}>
+            <div style={styles.panel} onClick={e => e.stopPropagation()} data-testid="plan-preview">
                 <div style={styles.header}>
                     <h2 style={styles.title}>📋 PLAN PREVIEW</h2>
                     <span style={styles.meta}>
@@ -154,6 +154,7 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
                     <button 
                         style={{...styles.btn, ...styles.approveBtn}}
                         onClick={() => onApprove(planId)}
+                        data-testid="plan-approve-button"
                     >
                         ✅ APPROVE & EXECUTE
                     </button>

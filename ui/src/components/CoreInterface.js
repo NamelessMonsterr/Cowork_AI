@@ -7,6 +7,7 @@ export const CoreInterface = ({ status, transcript, onClick }) => {
       <div
         className={`hex-frame ${status.toLowerCase().replace(/ /g, "-")}`}
         onClick={onClick}
+        data-testid="core-button"
       >
         <div className="outer-ring"></div>
         <div className="inner-ring"></div>
@@ -16,7 +17,7 @@ export const CoreInterface = ({ status, transcript, onClick }) => {
       </div>
 
       <div className="status-display">
-        <div className="status-main">{status}</div>
+        <div className="status-main" data-testid="app-status">{status}</div>
         <div className="status-sub">{transcript}</div>
       </div>
     </div>

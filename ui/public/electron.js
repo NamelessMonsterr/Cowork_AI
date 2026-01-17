@@ -70,8 +70,8 @@ function startBackend() {
     backendPort = portData ? portData.port : 8765;
     return;
   } else {
-    // Production: Bundled EXE
-    exePath = path.join(process.resourcesPath, 'backend', 'assistant-backend.exe');
+    // Production: Bundled EXE (from PyInstaller backend.spec)
+    exePath = path.join(process.resourcesPath, 'backend', 'cowork-backend', 'cowork-backend.exe');
   }
 
   console.log(`Spawning backend: ${exePath}`);
@@ -82,9 +82,13 @@ function startBackend() {
     return;
   }
 
+  // Find available port
+  const portToUse = backendPort || 8765;
+
   backendProcess = spawn(exePath, [], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true
+    windowsHide: true,
+    env: { ...process.env, PORT: String(portToUse) }  // Pass port via env
   });
 
   backendProcess.stdout.on('data', (data) => {
