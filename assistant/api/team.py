@@ -49,8 +49,12 @@ async def receive_delegation(req: DelegateRequest):
     # Check if we accept delegation? W17.3 Policy
     # For MVP: Accept
     
-    import asyncio
-    asyncio.create_task(run_plan_execution(f"Delegated: {req.task}"))
+    # Security Harden: Disable auto-execution by default (RCE Risk)
+    # import asyncio
+    # asyncio.create_task(run_plan_execution(f"Delegated: {req.task}"))
+    
+    logger.info(f"Delegation received (Dry Run): {req.task}. Auto-execution disabled for safety.")
+    return {"status": "accepted", "message": "Task logged (Auto-execution disabled)."}
     
     return {"status": "accepted", "message": "Task received and queued."}
 

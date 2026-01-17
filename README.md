@@ -54,6 +54,8 @@ npm start
 | **👥 Team Mode**     | Multi-agent task delegation           |
 | **☁️ Cloud Sync**    | Settings sync across devices          |
 | **🧠 Learning**      | Adapts to your apps over time         |
+| **📊 Observability** | Execution timeline with detailed logs |
+| **🛡️ Safe Mode**     | Blocks destructive actions by default |
 
 ---
 
@@ -109,6 +111,10 @@ Settings are stored in `%APPDATA%/CoworkAI/settings.json`:
   },
   "cloud": {
     "enabled": false
+  },
+  "voice": {
+    "engine_preference": "auto",
+    "record_seconds": 5
   }
 }
 ```

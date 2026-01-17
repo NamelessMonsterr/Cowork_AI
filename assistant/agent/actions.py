@@ -172,6 +172,8 @@ def match_action(user_text: str) -> Optional[List[Dict[str, Any]]]:
     """
     Match user text against registered actions.
     Returns a plan (list of steps) or None if no match.
+    
+    IMPORTANT: Steps use 'tool' and 'args' keys to match ActionStep schema.
     """
     text = user_text.lower().strip()
     
@@ -180,28 +182,53 @@ def match_action(user_text: str) -> Optional[List[Dict[str, Any]]]:
         logger.warning(f"Blocked dangerous command: {text}")
         return None
     
+    step_id = 1
+    
     # Try each pattern
     for action_def in ACTIONS:
         pattern = re.compile(action_def["pattern"])
         if pattern.search(text):
             plan = []
             
-            # Main action
-            step = {"action": action_def["action"]}
+            # Main action - use 'tool' and 'args' to match ActionStep schema
+            main_step = {
+                "id": str(step_id),
+                "tool": action_def["action"],
+                "args": {},
+                "description": action_def.get("speak", "")
+            }
             if action_def.get("target"):
-                step["target"] = action_def["target"]
-            plan.append(step)
+                main_step["args"]["target"] = action_def["target"]
+            plan.append(main_step)
+            step_id += 1
             
             # Speak confirmation
-            plan.append({"action": "speak", "value": action_def["speak"]})
+            plan.append({
+                "id": str(step_id),
+                "tool": "speak",
+                "args": {"text": action_def["speak"]},
+                "description": "Confirmation"
+            })
+            step_id += 1
             
             # Check for "and type..." suffix
             if action_def.get("supports_type"):
                 type_match = re.search(r"(?:(?:and|then)\s+type\s+)(.+)$", text)
                 if type_match:
                     to_type = type_match.group(1).strip().strip('"\'')
-                    plan.append({"action": "wait", "value": "4.0"})
-                    plan.append({"action": "type_text", "value": to_type})
+                    plan.append({
+                        "id": str(step_id),
+                        "tool": "wait",
+                        "args": {"seconds": 4.0},
+                        "description": "Wait for app to open"
+                    })
+                    step_id += 1
+                    plan.append({
+                        "id": str(step_id),
+                        "tool": "type_text",
+                        "args": {"text": to_type},
+                        "description": f"Type: {to_type}"
+                    })
             
             logger.info(f"✅ Matched action: {action_def['action']} for '{text}'")
             return plan

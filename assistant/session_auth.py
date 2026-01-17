@@ -47,3 +47,32 @@ class SessionAuth:
         if not self.permit.allowed:
             return 0
         return max(0, int(self.permit.expires_at - time.time()))
+
+    def check(self) -> bool:
+        """Return True if session is active and valid (non-raising)."""
+        try:
+            self.ensure()
+            return True
+        except PermissionError:
+            return False
+
+    def status(self):
+        """Return status dict/object for API."""
+        return SessionStatus(
+            allowed=self.check(),
+            time_remaining=self.time_remaining(),
+            mode=self.permit.mode
+        )
+
+@dataclass
+class SessionStatus:
+    allowed: bool
+    time_remaining: int
+    mode: str
+    
+    def dict(self):
+        return {
+            "allowed": self.allowed,
+            "time_remaining": self.time_remaining,
+            "mode": self.mode
+        }

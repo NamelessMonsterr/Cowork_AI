@@ -1,5 +1,70 @@
 import React, { useState, useEffect } from 'react';
 
+const styles = {
+  container: {
+    padding: '20px',
+    color: '#fff',
+    maxWidth: '900px',
+    margin: '0 auto'
+  },
+  header: {
+    borderBottom: '1px solid #444',
+    paddingBottom: '10px',
+    marginBottom: '20px'
+  },
+  statsRow: {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '30px'
+  },
+  statCard: {
+    flex: 1,
+    padding: '20px',
+    background: 'linear-gradient(135deg, rgba(33,150,243,0.2), rgba(156,39,176,0.2))',
+    borderRadius: '12px',
+    textAlign: 'center'
+  },
+  statValue: {
+    fontSize: '2.5em',
+    fontWeight: 'bold'
+  },
+  statLabel: {
+    color: '#888',
+    marginTop: '5px'
+  },
+  section: {
+    marginBottom: '25px',
+    padding: '15px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: '8px'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    marginTop: '10px'
+  },
+  badge: {
+    padding: '3px 8px',
+    borderRadius: '4px',
+    background: '#4CAF50',
+    color: '#fff',
+    fontSize: '0.85em'
+  },
+  btnDanger: {
+    padding: '8px 16px',
+    borderRadius: '4px',
+    border: 'none',
+    background: '#f44336',
+    color: '#fff',
+    cursor: 'pointer'
+  },
+  muted: {
+    color: '#888',
+    fontSize: '0.9em',
+    marginBottom: '10px'
+  }
+};
+
 /**
  * W20.7 Learning Dashboard
  * Show how Flash Assistant is improving over time.
@@ -161,69 +226,5 @@ const LearningDashboard = ({ apiUrl }) => {
   );
 };
 
-const styles = {
-  container: {
-    padding: '20px',
-    color: '#fff',
-    maxWidth: '900px',
-    margin: '0 auto'
-  },
-  header: {
-    borderBottom: '1px solid #444',
-    paddingBottom: '10px',
-    marginBottom: '20px'
-  },
-  statsRow: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '30px'
-  },
-  statCard: {
-    flex: 1,
-    padding: '20px',
-    background: 'linear-gradient(135deg, rgba(33,150,243,0.2), rgba(156,39,176,0.2))',
-    borderRadius: '12px',
-    textAlign: 'center'
-  },
-  statValue: {
-    fontSize: '2.5em',
-    fontWeight: 'bold'
-  },
-  statLabel: {
-    color: '#888',
-    marginTop: '5px'
-  },
-  section: {
-    marginBottom: '25px',
-    padding: '15px',
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: '8px'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginTop: '10px'
-  },
-  badge: {
-    padding: '3px 8px',
-    borderRadius: '4px',
-    background: '#4CAF50',
-    color: '#fff',
-    fontSize: '0.85em'
-  },
-  btnDanger: {
-    padding: '8px 16px',
-    borderRadius: '4px',
-    border: 'none',
-    background: '#f44336',
-    color: '#fff',
-    cursor: 'pointer'
-  },
-  muted: {
-    color: '#888',
-    fontSize: '0.9em',
-    marginBottom: '10px'
-  }
-};
-
+// Styles moved to top
 export default LearningDashboard;

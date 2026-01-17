@@ -1,5 +1,56 @@
 import React, { useState, useEffect } from 'react';
 
+const styles = {
+  container: {
+    padding: '20px',
+    color: '#fff',
+    maxWidth: '600px',
+    margin: '0 auto'
+  },
+  header: {
+    borderBottom: '1px solid #444',
+    paddingBottom: '10px',
+    marginBottom: '20px'
+  },
+  section: {
+    marginBottom: '25px',
+    padding: '15px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: '8px'
+  },
+  row: {
+    marginBottom: '10px'
+  },
+  btn: {
+    padding: '8px 16px',
+    borderRadius: '4px',
+    border: 'none',
+    background: '#4CAF50',
+    color: '#fff',
+    cursor: 'pointer',
+    marginRight: '10px'
+  },
+  btnDanger: {
+    padding: '8px 16px',
+    borderRadius: '4px',
+    border: 'none',
+    background: '#f44336',
+    color: '#fff',
+    cursor: 'pointer'
+  },
+  muted: {
+    color: '#888',
+    fontSize: '0.9em'
+  },
+  privacyBox: {
+    padding: '15px',
+    background: 'rgba(76, 175, 80, 0.1)',
+    border: '1px solid rgba(76, 175, 80, 0.3)',
+    borderRadius: '8px',
+    fontSize: '0.9em'
+  }
+};
+
 /**
  * W19.7 Cloud Sync Settings
  * Enable sync, view devices, trigger manual sync.
@@ -146,55 +197,7 @@ const CloudSyncSettings = ({ apiUrl }) => {
   );
 };
 
-const styles = {
-  container: {
-    padding: '20px',
-    color: '#fff',
-    maxWidth: '600px',
-    margin: '0 auto'
-  },
-  header: {
-    borderBottom: '1px solid #444',
-    paddingBottom: '10px',
-    marginBottom: '20px'
-  },
-  section: {
-    marginBottom: '25px',
-    padding: '15px',
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: '8px'
-  },
-  row: {
-    marginBottom: '10px'
-  },
-  btn: {
-    padding: '8px 16px',
-    borderRadius: '4px',
-    border: 'none',
-    background: '#4CAF50',
-    color: '#fff',
-    cursor: 'pointer',
-    marginRight: '10px'
-  },
-  btnDanger: {
-    padding: '8px 16px',
-    borderRadius: '4px',
-    border: 'none',
-    background: '#f44336',
-    color: '#fff',
-    cursor: 'pointer'
-  },
-  muted: {
-    color: '#888',
-    fontSize: '0.9em'
-  },
-  privacyBox: {
-    padding: '15px',
-    background: 'rgba(76, 175, 80, 0.1)',
-    border: '1px solid rgba(76, 175, 80, 0.3)',
-    borderRadius: '8px',
-    fontSize: '0.9em'
-  }
-};
+// Styles moved to top
+
 
 export default CloudSyncSettings;

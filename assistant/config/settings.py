@@ -50,13 +50,21 @@ class VoiceSettings(BaseModel):
     mode: str = Field(default="push_to_talk", pattern="^(push_to_talk|wake_word|always_on)$")
     wake_word: str = "flash"
     push_to_talk_key: str = "ctrl+space"
+    # STT Engine Settings
+    engine_preference: str = Field(default="auto", pattern="^(auto|faster-whisper|openai|mock)$")
+    openai_api_key: Optional[str] = None  # If set, enables OpenAI Whisper API fallback
+    prefer_local_stt: bool = True  # Try local FasterWhisper first, API second
+    mock_stt: bool = False  # Force mock mode (dev only)
+    # Recording Settings
+    mic_device: Optional[str] = None  # Specific mic device ID, None = system default
+    record_seconds: int = Field(default=5, ge=2, le=30)  # Recording duration
 
 class ServerSettings(BaseModel):
     """Server/network configuration."""
     host: str = "127.0.0.1"  # Production: localhost only
     port: int = Field(default=8765, ge=1024, le=65535)
-    cors_enabled: bool = False  # Disabled in production
-    cors_origins: List[str] = ["http://localhost:3000"]  # Dev only
+    cors_enabled: bool = True  # Enabled for Beta/Dev
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001"]  # Dev only
 
 class AppSettings(BaseModel):
     """Root application settings."""

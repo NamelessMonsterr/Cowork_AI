@@ -55,8 +55,10 @@ class ExecutorConfig:
     max_retries_per_strategy: int = 3
     retry_delays: list[float] = None  # Exponential backoff delays
     verify_timeout_sec: int = 5
+    action_timeout_sec: int = 30  # Timeout per action
     capture_screenshots: bool = True
     use_selector_cache: bool = True
+    safe_mode: bool = False  # If True, blocks destructive actions
     
     def __post_init__(self):
         if self.retry_delays is None:
@@ -145,6 +147,8 @@ class ReliableExecutor:
         screenshot_before = None
         screenshot_after = None
         
+        DESTRUCTIVE_TOOLS = ["delete_file", "kill_process", "format_disk"]
+        
         try:
             # 1. Check paused state
             if self._is_paused:
@@ -153,6 +157,15 @@ class ReliableExecutor:
                     error=f"Executor paused: {self._pause_reason}",
                     requires_takeover=True,
                     takeover_reason=self._pause_reason,
+                )
+            
+            # 1.5 Safe Mode Check (V24)
+            if self._config.safe_mode and step.tool in DESTRUCTIVE_TOOLS:
+                return self._make_failed_result(
+                    step, start_time,
+                    error=f"Action blocked by Safe Mode: {step.tool}",
+                    requires_takeover=True,
+                    takeover_reason="Destructive action blocked by Safe Mode",
                 )
             
             # 2. Check session permission

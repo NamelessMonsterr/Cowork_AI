@@ -176,22 +176,28 @@ class WindowsComputer:
         return None
 
     def launch_app(self, app_name: str) -> bool:
-        """Launch application."""
+        """Launch application dynamically."""
         self._ensure_permission()
-        shortcuts = {
-            "notepad": "notepad.exe",
-            "calc": "calc.exe",
-            "cmd": "cmd.exe",
-            "chrome": "chrome.exe",
-            "explorer": "explorer.exe"
-        }
-        exe = shortcuts.get(app_name.lower(), app_name)
+        import shutil
+        
+        logger.info(f"Attempting to launch: {app_name}")
         try:
-            subprocess.Popen(exe, shell=True)
-            time.sleep(1)
+            # 1. Try finding in PATH
+            path = shutil.which(app_name) or shutil.which(app_name + ".exe")
+            
+            if path:
+                logger.info(f"Found executable: {path}")
+                subprocess.Popen(path)
+                return True
+                
+            # 2. Try os.startfile (Windows Shell Execute - good for registered apps like 'chrome')
+            # This handles protocol handlers and App Paths
+            logger.info(f"Trying os.startfile for: {app_name}")
+            os.startfile(app_name)
             return True
+            
         except Exception as e:
-            logger.error(f"Launch failed: {e}")
+            logger.error(f"Launch failed for {app_name}: {e}")
             return False
 
     def run_shell_command(self, command: str) -> bool:

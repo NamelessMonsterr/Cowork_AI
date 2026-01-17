@@ -1,0 +1,91 @@
+"""
+Voice API Routes - V21 Voice Real Mode.
+
+Endpoints:
+- GET /voice/devices - List available microphone devices
+- GET /voice/health - STT engine health status
+- POST /voice/listen - Record and transcribe voice
+"""
+
+import logging
+from typing import Optional
+from fastapi import APIRouter, Request, HTTPException
+
+logger = logging.getLogger("VoiceRoutes")
+
+router = APIRouter(prefix="/voice", tags=["voice"])
+
+
+@router.get("/devices")
+async def list_audio_devices():
+    """
+    List available audio input devices.
+    
+    Returns:
+        devices: List of {id, name, is_default}
+        error: Optional error message if audio unavailable
+    """
+    try:
+        import sounddevice as sd
+        
+        devices = sd.query_devices()
+        input_devices = []
+        default_device = sd.default.device[0]  # Input device index
+        
+        for i, dev in enumerate(devices):
+            if dev['max_input_channels'] > 0:
+                input_devices.append({
+                    "id": str(i),
+                    "name": dev['name'],
+                    "is_default": (i == default_device),
+                    "channels": dev['max_input_channels'],
+                    "sample_rate": int(dev['default_samplerate'])
+                })
+        
+        logger.info(f"[Voice] Found {len(input_devices)} input devices")
+        return {
+            "success": True,
+            "devices": input_devices,
+            "default_device": str(default_device) if default_device is not None else None
+        }
+        
+    except ImportError:
+        logger.warning("[Voice] sounddevice not installed")
+        return {
+            "success": False,
+            "devices": [],
+            "error": "Audio library (sounddevice) not available"
+        }
+    except Exception as e:
+        logger.error(f"[Voice] Device enumeration failed: {e}")
+        return {
+            "success": False,
+            "devices": [],
+            "error": str(e)
+        }
+
+
+@router.get("/test")
+async def test_stt(request: Request, seconds: int = 3):
+    """
+    Quick STT test - record and transcribe.
+    Useful for verifying STT configuration.
+    """
+    state = request.app.state
+    
+    try:
+        text = await state.stt.listen(duration=seconds)
+        engine = state.stt.engine_name
+        
+        return {
+            "success": True,
+            "engine": engine,
+            "transcript": text,
+            "duration_seconds": seconds
+        }
+    except Exception as e:
+        logger.error(f"[Voice] Test failed: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }

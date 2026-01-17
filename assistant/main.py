@@ -9,7 +9,7 @@ import time
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 
 from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -148,6 +148,13 @@ class AppState:
         self.current_task_id: Optional[str] = None
         self.is_executing = False
         self.websocket_clients: List[WebSocket] = []
+        
+        # Plan Preview Storage (Task B) - stores (plan, created_at)
+        self.pending_plans: Dict[str, Tuple[ExecutionPlan, float]] = {}
+        self.plan_cleanup_task: Optional[asyncio.Task] = None
+        
+        # V23: Execution Logs (in-memory, last 50)
+        self.execution_logs: List[Dict[str, Any]] = []
 
     async def broadcast(self, event: str, data: dict):
         """Send event to all connected UI clients."""
@@ -224,7 +231,13 @@ async def lifespan(app: FastAPI):
         
         # 6. Planner (The Brain) - Pure Planning
         state.planner = Planner(computer=state.computer)
-        state.stt = STT()
+        
+        # V2: Wire STT with settings
+        voice_settings = settings.voice
+        state.stt = STT(
+            prefer_mock=voice_settings.mock_stt,
+            openai_api_key=voice_settings.openai_api_key or os.environ.get("OPENAI_API_KEY")
+        )
         
         # 7. Recorder (W8)
         state.macro_storage = MacroStorage()
@@ -318,6 +331,10 @@ async def lifespan(app: FastAPI):
         state.sync_engine = SyncEngine(sync_store, sync_crypto)
 
         logger.info("✅ Core Systems Online: Planner, Executor, Safety, Computer, Recorder, Recovery, Plugins (Hosted), Team Discovery, Skills, Cloud Sync.")
+        
+        # V2: Start pending plan cleanup task
+        state.plan_cleanup_task = asyncio.create_task(cleanup_expired_plans())
+        logger.info("✅ Pending plan cleanup task started (TTL: 10 min)")
     
     except Exception as e:
         logger.critical(f"❌ Initialization Failed: {e}", exc_info=True)
@@ -342,8 +359,33 @@ async def lifespan(app: FastAPI):
     if state.team_discovery:
         state.team_discovery.stop()
     
+    # V2: Cancel cleanup task
+    if state.plan_cleanup_task:
+        state.plan_cleanup_task.cancel()
+        try:
+            await state.plan_cleanup_task
+        except asyncio.CancelledError:
+            pass
+    
     # P2.2: Clear port file on shutdown
     clear_port_file()
+
+
+# V2: Pending plan TTL cleanup (10 min)
+PLAN_TTL_SEC = 600  # 10 minutes
+
+async def cleanup_expired_plans():
+    """Background task to clean up expired pending plans."""
+    while True:
+        await asyncio.sleep(60)  # Check every minute
+        now = time.time()
+        expired = [k for k, (_, created_at) in state.pending_plans.items() 
+                   if now - created_at > PLAN_TTL_SEC]
+        for plan_id in expired:
+            logger.info(f"[CLEANUP] Expiring pending plan: {plan_id}")
+            del state.pending_plans[plan_id]
+        if expired:
+            logger.info(f"[CLEANUP] Removed {len(expired)} expired plans")
 
 def handle_unsafe_environment(env_state, reason):
     """Callback from EnvironmentMonitor (Thread-safe wrapper needed)."""
@@ -380,6 +422,13 @@ app.include_router(plugins_router)
 app.include_router(support_router)
 app.include_router(team_router)
 app.include_router(auth_router)
+
+# V21: Voice routes
+try:
+    from assistant.api.voice_routes import router as voice_router
+    app.include_router(voice_router)
+except ImportError:
+    pass
 
 # ==================== Execution Logic ====================
 
@@ -543,10 +592,24 @@ async def revoke_permission():
     return {"status": "revoked"}
 
 
+@app.post("/permission/grant")
+async def grant_permission(req: PermissionGrantRequest = PermissionGrantRequest()):
+    """Grant session permission for executing actions."""
+    ttl_sec = req.ttl_min * 60
+    state.session_auth.grant(mode=req.mode, ttl_sec=ttl_sec)
+    await state.broadcast("permission_granted", {"ttl_sec": ttl_sec})
+    return {"status": "granted", "ttl_sec": ttl_sec}
+
+
 
 @app.post("/shutdown")
 async def shutdown():
     """Graceful shutdown for Electron packaging."""
+    # Security Harden: Require active session or secret
+    if not state.session_auth.check():
+        logger.warning("Unauthorized shutdown attempt")
+        raise HTTPException(401, "Unauthorized: Active session required")
+
     logger.info("Received shutdown signal.")
     # In a real app we might want to cancel tasks or flush logs.
     state.session_auth.revoke()
@@ -577,8 +640,10 @@ async def voice_listen():
     if not state.stt:
         raise HTTPException(503, "STT not ready")
         
-    # Zero-Click: Grant session
-    state.session_auth.grant()
+    # Security Harden: Require active session (No Zero-Click)
+    if not state.session_auth.check():
+        raise HTTPException(401, "Unauthorized: Active session required")
+        
     await state.broadcast("listening_started", {})
     
     try:
@@ -589,14 +654,320 @@ async def voice_listen():
         if text:
             # Start Execution
             asyncio.create_task(run_plan_execution(text))
-            return {"status": "processing", "text": text}
-        return {"status": "no_speech"}
+            return {"status": "processing", "success": True, "text": text}
+        return {"status": "no_speech", "success": False}
         
     except Exception as e:
         logger.error(f"Voice Error: {e}")
         raise HTTPException(500, str(e))
 
 
+# --- Voice Health Endpoint (Task A) ---
+
+@app.get("/voice/health")
+async def voice_health():
+    """Get STT engine health status."""
+    if not state.stt:
+        return {
+            "stt_engine": "none",
+            "available": False,
+            "error": "STT not initialized"
+        }
+    return state.stt.get_health()
+
+
+# --- Plan Preview API (Task B) ---
+
+class PlanPreviewRequest(BaseModel):
+    task: str
+
+class PlanApproveRequest(BaseModel):
+    plan_id: str
+
+@app.post("/plan/preview")
+async def plan_preview(req: PlanPreviewRequest):
+    """
+    Generate a plan preview WITHOUT executing.
+    Returns the plan for user review.
+    """
+    task_id = str(uuid.uuid4())
+    logger.info(f"[PLAN] Preview requested | task='{req.task}' | task_id={task_id}")
+    
+    if not state.planner:
+        raise HTTPException(503, "Planner not initialized")
+    
+    try:
+        # Generate plan
+        raw_steps = await state.planner.create_plan(req.task)
+        
+        # Convert to ActionSteps
+        action_steps = []
+        for i, s in enumerate(raw_steps):
+            s["id"] = s.get("id", str(i+1))
+            action_steps.append(ActionStep(**s))
+        
+        plan_id = str(uuid.uuid4())
+        plan = ExecutionPlan(id=plan_id, task=req.task, steps=action_steps)
+        
+        # Store for later approval (with TTL timestamp)
+        state.pending_plans[plan_id] = (plan, time.time())
+        
+        # Estimate time (rough: 3 sec per step)
+        estimated_time = len(action_steps) * 3
+        
+        logger.info(f"[PLAN] Generated | plan_id={plan_id} | step_count={len(action_steps)} | task_id={task_id}")
+        
+        return {
+            "plan": plan.dict(),
+            "plan_id": plan_id,
+            "estimated_time_sec": estimated_time
+        }
+        
+    except Exception as e:
+        logger.error(f"[PLAN] Preview failed: {e}")
+        raise HTTPException(500, f"Plan generation failed: {e}")
+
+
+@app.post("/plan/approve")
+async def plan_approve(req: PlanApproveRequest):
+    """
+    Approve and execute a previously previewed plan.
+    Requires SessionAuth.
+    """
+    # Security: Require active session
+    if not state.session_auth.check():
+        raise HTTPException(403, "Forbidden: Active session required")
+    
+    plan_id = req.plan_id
+    logger.info(f"[PLAN] Approve requested | plan_id={plan_id}")
+    
+    # Fetch pending plan (stored as tuple with timestamp)
+    entry = state.pending_plans.get(plan_id)
+    if not entry:
+        raise HTTPException(404, f"Plan not found: {plan_id}")
+    
+    plan, created_at = entry
+    
+    # Remove from pending
+    del state.pending_plans[plan_id]
+    
+    # Execute the plan
+    logger.info(f"[EXEC] Started | plan_id={plan_id} | task_id={state.current_task_id}")
+    asyncio.create_task(execute_approved_plan(plan))
+    
+    await state.broadcast("execution_started", {"plan_id": plan_id})
+    
+    return {
+        "status": "executing",
+        "plan_id": plan_id
+    }
+
+
+async def execute_approved_plan(plan: ExecutionPlan):
+    """Execute an approved plan (internal helper)."""
+    state.is_executing = True
+    state.current_task_id = plan.id
+    
+    logger.info(f"[EXEC] Executing plan: {plan.task}")
+    await state.broadcast("plan_started", {"task": plan.task})
+    
+    if state.computer:
+        state.computer.set_fps(15)
+    
+    try:
+        # Validate with guard
+        try:
+            state.plan_guard.validate(plan)
+            logger.info("[EXEC] Plan validated")
+        except Exception as e:
+            logger.error(f"[EXEC] Plan rejected: {e}")
+            await state.broadcast("plan_rejected", {"error": str(e)})
+            return
+        
+        await state.broadcast("plan_generated", plan.dict())
+        
+        # Execute each step
+        for i, step in enumerate(plan.steps):
+            if state.executor.is_paused():
+                await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
+                break
+            
+            # V24: Enforce timeout at execution level
+            timeout = state.executor._config.action_timeout_sec
+            try:
+                result: StepResult = await asyncio.wait_for(
+                    asyncio.to_thread(state.executor.execute, step),
+                    timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"[EXEC] Step {step.id} timed out after {timeout}s")
+                result = StepResult(
+                    step_id=step.id,
+                    success=False,
+                    error=f"Action timed out after {timeout}s",
+                    attempts=1,
+                    duration_ms=timeout * 1000
+                )
+            
+            logger.info(f"[EXEC] Step completed | step_id={step.id} | success={result.success} | plan_id={plan.id}")
+            await state.broadcast("step_completed", result.dict())
+            
+            if not result.success:
+                logger.error(f"[EXEC] Step failed: {result.error}")
+                if result.requires_takeover:
+                    await state.broadcast("takeover_required", {"reason": result.takeover_reason})
+                break
+        
+        await state.broadcast("execution_finished", {"success": True})
+        execution_success = True
+        
+    except Exception as e:
+        logger.error(f"[EXEC] Execution error: {e}")
+        await state.broadcast("execution_error", {"error": str(e)})
+        execution_success = False
+        execution_error = str(e)
+    
+    finally:
+        state.is_executing = False
+        if state.computer:
+            state.computer.set_fps(1)
+        state.session_auth.revoke()
+        
+        # V23: Record execution log
+        log_entry = {
+            "id": plan.id,
+            "timestamp": time.time(),
+            "task": plan.task,
+            "plan_id": plan.id,
+            "step_count": len(plan.steps),
+            "success": execution_success if 'execution_success' in locals() else False,
+            "error": execution_error if 'execution_error' in locals() else None,
+            "strategy": "auto",
+            "recovery_attempted": False,
+            "recovery_success": None
+        }
+        state.execution_logs.insert(0, log_entry)
+        # Keep only last 50
+        if len(state.execution_logs) > 50:
+            state.execution_logs = state.execution_logs[:50]
+
+
+# --- V23: Execution Logs Endpoint ---
+
+@app.get("/logs/recent")
+async def get_recent_logs(limit: int = 50):
+    """
+    Get recent execution logs for observability dashboard.
+    Returns last N execution entries with status and details.
+    """
+    return {
+        "logs": state.execution_logs[:limit],
+        "count": len(state.execution_logs),
+        "limit": limit
+    }
+
+
+# --- Dev Debug Endpoints ---
+
+class DevTaskRequest(BaseModel):
+    task: str
+
+@app.post("/dev/run")
+async def dev_run_task(req: DevTaskRequest):
+    """
+    Rescue mode: Bypass voice and run a task directly.
+    Auto-grants permission and starts execution.
+    """
+    logger.info(f"[DEV] Running task directly: {req.task}")
+    
+    # Auto-grant session
+    state.session_auth.grant(mode="session", ttl_sec=1800)
+    await state.broadcast("permission_granted", {"ttl_sec": 1800})
+    
+    # Start execution
+    asyncio.create_task(run_plan_execution(req.task))
+    
+    return {"status": "started", "task": req.task}
+
+@app.get("/voice/dev_simulate")
+async def voice_simulate(text: str = "Open Notepad"):
+    """
+    Debug endpoint: Bypass mic and simulate speech input.
+    """
+    logger.info(f"[DEV] Simulating voice input: {text}")
+    
+    # Check session
+    if not state.session_auth.check():
+        state.session_auth.grant(mode="session", ttl_sec=1800)
+    
+    await state.broadcast("speech_recognized", {"text": text})
+    asyncio.create_task(run_plan_execution(text))
+    
+    return {"status": "processing", "text": text}
+
+@app.post("/debug/type")
+async def debug_type(text: str = "HELLO"):
+    """Debug: Direct input test."""
+    if not state.session_auth.check():
+        state.session_auth.grant(mode="session", ttl_sec=1800)
+    
+    if state.computer:
+        state.computer.type_text(text)
+        return {"status": "typed", "text": text}
+    return {"status": "error", "message": "Computer not initialized"}
+
+@app.post("/debug/open_app")
+async def debug_open_app(app: str = "notepad"):
+    """Debug: Direct app launch test."""
+    if not state.session_auth.check():
+        state.session_auth.grant(mode="session", ttl_sec=1800)
+    
+    if state.computer:
+        result = state.computer.launch_app(app)
+        return {"status": "launched" if result else "failed", "app": app}
+    return {"status": "error", "message": "Computer not initialized"}
+
+# --- Settings API (P3.1) ---
+
+@app.get("/settings")
+def read_settings():
+    return get_settings()
+
+@app.post("/settings")
+async def update_settings(new_settings: AppSettings):
+    if not state.session_auth.check():
+        raise HTTPException(401, "Unauthorized: Active session required")
+        
+    global _settings
+    # Validate logic if needed
+    _settings = new_settings
+    _settings.save()
+    return _settings
+
+# --- Permissions API (P3.2) ---
+
+class PermissionList(BaseModel):
+    apps: List[dict] = []
+    folders: List[dict] = []
+    network: List[dict] = []
+    autopilot: bool = False
+
+@app.get("/permissions")
+async def get_permissions():
+    path = os.path.join(get_appdata_dir(), "permissions.json")
+    if os.path.exists(path):
+        import json
+        with open(path, 'r') as f:
+            return json.load(f)
+    return PermissionList().dict()
+
+@app.post("/permissions")
+async def save_permissions(perms: PermissionList):
+    path = os.path.join(get_appdata_dir(), "permissions.json")
+    import json
+    with open(path, 'w') as f:
+        json.dump(perms.dict(), f, indent=2)
+    return {"status": "saved"}
 
 # --- Recorder Routes (W8) ---
 
