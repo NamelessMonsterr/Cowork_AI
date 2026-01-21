@@ -181,8 +181,11 @@ function AppContent() {
     }
   };
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = (prefs) => {
     localStorage.setItem("flash_onboarding_complete", "true");
+    if (prefs?.mode) {
+        localStorage.setItem("flash_mode_preference", prefs.mode);
+    }
     setShowOnboarding(false);
   };
 
