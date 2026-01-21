@@ -64,6 +64,8 @@ const AdminConsole = ({ apiUrl }) => {
           <label>
             <input
               type="checkbox"
+              id="allow-delegation-check"
+              name="allowDelegation"
               checked={policies.allowDelegation}
               onChange={toggleDelegation}
             />
@@ -74,6 +76,8 @@ const AdminConsole = ({ apiUrl }) => {
           <label>Max Concurrent Tasks:</label>
           <input
             type="number"
+            id="max-concurrent-tasks"
+            name="maxConcurrentTasks"
             value={policies.maxConcurrentTasks}
             onChange={(e) => setPolicies(prev => ({ ...prev, maxConcurrentTasks: parseInt(e.target.value) }))}
             style={styles.input}

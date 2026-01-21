@@ -52,8 +52,8 @@ class SystemStrategy(Strategy):
         return 5
     
     def can_handle(self, step: ActionStep) -> bool:
-        """Check if this is a system-level action."""
-        return step.tool in ["open_app", "run_shell", "shell", "open_url"]
+        """Check if this strategy can handle the given step."""
+        return step.tool in ["open_app", "run_shell", "shell", "open_url", "restricted_shell"]
     
     def execute(self, step: ActionStep) -> StrategyResult:
         """
@@ -71,12 +71,12 @@ class SystemStrategy(Strategy):
                 error="SystemStrategy: No computer instance configured"
             )
         
-        tool = step.tool
-        args = step.args or {}
-        
         try:
+            tool = step.tool
+            args = step.parameters or {}
+            
             if tool == "open_app":
-                app_name = args.get("app_name") or args.get("name") or args.get("command")
+                app_name = args.get("app_name") or args.get("name")
                 if not app_name:
                     return StrategyResult(
                         success=False,
@@ -131,8 +131,41 @@ class SystemStrategy(Strategy):
                 webbrowser.open(url)
                 return StrategyResult(
                     success=True,
-                    details={"action": "open_url", "url": url}
+                    output=f"Opened {url}",
+                    action_type="open_url"
                 )
+            
+            elif tool == "restricted_shell":
+                # Execute safe shell command via RestrictedShellTool
+                try:
+                    from assistant.tools.restricted_shell import RestrictedShellTool
+                    
+                    engine = args.get("engine", "cmd")
+                    command = args.get("command", "")
+                    run_as_admin = args.get("run_as_admin", False)
+                    
+                    tool_instance = RestrictedShellTool()
+                    result = tool_instance.execute(engine, command, run_as_admin, supervised=True)
+                    
+                    logger.info(f"[SystemStrategy] Shell: {command[:50]}... exit={result.exit_code}")
+                    
+                    output = result.stdout if result.stdout else result.stderr
+                    if result.redacted:
+                        output += "\n[Some output redacted for security]"
+                    
+                    return StrategyResult(
+                        success=(result.exit_code == 0),
+                        output=output[:1000] if output else "",
+                        error=result.stderr if result.exit_code != 0 else None,
+                        action_type="restricted_shell"
+                    )
+                except Exception as e:
+                    logger.error(f"[SystemStrategy] Shell failed: {e}")
+                    return StrategyResult(
+                        success=False,
+                        error=f"Shell execution failed: {str(e)}",
+                        action_type="restricted_shell"
+                    )
             
             else:
                 return StrategyResult(

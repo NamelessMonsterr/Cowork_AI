@@ -11,7 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import List, Dict, Optional, Any, Tuple
 
-from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Response
+from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sys
@@ -31,7 +31,7 @@ from assistant.agent.planner import Planner
 # --- Safety & Execution ---
 from assistant.safety.budget import ActionBudget
 from assistant.safety.environment import EnvironmentMonitor
-from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig
+from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig, PlanValidationError
 from assistant.safety.focus_guard import FocusGuard
 from assistant.safety.rate_limiter import InputRateLimiter
 from assistant.computer.windows import WindowsComputer
@@ -434,7 +434,7 @@ if _settings.server.cors_enabled:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_settings.server.cors_origins,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "OPTIONS"],  # Added OPTIONS for preflight
         allow_headers=["*"],
         allow_credentials=True
     )
@@ -742,6 +742,7 @@ class PlanPreviewRequest(BaseModel):
 
 class PlanApproveRequest(BaseModel):
     plan_id: str
+    confirm_shell: bool = False  # Explicit confirmation for shell commands
 
 @app.post("/plan/preview")
 async def plan_preview(req: PlanPreviewRequest):
@@ -793,45 +794,58 @@ async def plan_approve(request: Request, req: PlanApproveRequest):
     Approve and execute a plan.
     Security: Requires active session + rate limiting.
     """
-    # PRODUCTION: Rate limiting to prevent spam/loops
-    from assistant.safety.rate_limiter import RateLimiter
-    if not hasattr(state, 'approve_limiter'):
-        state.approve_limiter = RateLimiter(max_requests=10, window_seconds=60)
-    
-    if not state.approve_limiter.is_allowed():
-        logger.warning(f"[APPROVE] Rate limit exceeded")
-        raise HTTPException(429, "Too many approval requests. Please wait a moment.")
-    
-    plan_id = req.plan_id
-    logger.info(f"[APPROVE] Approve requested | plan_id={plan_id}")
-    
-    # Security: Require active session
-    if not state.session_auth.check():
-        logger.warning(f"[APPROVE] Rejected - no session | plan_id={plan_id}")
-        raise HTTPException(403, "Forbidden: Active session required")
-    
-    # Fetch pending plan (stored as tuple with timestamp)
-    entry = state.pending_plans.get(plan_id)
-    if not entry:
-        raise HTTPException(404, f"Plan not found: {plan_id}")
-    
-    plan, created_at = entry
-    
-    # Remove from pending
-    del state.pending_plans[plan_id]
-    
-    # Execute the plan
-    logger.info(f"[APPROVE] Approved | plan_id={plan_id} | task={plan.task[:50]}")
-    logger.info(f"[EXEC] Starting execution | plan_id={plan_id}")
-    asyncio.create_task(execute_approved_plan(plan))
-    
-    logger.info(f"[WS] broadcast event=execution_started plan_id={plan_id}")
-    await state.broadcast("execution_started", {"plan_id": plan_id})
-    
-    return {
-        "status": "executing",
-        "plan_id": plan_id
-    }
+    try:
+        # PRODUCTION: Rate limiting to prevent spam/loops
+        from assistant.safety.rate_limiter import RequestRateLimiter
+        if not hasattr(state, 'approve_limiter'):
+            state.approve_limiter = RequestRateLimiter(max_requests=10, window_seconds=60)
+        
+        if not state.approve_limiter.is_allowed():
+            logger.warning(f"[APPROVE] Rate limit exceeded")
+            raise HTTPException(429, "Too many approval requests. Please wait a moment.")
+        
+        plan_id = req.plan_id
+        logger.info(f"[APPROVE] Approve requested | plan_id={plan_id}")
+        
+        # Security: Require active session
+        if not state.session_auth.check():
+            logger.warning(f"[APPROVE] Rejected - no session | plan_id={plan_id}")
+            raise HTTPException(403, "Forbidden: Active session required")
+        
+        # Fetch pending plan (stored as tuple with timestamp)
+        entry = state.pending_plans.get(plan_id)
+        if not entry:
+            raise HTTPException(404, f"Plan not found: {plan_id}")
+        
+        plan, created_at = entry
+        
+        # Remove from pending
+        del state.pending_plans[plan_id]
+        
+        # Execute the plan
+        logger.info(f"[APPROVE] Approved | plan_id={plan_id} | task={plan.task[:50]}")
+        logger.info(f"[EXEC] Starting execution | plan_id={plan_id}")
+        asyncio.create_task(execute_approved_plan(plan))
+        
+        logger.info(f"[WS] broadcast event=execution_started plan_id={plan_id}")
+        await state.broadcast("execution_started", {"plan_id": plan_id})
+        
+        return {
+            "status": "executing",
+            "plan_id": plan_id,
+            "payload": {
+                "status": "executing",
+                "plan_id": plan_id
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_msg = f"Approve failed: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        print(error_msg, file=sys.stderr)  # Force print to stderr
+        raise HTTPException(500, detail=f"Internal Error: {str(e)}")
 
 
 async def execute_approved_plan(plan: ExecutionPlan):

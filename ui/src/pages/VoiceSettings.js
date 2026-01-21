@@ -258,9 +258,12 @@ export function VoiceSettings({ apiUrl }) {
                     <input 
                         type="password"
                         style={styles.input}
+                        id="openai-key-input"
+                        name="openai_api_key"
                         placeholder="sk-..."
                         value={settings.openai_api_key}
                         onChange={e => setSettings({...settings, openai_api_key: e.target.value})}
+                        autoComplete="new-password"
                     />
                 </div>
             </div>
@@ -291,6 +294,8 @@ export function VoiceSettings({ apiUrl }) {
                     </label>
                     <input 
                         type="range"
+                        id="record-seconds-input"
+                        name="record_seconds"
                         min="2"
                         max="15"
                         style={styles.slider}

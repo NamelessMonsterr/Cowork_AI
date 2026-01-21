@@ -243,6 +243,8 @@ export default function SettingsPage({ apiUrl }) {
               <label>Session Timeout (minutes)</label>
               <input
                 type="number"
+                id="session-ttl-input"
+                name="session_ttl_minutes"
                 value={settings.safety.session_ttl_minutes}
                 onChange={(e) => updateSetting('safety', 'session_ttl_minutes', parseInt(e.target.value))}
                 style={styles.input}
@@ -264,6 +266,8 @@ export default function SettingsPage({ apiUrl }) {
               <label>Max actions per session</label>
               <input
                 type="number"
+                id="max-actions-input"
+                name="max_actions_per_session"
                 value={settings.safety.max_actions_per_session}
                 onChange={(e) => updateSetting('safety', 'max_actions_per_session', parseInt(e.target.value))}
                 style={styles.input}
@@ -282,6 +286,8 @@ export default function SettingsPage({ apiUrl }) {
               </label>
               <input
                 type="text"
+                id="kill-switch-hotkey-input"
+                name="kill_switch_hotkey"
                 value={settings.safety.kill_switch_hotkey}
                 onChange={(e) => updateSetting('safety', 'kill_switch_hotkey', e.target.value)}
                 style={{...styles.input, marginLeft: '10px', width: '150px'}}

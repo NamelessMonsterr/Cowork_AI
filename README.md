@@ -98,6 +98,41 @@ Click the core → Say: **"Open Notepad and type hello"** ✨
 - Untrusted apps and domains
 - IP addresses (security requirement)
 
+- Voice feedback on rejection
+
+### 🔧 Diagnostic Shell Mode (Advanced)
+
+Safe command-line automation for power users and diagnostic scenarios:
+
+- **17 Safe CMD Commands**: `ipconfig`, `whoami`, `dir`, `ping`, `netstat`, etc.
+- **15 Safe PowerShell Commands**: `Get-Process`, `Get-Service`, `Get-ChildItem`, etc.
+- **35+ Blocked Patterns**: Prevents destructive operations (rm, del, format, shutdown)
+- **No Command Chaining**: Blocks pipes (`|`), redirects (`>`), chains (`&`, `;`)
+- **Output Redaction**: Removes API keys and passwords from command output
+- **Audit Logging**: All executions logged to `logs/restricted_shell_audit.jsonl`
+- **Disabled by Default**: Must explicitly enable in `config/restricted_shell.json`
+
+**Example Usage:**
+
+```
+User: "Run ipconfig to check my network"
+→ Plan generated with restricted_shell step
+→ PlanGuard validates command against allowlist
+→ Yellow warning shown in UI with checkbox
+→ User approves → Command executes → Output returned
+```
+
+**Enable:**
+
+```json
+// Edit assistant/config/restricted_shell.json
+{
+  "enabled": true,
+  "allow_admin": false,  // Keep false for safety
+  ...
+}
+```
+
 ---
 
 ## 🔒 Security Model

@@ -69,20 +69,20 @@ class LLMClient:
 Break down the user request into executable actions.
 
 Available actions: 
-- launch_app(app_name) - Open an application (notepad, chrome, calc, etc.)
+- open_app(app_name) - Open an application (notepad, chrome, calc, etc.)
 - click(target) - Click on a UI element
 - type_text(text) - Type text into focused window
 - press_keys(keys) - Press keyboard shortcuts (ctrl+s, alt+tab, etc.)
 - wait(seconds) - Wait for specified seconds
 - speak(text) - Say something to the user
-- run_command(command) - Execute a shell command (PowerShell)
+- restricted_shell(command) - Execute a safe shell command (dir, echom ipconfig - NO destructive commands)
 
 You MUST respond with valid JSON in this exact format:
 {
     "thought": "your reasoning about what to do",
     "reply_text": "optional message to speak to user",
     "plan": [
-        {"action": "launch_app", "target": "notepad"},
+        {"action": "open_app", "target": "notepad"},
         {"action": "type_text", "value": "Hello World"},
         {"action": "speak", "value": "Done!"}
     ]

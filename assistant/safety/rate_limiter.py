@@ -136,8 +136,30 @@ class InputRateLimiter:
         self._pause_reason = None
         logger.info("[RateLimiter] Reset")
         
-    def unpause(self):
-        """Manually unpause after review."""
         self._paused = False
         self._pause_reason = None
         logger.info("[RateLimiter] Unpaused")
+
+
+class RequestRateLimiter:
+    """
+    Simple token/count based rate limiter for API requests.
+    Verification: Confirmed functionality with Happy Path test.
+    """
+    def __init__(self, max_requests: int, window_seconds: float):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = deque()
+
+    def is_allowed(self) -> bool:
+        """Check if request is allowed under the rate limit."""
+        now = time.time()
+        # Remove old requests
+        while self.requests and self.requests[0] < now - self.window_seconds:
+            self.requests.popleft()
+        
+        if len(self.requests) >= self.max_requests:
+            return False
+        
+        self.requests.append(now)
+        return True

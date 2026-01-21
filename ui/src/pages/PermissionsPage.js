@@ -217,10 +217,13 @@ export default function PermissionsPage({ apiUrl }) {
         <div style={styles.addRow}>
           <input
             type="text"
+            id="new-app-permission"
+            name="newAppPermission"
             placeholder="e.g., notepad.exe"
             value={newApp}
             onChange={(e) => setNewApp(e.target.value)}
             style={styles.input}
+            autoComplete="off"
           />
           <button onClick={addApp} style={styles.addBtn}>Add</button>
         </div>
@@ -262,10 +265,13 @@ export default function PermissionsPage({ apiUrl }) {
         <div style={styles.addRow}>
           <input
             type="text"
+            id="new-folder-permission"
+            name="newFolderPermission"
             placeholder="e.g., C:\\Users\\Documents"
             value={newFolder}
             onChange={(e) => setNewFolder(e.target.value)}
             style={styles.input}
+            autoComplete="off"
           />
           <button onClick={addFolder} style={styles.addBtn}>Add</button>
         </div>
@@ -288,10 +294,13 @@ export default function PermissionsPage({ apiUrl }) {
         <div style={styles.addRow}>
           <input
             type="text"
+            id="new-domain-permission"
+            name="newDomainPermission"
             placeholder="e.g., api.openai.com"
             value={newDomain}
             onChange={(e) => setNewDomain(e.target.value)}
             style={styles.input}
+            autoComplete="off"
           />
           <button onClick={addDomain} style={styles.addBtn}>Add</button>
         </div>

@@ -139,7 +139,14 @@ export function PluginsPanel({ onClose }) {
                     <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                         <label className="footer-btn" style={{ cursor: 'pointer', fontSize: '0.8em' }}>
                             📂 LOAD LOCAL .ZIP
-                            <input type="file" accept=".zip,.cowork-plugin" style={{ display: 'none' }} onChange={handleInstallFile} />
+                            <input 
+                                type="file" 
+                                id="plugin-file-upload" 
+                                name="pluginFile" 
+                                accept=".zip,.cowork-plugin" 
+                                style={{ display: 'none' }} 
+                                onChange={handleInstallFile} 
+                            />
                         </label>
                     </div>
 

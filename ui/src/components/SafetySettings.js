@@ -7,6 +7,7 @@ export function SafetySettings() {
     const [trustedApps, setTrustedApps] = useState([]);
     const [appAliases, setAppAliases] = useState({});
     const [trustedDomains, setTrustedDomains] = useState([]);
+    const [restrictedShell, setRestrictedShell] = useState(null);
     const [newApp, setNewApp] = useState('');
     const [newDomain, setNewDomain] = useState('');
     const [loading, setLoading] = useState(true);
@@ -35,6 +36,13 @@ export function SafetySettings() {
             if (domainsRes.ok) {
                 const data = await domainsRes.json();
                 setTrustedDomains(data.trusted_domains || []);
+            }
+            
+            // Load restricted shell config
+            const shellRes = await fetch(`${API_URL}/safety/restricted_shell`);
+            if (shellRes.ok) {
+                const data = await shellRes.json();
+                setRestrictedShell(data);
             }
             
             setLoading(false);
@@ -138,10 +146,13 @@ export function SafetySettings() {
                 <div className="add-item">
                     <input
                         type="text"
+                        id="new-app-input"
+                        name="newApp"
                         value={newApp}
                         onChange={(e) => setNewApp(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && addApp()}
                         placeholder="e.g., chrome, code, notepad"
+                        autoComplete="off"
                     />
                     <button onClick={addApp} className="btn-add">➕ Add App</button>
                 </div>
@@ -174,10 +185,13 @@ export function SafetySettings() {
                 <div className="add-item">
                     <input
                         type="text"
+                        id="new-domain-input"
+                        name="newDomain"
                         value={newDomain}
                         onChange={(e) => setNewDomain(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && addDomain()}
                         placeholder="e.g., github.com, google.com"
+                        autoComplete="off"
                     />
                     <button onClick={addDomain} className="btn-add">➕ Add Domain</button>
                 </div>
@@ -198,6 +212,57 @@ export function SafetySettings() {
                 >
                     {saving ? 'Saving...' : '💾 Save Domains'}
                 </button>
+            </div>
+
+            {/* Restricted Shell Section */}
+            <div className="section">
+                <h3>🔧 Diagnostic Shell Commands (Advanced)</h3>
+                <p className="description">
+                    Allow safe diagnostic commands like ipconfig, whoami, Get-Process. Disabled by default for security.
+                </p>
+                
+                {restrictedShell ? (
+                    <>
+                        <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,215,0,0.1)', borderRadius: '6px' }}>
+                            <strong>Status:</strong> {restrictedShell.enabled ? '✅ Enabled' : '❌ Disabled'}
+                            {restrictedShell.enabled && restrictedShell.allow_admin && (
+                                <span style={{ marginLeft: '12px', color: '#ff8800' }}>⚠️ Admin mode enabled</span>
+                            )}
+                        </div>
+                        
+                        {restrictedShell.enabled && (
+                            <>
+                                <div style={{ marginBottom: '12px' }}>
+                                    <strong style={{ color: '#ffd700' }}>Allowed CMD Commands:</strong>
+                                    <div className="items-list" style={{ maxHeight: '150px' }}>
+                                        {(restrictedShell.allowed_cmd || []).map(cmd => (
+                                            <div key={cmd} className="item" style={{ fontSize: '0.9rem' }}>
+                                                <code>{cmd}</code>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div style={{ marginBottom: '12px' }}>
+                                    <strong style={{ color: '#ffd700' }}>Allowed PowerShell Commands:</strong>
+                                    <div className="items-list" style={{ maxHeight: '150px' }}>
+                                        {(restrictedShell.allowed_powershell || []).map(cmd => (
+                                            <div key={cmd} className="item" style={{ fontSize: '0.9rem' }}>
+                                                <code>{cmd}</code>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        
+                        <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(100,100,100,0.2)', borderRadius: '6px', fontSize: '0.9rem' }}>
+                            📝 To enable/disable: Edit <code>assistant/config/restricted_shell.json</code> and restart backend
+                        </div>
+                    </>
+                ) : (
+                    <div>Loading configuration...</div>
+                )}
             </div>
 
             <div className="warning-box">

@@ -89,10 +89,16 @@ class SessionStatus:
     allowed: bool
     time_remaining: int
     mode: str
+    granted_apps: List[str] = field(default_factory=list)
+    granted_folders: List[str] = field(default_factory=list)
+    allow_network: bool = False
     
     def dict(self):
         return {
             "allowed": self.allowed,
             "time_remaining": self.time_remaining,
-            "mode": self.mode
+            "mode": self.mode,
+            "granted_apps": self.granted_apps,
+            "granted_folders": self.granted_folders,
+            "allow_network": self.allow_network
         }

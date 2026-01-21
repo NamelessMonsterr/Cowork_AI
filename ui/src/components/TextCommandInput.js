@@ -73,12 +73,15 @@ export function TextCommandInput({ onSubmit, disabled = false, placeholder = "Ty
         <form onSubmit={handleSubmit} style={styles.container}>
             <input
                 type="text"
+                id="cmd-input"
+                name="command"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={placeholder}
                 disabled={disabled || isSubmitting}
                 style={styles.input}
                 data-testid="command-input"
+                autoComplete="off"
             />
             <button 
                 type="submit" 

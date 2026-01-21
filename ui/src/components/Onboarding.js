@@ -37,7 +37,13 @@ export function Onboarding({ onComplete }) {
                         <li>Check the "Kill Switch" (Revoke) button location.</li>
                     </ul>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+                        <input 
+                            type="checkbox" 
+                            id="onboarding-consent" 
+                            name="consent" 
+                            checked={consent} 
+                            onChange={e => setConsent(e.target.checked)} 
+                        />
                         I understand and accept the risks.
                     </label>
                 </>

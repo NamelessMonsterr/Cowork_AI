@@ -69,7 +69,8 @@ SAFE_TOOLS = {
 # Restricted but safe tools - require allowlist validation
 RESTRICTED_SAFE_TOOLS = {
     "open_app",  # Safe if app in TRUSTED_APPS
-    "open_url"   # Safe if domain in TRUSTED_DOMAINS
+    "open_url",  # Safe if domain in TRUSTED_DOMAINS
+    "restricted_shell"  # Safe if command in ALLOWED_COMMANDS
 }
 
 # Task 5: Expanded blocklist - indirect attack vectors
@@ -149,6 +150,26 @@ def load_trusted_domains() -> set:
     return {"github.com", "google.com", "openai.com", "microsoft.com"}
 
 
+def load_restricted_shell_config() -> dict:
+    """
+    Load restricted shell configuration.
+    Returns: config dict with enabled flag and allowlists
+    """
+    try:
+        config_path = Path(__file__).parent.parent / "config" / "restricted_shell.json"
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            cmd_count = len(config.get("allowed_cmd", []))
+            ps_count = len(config.get("allowed_powershell", []))
+            logger.info(f"[PlanGuard] Loaded RestrictedShell config: {cmd_count} cmd, {ps_count} powershell")
+            return config
+    except Exception as e:
+        logger.warning(f"[PlanGuard] Failed to load restricted shell config: {e}")
+    
+    return {"enabled": False}
+
+
 # Task 2: Normalize app names for path handling
 def normalize_app_name(app: str) -> tuple[str, str]:
     """
@@ -200,6 +221,7 @@ class PlanGuard:
         # Task 1: Load config-driven trusted apps and domains
         self.trusted_apps, self.app_aliases = load_trusted_apps()
         self.trusted_domains = load_trusted_domains()
+        self.restricted_shell_config = load_restricted_shell_config()
 
     def validate(self, plan: "ExecutionPlan", allow_high_risk: bool = False) -> None:
         """
@@ -328,6 +350,43 @@ class PlanGuard:
                         )
                 except Exception as e:
                     violations.append(f"Step {step_num}: Invalid URL format: {url}")
+                
+                total_retries += step.retries
+                continue
+            
+            # Task: Validate restricted_shell with command allowlist
+            if step.tool == "restricted_shell":
+                engine = step.args.get("engine", "cmd")
+                command = step.args.get("command", "")
+                run_as_admin = step.args.get("run_as_admin", False)
+                
+                if not command:
+                    violations.append(f"Step {step_num}: restricted_shell missing command argument")
+                    continue
+                
+                # Validate using RestrictedShellTool
+                try:
+                    from assistant.tools.restricted_shell import RestrictedShellTool, SecurityError
+                    
+                    tool = RestrictedShellTool(self.restricted_shell_config)
+                    
+                    # Check if enabled
+                    if not self.restricted_shell_config.get("enabled", False):
+                        violations.append(
+                            f"Step {step_num}: RestrictedShell is disabled. "
+                            f"Enable in config/restricted_shell.json"
+                        )
+                        continue
+                    
+                    # Validate command against policy using public API
+                    supervised = self._session.check() if self._session else False
+                    tool.validate(engine, command, run_as_admin, supervised)
+                    
+                except SecurityError as e:
+                    violations.append(f"Step {step_num}: {str(e)}")
+                except Exception as e:
+                    logger.error(f"[PlanGuard] RestrictedShell validation error: {e}")
+                    violations.append(f"Step {step_num}: Shell validation failed: {str(e)}")
                 
                 total_retries += step.retries
                 continue

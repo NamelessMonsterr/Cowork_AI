@@ -203,7 +203,17 @@ function AppContent() {
         body: JSON.stringify({ task: commandText })
       });
       
-      if (!response.ok) throw new Error("Plan generation failed");
+      if (!response.ok) {
+        let errorMsg = "Plan generation failed";
+        try {
+            const data = await response.json();
+            errorMsg = data.detail || errorMsg;
+        } catch (e) {
+            const text = await response.text();
+            errorMsg = `Server Error ${response.status}: ${text.slice(0, 100)}`;
+        }
+        throw new Error(errorMsg);
+      }
       
       const data = await response.json();
       setPendingPlan(data.plan);
@@ -231,8 +241,15 @@ function AppContent() {
       });
       
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || "Approval failed");
+        let errorMsg = "Approval failed";
+        try {
+            const data = await response.json();
+            errorMsg = data.detail || errorMsg;
+        } catch (e) {
+            const text = await response.text();
+            errorMsg = `Server Error ${response.status}: ${text.slice(0, 100)}`;
+        }
+        throw new Error(errorMsg);
       }
       // Execution events will come via WebSocket
     } catch (err) {

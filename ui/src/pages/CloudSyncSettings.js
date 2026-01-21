@@ -151,6 +151,8 @@ const CloudSyncSettings = ({ apiUrl }) => {
           <label>
             <input
               type="checkbox"
+              id="enable-cloud-sync"
+              name="syncEnabled"
               checked={syncEnabled}
               onChange={() => setSyncEnabled(!syncEnabled)}
               disabled={!authStatus.authenticated}
