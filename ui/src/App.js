@@ -317,7 +317,7 @@ function AppContent() {
         </footer>
 
         {/* Panels */}
-        {activePanel === "plugins" && <PluginsPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === "plugins" && <PluginsPanel onClose={() => setActivePanel(null)} apiUrl={API_URL} />}
         
         {activePanel === "settings" && (
             <div className="panel-overlay" onClick={() => setActivePanel(null)}>

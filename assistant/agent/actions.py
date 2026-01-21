@@ -18,7 +18,7 @@ logger = logging.getLogger("Actions")
 # ==================== ACTION HANDLERS ====================
 # Each handler receives (computer, tts, value) and returns True on success
 
-async def handle_launch_app(computer, tts, target, value):
+async def handle_open_app(computer, tts, target, value):
     """Launch an application."""
     computer.launch_app(target)
     return True
@@ -60,33 +60,33 @@ ACTIONS = [
     # App Launchers
     {
         "pattern": r"\b(open|launch|start)\s+notepad\b",
-        "action": "launch_app",
+        "action": "open_app",
         "target": "notepad",
         "speak": "Opening Notepad",
         "supports_type": True,  # Can chain "and type X"
     },
     {
         "pattern": r"\b(open|launch|start)\s+(google\s+)?(chrome|browser|internet)\b",
-        "action": "launch_app",
+        "action": "open_app",
         "target": "chrome",
         "speak": "Opening Chrome",
         "supports_type": True,
     },
     {
         "pattern": r"\b(open|launch|start)\s+(calc|calculator)\b",
-        "action": "launch_app",
+        "action": "open_app",
         "target": "calc",
         "speak": "Opening Calculator",
     },
     {
         "pattern": r"\b(open|launch|start)\s+(code|vscode|visual studio code)\b",
-        "action": "launch_app",
+        "action": "open_app",
         "target": "code",
         "speak": "Opening VS Code",
     },
     {
         "pattern": r"\b(open|show)\s+(downloads)\b",
-        "action": "launch_app",
+        "action": "open_app",
         "target": "explorer",
         "speak": "Opening Downloads",
     },
@@ -159,7 +159,7 @@ DANGEROUS_KEYWORDS = [
 
 # Action handlers map
 HANDLERS = {
-    "launch_app": handle_launch_app,
+    "open_app": handle_open_app,
     "take_screenshot": handle_take_screenshot,
     "type_text": handle_type_text,
     "press_keys": handle_press_keys,

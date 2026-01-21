@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
-const API_URL = 'http://127.0.0.1:8765';
-
-export function PluginsPanel({ onClose }) {
+export function PluginsPanel({ onClose, apiUrl }) {
   const [activeTab, setActiveTab] = useState('installed'); // 'installed', 'store'
   
   // Installed State
@@ -20,7 +18,7 @@ export function PluginsPanel({ onClose }) {
   const fetchInstalled = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/plugins/list`); // Local Plugins
+      const res = await fetch(`${apiUrl}/plugins/list`); // Local Plugins
       const data = await res.json();
       setPlugins(data);
     } catch (err) {
@@ -33,7 +31,7 @@ export function PluginsPanel({ onClose }) {
   const fetchStore = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/marketplace/list`); // Marketplace Registry
+      const res = await fetch(`${apiUrl}/marketplace/list`); // Marketplace Registry
       const data = await res.json();
       setStorePlugins(data.plugins || []);
     } catch (err) {
@@ -51,7 +49,7 @@ export function PluginsPanel({ onClose }) {
   const handleToggle = async (plugin) => {
     const action = plugin.state === 'enabled' ? 'disable' : 'enable';
     try {
-      await fetch(`${API_URL}/plugins/${action}/${plugin.id}`, { method: 'POST' });
+      await fetch(`${apiUrl}/plugins/${action}/${plugin.id}`, { method: 'POST' });
       fetchInstalled(); 
     } catch (err) {
       console.error("Toggle failed", err);
@@ -69,7 +67,7 @@ export function PluginsPanel({ onClose }) {
     try {
       // Determines if legacy zip install or new package install logic needed?
       // API currently maps /plugins/install to zip install.
-      const res = await fetch(`${API_URL}/plugins/install`, {
+      const res = await fetch(`${apiUrl}/plugins/install`, {
         method: 'POST',
         body: formData
       });
@@ -89,7 +87,7 @@ export function PluginsPanel({ onClose }) {
       if(!window.confirm(`Install plugin ${pluginId}?`)) return;
       setLoading(true);
       try {
-          const res = await fetch(`${API_URL}/marketplace/install/${pluginId}`, { method: 'POST' });
+          const res = await fetch(`${apiUrl}/marketplace/install/${pluginId}`, { method: 'POST' });
           const data = await res.json();
           if(!res.ok) throw new Error(data.detail || "Install failed");
           
