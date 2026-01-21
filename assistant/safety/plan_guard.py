@@ -4,18 +4,24 @@ Plan Guard - Pre-flight validation for execution plans.
 Validates plans before execution to catch:
 - Too many steps (runaway prevention)
 - High-risk actions without approval
-- Unknown tools
+- Unknown tools (default-deny policy)
 - Actions outside allowed apps/folders
 - Network access without permission
+- Destructive operations (drag, file ops, clipboard)
 """
 
+import json
+import logging
 from typing import Optional, Set
 from dataclasses import dataclass
+from pathlib import Path
 from pydantic import BaseModel
 
 from .session_auth import SessionAuth
 from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
 from assistant.safety.destructive_guard import DestructiveGuard
+
+logger = logging.getLogger(__name__)
 
 
 class PlanValidationError(Exception):
@@ -45,28 +51,121 @@ class PlanGuardConfig:
             }
 
 
-# Known safe tools that the executor supports
-KNOWN_TOOLS = {
-    # Mouse actions
-    "click", "double_click", "right_click", "scroll", "move", "drag",
-    # Keyboard actions
-    "type", "keypress",
+# HARDENED SECURITY POLICY
+
+# Task 3: Removed 'drag' from SAFE_TOOLS (destructive risk)
+# Safe tools - always allowed, no additional validation
+SAFE_TOOLS = {
+    # Mouse actions (drag REMOVED - can delete files, leak data)
+    "click", "double_click", "right_click", "scroll", "move",
+    # Keyboard actions (keypress validated for dangerous combos)
+    "type", "type_text", "keypress",
     # Window actions
-    "focus_window", "open_app", "get_active_window",
-    # Navigation (for browser contexts)
-    "navigate", "goto", "back", "forward",
+    "focus_window", "get_active_window",
     # Utility
-    "wait", "screenshot",
-    # File operations (restricted)
-    "save_file", "open_file", "download",
+    "wait", "screenshot"
 }
 
-# Tools that require extra scrutiny
-HIGH_RISK_TOOLS = {
-    "keypress",  # Could be ctrl+alt+del, etc.
-    "open_app",  # Could open anything
-    "download",  # Downloads files
+# Restricted but safe tools - require allowlist validation
+RESTRICTED_SAFE_TOOLS = {
+    "open_app",  # Safe if app in TRUSTED_APPS
+    "open_url"   # Safe if domain in TRUSTED_DOMAINS
 }
+
+# Task 5: Expanded blocklist - indirect attack vectors
+BLOCKED_TOOLS = {
+    # Shell/command execution
+    "run_shell", "shell", "cmd", "powershell", "bash",
+    "run_command", "exec", "eval",
+    
+    # File system operations (indirect attack vectors)
+    "delete_file", "write_file", "read_file", "list_dir",
+    "upload_file", "download",
+    
+    # Clipboard (data leakage risk)
+    "clipboard_get", "clipboard_set",
+    
+    # System modification
+    "registry_edit", "set_env", "install",
+    
+    # File operations that were in RESTRICTED (now blocked)
+    "open_file", "save_file"
+}
+
+# Task 1: Fallback trusted apps (config-driven preferred)
+TRUSTED_APPS_DEFAULT = {
+    "notepad", "notepad.exe",
+    "calc", "calc.exe", "calculator", "calculator.exe",
+    "mspaint", "mspaint.exe", "paint",
+    "wordpad", "wordpad.exe"
+}
+
+# Task 4: All known tools for default-deny validation
+ALL_KNOWN_TOOLS = SAFE_TOOLS | RESTRICTED_SAFE_TOOLS | BLOCKED_TOOLS
+
+# Legacy high-risk tools list (mostly replaced by allowlists)
+HIGH_RISK_TOOLS = {
+    "keypress",  # Validated for dangerous key combinations
+}
+
+
+# Task 1: Load trusted apps from config
+def load_trusted_apps() -> tuple[set, dict]:
+    """
+    Load trusted apps from config file with fallback to defaults.
+    Returns: (trusted_apps_set, app_aliases_dict)
+    """
+    try:
+        config_path = Path(__file__).parent.parent / "config" / "trusted_apps.json"
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                data = json.load(f)
+            trusted = set(data.get("trusted_apps", []))
+            aliases = data.get("app_aliases", {})
+            logger.info(f"[PlanGuard] Loaded {len(trusted)} trusted apps from config")
+            return trusted, aliases
+    except Exception as e:
+        logger.warning(f"[PlanGuard] Failed to load config: {e}, using defaults")
+    
+    return TRUSTED_APPS_DEFAULT, {}
+
+
+def load_trusted_domains() -> set:
+    """
+    Load trusted domains from config with fallback to defaults.
+    Returns: set of trusted domain strings
+    """
+    try:
+        config_path = Path(__file__).parent.parent / "config" / "trusted_domains.json"
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                data = json.load(f)
+            domains = set(data.get("trusted_domains", []))
+            logger.info(f"[PlanGuard] Loaded {len(domains)} trusted domains from config")
+            return domains
+    except Exception as e:
+        logger.warning(f"[PlanGuard] Failed to load domains: {e}, using defaults")
+    
+    return {"github.com", "google.com", "openai.com", "microsoft.com"}
+
+
+# Task 2: Normalize app names for path handling
+def normalize_app_name(app: str) -> tuple[str, str]:
+    """
+    Normalize app name handling full paths, case, and whitespace.
+    
+    Examples:
+        "C:\\Windows\\System32\\notepad.exe" → ("notepad.exe", "notepad")
+        "NOTEPAD.EXE " → ("notepad.exe", "notepad")
+        "calculator" → ("calculator", "calculator")
+    
+    Returns:
+        (exe_name, exe_no_ext)
+    """
+    raw = str(app).strip().lower()
+    exe_name = Path(raw).name  # Extracts filename from path
+    exe_no_ext = exe_name.removesuffix(".exe")
+    return exe_name, exe_no_ext
 
 
 class PlanGuard:
@@ -97,6 +196,10 @@ class PlanGuard:
         self._session = session_auth
         self._config = config or PlanGuardConfig()
         self.destructive_guard = DestructiveGuard()
+        
+        # Task 1: Load config-driven trusted apps and domains
+        self.trusted_apps, self.app_aliases = load_trusted_apps()
+        self.trusted_domains = load_trusted_domains()
 
     def validate(self, plan: "ExecutionPlan", allow_high_risk: bool = False) -> None:
         """
@@ -130,35 +233,104 @@ class PlanGuard:
         for i, step in enumerate(plan.steps):
             step_num = i + 1
             
-            # Check tool is known
-            if step.tool not in KNOWN_TOOLS:
-                if self._config.allowed_tools and step.tool not in self._config.allowed_tools:
-                    violations.append(f"Step {step_num}: Unknown tool '{step.tool}'")
-            
-            # Check risk level
-            if step.risk_level == "high":
-                high_risk_count += 1
-                if step.tool in HIGH_RISK_TOOLS:
-                    # Check specific high-risk patterns
-                    self._check_high_risk_step(step, step_num, violations)
-            
-            # Count retries
-            total_retries += step.retries
-            
-            # Check verification requirement
-            if self._config.require_verification:
-                if step.verify is None and not getattr(step, 'unverifiable', False):
+            # Task 4: Default-deny - Check if tool is recognized
+            if step.tool not in ALL_KNOWN_TOOLS:
+                # Special case: plugin tools
+                if step.tool.startswith("plugin:"):
                     violations.append(
-                        f"Step {step_num}: Missing verification spec (add verify or mark as unverifiable)"
+                        f"Step {step_num}: Plugin tools require explicit permission"
                     )
+                else:
+                    violations.append(
+                        f"Step {step_num}: Tool '{step.tool}' is not recognized. "
+                        f"Allowed tools: {', '.join(sorted(SAFE_TOOLS | RESTRICTED_SAFE_TOOLS))}"
+                    )
+                continue
             
-            # Check app permissions
+            # Block dangerous tools
+            if step.tool in BLOCKED_TOOLS:
+                violations.append(
+                    f"Step {step_num}: Tool '{step.tool}' is blocked for safety"
+                )
+                continue
+            
+            # Allow safe tools with minimal checks
+            if step.tool in SAFE_TOOLS:
+                # Still check for dangerous keypress combinations
+                if step.tool == "keypress":
+                    self._check_dangerous_keypress(step, step_num, violations)
+                # Count retries
+                total_retries += step.retries
+                continue
+            
+            # Task 2: Validate restricted tools with normalization
             if step.tool == "open_app":
-                app_name = step.args.get("app_name", "")
-                if not self._session.is_app_allowed(app_name):
-                    violations.append(
-                        f"Step {step_num}: App '{app_name}' is not in allowed list"
-                    )
+                app_raw = step.args.get("app_name", "") or step.args.get("name", "")
+                if not app_raw:
+                    violations.append(f"Step {step_num}: open_app missing app_name argument")
+                    continue
+                
+                # Normalize: handle paths, case, whitespace
+                exe_name, exe_no_ext = normalize_app_name(app_raw)
+                
+                # Check aliases
+                resolved_name = self.app_aliases.get(exe_no_ext, exe_no_ext)
+                
+                # Allow if in trusted list (either full name or no-ext)
+                is_trusted = (
+                    exe_name in self.trusted_apps or
+                    exe_no_ext in self.trusted_apps or
+                    resolved_name in self.trusted_apps
+                )
+                
+                if not is_trusted:
+                    # Fallback: check session allowlist
+                    if not self._session.is_app_allowed(app_raw):
+                        violations.append(
+                            f"Step {step_num}: App '{app_raw}' not in trusted list. "
+                            f"Allowed: {', '.join(sorted(self.trusted_apps))}"
+                        )
+                
+                # Count retries
+                total_retries += step.retries
+                continue
+            
+            # Task 2: Validate open_url with domain allowlist
+            if step.tool == "open_url":
+                url = step.args.get("url", "")
+                if not url:
+                    violations.append(f"Step {step_num}: open_url missing url argument")
+                    continue
+                
+                try:
+                    from urllib.parse import urlparse
+                    import re
+                    
+                    parsed = urlparse(url)
+                    domain = parsed.netloc
+                    
+                    # Normalize domain (remove www. prefix)
+                    if domain.startswith("www."):
+                        domain = domain[4:]
+                    
+                    # Block IP addresses (security requirement)
+                    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', domain):
+                        violations.append(
+                            f"Step {step_num}: IP addresses are not allowed for security (domain: {domain})"
+                        )
+                        continue
+                    
+                    # Check against trusted domains
+                    if domain not in self.trusted_domains:
+                        violations.append(
+                            f"Step {step_num}: Domain '{domain}' not in trusted list. "
+                            f"Allowed: {', '.join(sorted(self.trusted_domains))}"
+                        )
+                except Exception as e:
+                    violations.append(f"Step {step_num}: Invalid URL format: {url}")
+                
+                total_retries += step.retries
+                continue
             
             # Check folder permissions for file operations
             if step.tool in ("save_file", "open_file"):
@@ -191,50 +363,69 @@ class PlanGuard:
             violations.append("Plan requires admin privileges which are not supported")
         
         if violations:
+            # Task 3: Safety audit logging
+            try:
+                import time
+                audit_entry = {
+                    "timestamp": time.time(),
+                    "plan_id": plan.id,
+                    "task": plan.task,
+                    "violations": violations,
+                    "step_count": len(plan.steps),
+                    "tools_used": [step.tool for step in plan.steps]
+                }
+                
+                # Create logs dir and append to audit log
+                log_path = Path("logs/safety_audit.jsonl")
+                log_path.parent.mkdir(exist_ok=True)
+                
+                with open(log_path, 'a') as f:
+                    f.write(json.dumps(audit_entry) + "\n")
+                
+                logger.info(f"[PlanGuard] Logged {len(violations)} violations to safety_audit.jsonl")
+            except Exception as e:
+                logger.error(f"[PlanGuard] Failed to write audit log: {e}")
+            
             raise PlanValidationError(
                 f"Plan validation failed with {len(violations)} violation(s)",
                 violations
             )
 
+    def _check_dangerous_keypress(
+        self, 
+        step: "ActionStep", 
+        step_num: int, 
+        violations: list[str]
+    ) -> None:
+        """Check keypress for dangerous key combinations."""
+        keys = step.args.get("keys", [])
+        if isinstance(keys, str):
+            keys = [keys]
+        keys_lower = [k.lower() for k in keys]
+        
+        # Block dangerous key combinations
+        dangerous_combos = [
+            ({"ctrl", "alt", "delete"}, "Ctrl+Alt+Delete"),
+            ({"alt", "f4"}, "Alt+F4 (close window)"),
+            ({"win", "l"}, "Win+L (lock screen)"),
+            ({"win", "r"}, "Win+R (run dialog)"),
+        ]
+        
+        for combo, name in dangerous_combos:
+            if combo.issubset(set(keys_lower)):
+                violations.append(
+                    f"Step {step_num}: Blocked dangerous keypress {name}"
+                )
+    
     def _check_high_risk_step(
         self, 
         step: "ActionStep", 
         step_num: int, 
         violations: list[str]
     ) -> None:
-        """Check high-risk step for dangerous patterns."""
-        
+        """Check high-risk step for dangerous patterns (legacy, mostly replaced by allowlists)."""
         if step.tool == "keypress":
-            keys = step.args.get("keys", [])
-            keys_lower = [k.lower() for k in keys]
-            
-            # Block dangerous key combinations
-            dangerous_combos = [
-                ({"ctrl", "alt", "delete"}, "Ctrl+Alt+Delete"),
-                ({"alt", "f4"}, "Alt+F4 (close window)"),
-                ({"win", "l"}, "Win+L (lock screen)"),
-                ({"win", "r"}, "Win+R (run dialog)"),
-            ]
-            
-            for combo, name in dangerous_combos:
-                if combo.issubset(set(keys_lower)):
-                    violations.append(
-                        f"Step {step_num}: Blocked dangerous keypress {name}"
-                    )
-        
-        elif step.tool == "open_app":
-            app_name = step.args.get("app_name", "").lower()
-            
-            # Block potentially dangerous apps
-            blocked_apps = {
-                "regedit", "cmd", "powershell", "wt", 
-                "taskmgr", "mmc", "gpedit",
-            }
-            
-            if app_name in blocked_apps:
-                violations.append(
-                    f"Step {step_num}: App '{app_name}' is blocked for safety"
-                )
+            self._check_dangerous_keypress(step, step_num, violations)
 
     def get_risk_summary(self, plan: "ExecutionPlan") -> dict:
         """

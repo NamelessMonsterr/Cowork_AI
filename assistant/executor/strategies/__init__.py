@@ -3,11 +3,13 @@ Execution Strategies.
 
 Export standard strategies for the executor chain.
 Priority Order:
+0. System (OS commands - open_app, run_shell, open_url)
 1. UIA (Native Object Control)
 2. Vision (Template Match / OCR)
 3. Coords (Fallback)
 """
 
+from .system import SystemStrategy
 from .uia import UIAStrategy
 from .vision import VisionStrategy
 from .coords import CoordsStrategy
@@ -16,4 +18,5 @@ try:
 except ImportError:
     pass
 
-__all__ = ["UIAStrategy", "VisionStrategy", "CoordsStrategy"]
+__all__ = ["SystemStrategy", "UIAStrategy", "VisionStrategy", "CoordsStrategy"]
+

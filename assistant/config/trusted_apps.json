@@ -1,0 +1,31 @@
+{
+  "trusted_apps": [
+    "notepad",
+    "notepad.exe",
+    "calc",
+    "calc.exe",
+    "calculator",
+    "calculator.exe",
+    "mspaint",
+    "mspaint.exe",
+    "paint",
+    "wordpad",
+    "wordpad.exe",
+    "explorer",
+    "explorer.exe",
+    "chrome",
+    "chrome.exe",
+    "msedge",
+    "msedge.exe",
+    "firefox",
+    "firefox.exe",
+    "code",
+    "code.exe"
+  ],
+  "app_aliases": {
+    "calculator": "calc",
+    "paint": "mspaint",
+    "vscode": "code",
+    "edge": "msedge"
+  }
+}

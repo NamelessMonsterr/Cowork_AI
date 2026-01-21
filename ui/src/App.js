@@ -30,6 +30,8 @@ function AppContent() {
   const [pendingPlan, setPendingPlan] = useState(null);
   const [pendingPlanId, setPendingPlanId] = useState(null);
   const [estimatedTime, setEstimatedTime] = useState(0);
+  const [planRejected, setPlanRejected] = useState(false);
+  const [planViolations, setPlanViolations] = useState([]);
 
   // --- Logic Hooks ---
 
@@ -112,6 +114,17 @@ function AppContent() {
       setSessionActive(true);
     } else if (msg.event === "permission_revoked") {
       setSessionActive(false);
+    } else if (msg.event === "plan_rejected") {
+      setStatus("I AM VENGEANCE");
+      setTranscript("Plan rejected by safety policy");
+      setPlanRejected(true);
+      setPlanViolations(msg.data?.violations || []);
+      // Voice feedback on rejection
+      if (msg.data?.speak) {
+        const utterance = new SpeechSynthesisUtterance(msg.data.speak);
+        window.speechSynthesis.speak(utterance);
+      }
+      // Don't clear pendingPlan - keep it visible with violations
     }
   }, [lastMessage]);
 
@@ -123,6 +136,10 @@ function AppContent() {
       console.log('[App] Core click ignored: Status is not "I AM VENGEANCE". Current status:', status);
       return;
     }
+
+    // Reset rejection states for new command
+    setPlanRejected(false);
+    setPlanViolations([]);
 
     // Visual mic check (optional)
     try {
@@ -256,14 +273,17 @@ function AppContent() {
 
         {/* V2: Plan Preview Modal */}
         {pendingPlan && (
-            <PlanPreview 
-                plan={pendingPlan}
-                planId={pendingPlanId}
-                estimatedTime={estimatedTime}
-                onApprove={handleApprovePlan}
-                onCancel={handleCancelPlan}
-            />
-        )}
+        <PlanPreview
+          plan={pendingPlan}
+          planId={pendingPlanId}
+          estimatedTime={estimatedTime}
+          onApprove={handleApprovePlan}
+          onCancel={handleCancelPlan}
+          rejected={planRejected}
+          violations={planViolations}
+          onEditSettings={() => setActivePanel("settings")}
+        />
+      )}
 
         {/* Footer Navigation */}
         <footer className="footer">

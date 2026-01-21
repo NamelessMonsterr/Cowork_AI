@@ -79,7 +79,8 @@ async def test_stt(request: Request, seconds: int = 3):
     import time
     start = time.time()
     
-    state = request.app.state
+    # PIPELINE FIX: Access wired global state
+    state = request.app.state.state
     
     try:
         text = await state.stt.listen(duration=seconds)

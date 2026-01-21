@@ -36,13 +36,13 @@ async def update_settings(update: SettingsUpdate, request: Request):
         settings.save()
         
         # Reload STT Engine if changed
-        if hasattr(request.app.state, 'stt'):
+        # PIPELINE FIX: Access wired global state
+        if hasattr(request.app.state, 'state'):
             from assistant.voice.stt import STT
             
             logger.info("Reloading STT Engine...")
             try:
                 # Re-create STT instance with new settings
-                # Note: STTEngineFactory logic handles preference priority
                 mock_mode = settings.voice.mock_stt or (settings.voice.engine_preference == 'mock')
                 
                 new_stt = STT(
@@ -50,17 +50,9 @@ async def update_settings(update: SettingsUpdate, request: Request):
                     openai_api_key=settings.voice.openai_api_key
                 )
                 
-                # Update request state
-                request.app.state.stt = new_stt
-                
-                # CRITICAL: Update Global State in main.py because voice_listen uses it directly
-                try:
-                    from assistant.main import state as global_state
-                    global_state.stt = new_stt
-                    logger.info("Global State STT updated.")
-                except ImportError:
-                    logger.warning("Could not import global state to update STT.")
-
+                # PIPELINE FIX: Update global state directly (now wired to app.state.state)
+                state = request.app.state.state
+                state.stt = new_stt
                 logger.info(f"STT Reloaded. New Engine: {new_stt.engine_name}")
                 
             except Exception as e:

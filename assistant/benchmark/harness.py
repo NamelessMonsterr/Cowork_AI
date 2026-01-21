@@ -44,24 +44,8 @@ class TaskHarness:
         self.environment = EnvironmentMonitor(on_unsafe=self._on_unsafe)
         self.budget = ActionBudget(config=BudgetConfig(max_actions_per_task=50)) # Strict budget for benchmarks
         
-        # Inline SystemStrategy to handle OS actions
-        from assistant.executor.strategies.base import Strategy, StrategyResult
-        class SystemStrategy(Strategy):
-            def __init__(self, computer): self.computer = computer
-            @property
-            def name(self): return "system"
-            @property
-            def priority(self): return 1
-            def can_handle(self, step): return step.tool in ["open_app", "run_shell", "shell"]
-            def execute(self, step):
-                try:
-                    if step.tool == "open_app":
-                        self.computer.launch_app(step.args.get("app_name"))
-                    elif step.tool in ["run_shell", "shell"]:
-                        self.computer.run_shell(step.args.get("command"))
-                    return StrategyResult(success=True)
-                except Exception as e:
-                    return StrategyResult(success=False, error=str(e))
+        # Import SystemStrategy from production module (same as main.py)
+        from assistant.executor.strategies.system import SystemStrategy
         
         strategies = [SystemStrategy(self.computer), UIAStrategy(), VisionStrategy(), CoordsStrategy()]
         self.verifier = Verifier(self.computer, strategies)

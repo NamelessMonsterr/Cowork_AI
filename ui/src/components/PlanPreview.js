@@ -2,6 +2,7 @@ import React from 'react';
 
 /**
  * PlanPreview Component - Shows pending plan steps with approve/cancel buttons.
+ * Now includes violation display for rejected plans.
  * 
  * Props:
  *   - plan: ExecutionPlan object with steps
@@ -9,8 +10,20 @@ import React from 'react';
  *   - estimatedTime: Estimated execution time in seconds
  *   - onApprove: Function called when user approves
  *   - onCancel: Function called when user cancels
+ *   - rejected: Boolean - true if plan was rejected
+ *   - violations: Array of violation strings
+ *   - onEditSettings: Function to open safety settings
  */
-export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }) {
+export function PlanPreview({ 
+    plan, 
+    planId, 
+    estimatedTime, 
+    onApprove, 
+    onCancel, 
+    rejected = false, 
+    violations = [], 
+    onEditSettings 
+}) {
     if (!plan) return null;
 
     const styles = {
@@ -26,25 +39,25 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
         },
         panel: {
             background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            border: '2px solid #ffd700',
+            border: rejected ? '2px solid #ff4444' : '2px solid #ffd700',
             borderRadius: '16px',
             padding: '24px',
             maxWidth: '600px',
             width: '90%',
             maxHeight: '80vh',
             overflow: 'auto',
-            boxShadow: '0 0 40px rgba(255, 215, 0, 0.3)'
+            boxShadow: rejected ? '0 0 40px rgba(255, 68, 68, 0.3)' : '0 0 40px rgba(255, 215, 0, 0.3)'
         },
         header: {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '20px',
-            borderBottom: '1px solid rgba(255, 215, 0, 0.3)',
+            borderBottom: rejected ? '1px solid rgba(255, 68, 68, 0.3)' : '1px solid rgba(255, 215, 0, 0.3)',
             paddingBottom: '12px'
         },
         title: {
-            color: '#ffd700',
+            color: rejected ? '#ff4444' : '#ffd700',
             fontSize: '1.5rem',
             fontWeight: 'bold',
             margin: 0
@@ -52,6 +65,53 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
         meta: {
             color: '#888',
             fontSize: '0.9rem'
+        },
+        violationBox: {
+            background: 'rgba(255, 0, 0, 0.1)',
+            border: '2px solid #ff4444',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '16px'
+        },
+        violationTitle: {
+            color: '#ff4444',
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+        },
+        violationList: {
+            listStyle: 'none',
+            padding: 0,
+            margin: '8px 0'
+        },
+        violationItem: {
+            color: '#ffaaaa',
+            fontSize: '0.9rem',
+            marginBottom: '8px',
+            paddingLeft: '20px',
+            position: 'relative',
+            lineHeight: '1.4'
+        },
+        violationBullet: {
+            position: 'absolute',
+            left: 0,
+            color: '#ff4444',
+            fontWeight: 'bold'
+        },
+        settingsBtn: {
+            background: 'rgba(255, 215, 0, 0.2)',
+            color: '#ffd700',
+            border: '1px solid #ffd700',
+            padding: '10px 16px',
+            borderRadius: '6px',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            marginTop: '12px',
+            transition: 'all 0.3s ease',
+            width: '100%'
         },
         stepList: {
             listStyle: 'none',
@@ -65,10 +125,11 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
             marginBottom: '8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px'
+            gap: '12px',
+            opacity: rejected ? 0.5 : 1
         },
         stepNumber: {
-            background: '#ffd700',
+            background: rejected ? '#666' : '#ffd700',
             color: '#1a1a2e',
             width: '28px',
             height: '28px',
@@ -83,7 +144,7 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
             flex: 1
         },
         stepTool: {
-            color: '#ffd700',
+            color: rejected ? '#888' : '#ffd700',
             fontWeight: 'bold',
             fontSize: '0.95rem'
         },
@@ -108,8 +169,10 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
             transition: 'all 0.3s ease'
         },
         approveBtn: {
-            background: 'linear-gradient(135deg, #00ff00 0%, #00cc00 100%)',
-            color: '#000'
+            background: rejected ? '#444' : 'linear-gradient(135deg, #00ff00 0%, #00cc00 100%)',
+            color: rejected ? '#888' : '#000',
+            cursor: rejected ? 'not-allowed' : 'pointer',
+            opacity: rejected ? 0.5 : 1
         },
         cancelBtn: {
             background: 'rgba(255, 255, 255, 0.1)',
@@ -122,7 +185,9 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
         <div style={styles.overlay} onClick={onCancel}>
             <div style={styles.panel} onClick={e => e.stopPropagation()} data-testid="plan-preview">
                 <div style={styles.header}>
-                    <h2 style={styles.title}>📋 PLAN PREVIEW</h2>
+                    <h2 style={styles.title}>
+                        {rejected ? '🛡️ PLAN REJECTED' : '📋 PLAN PREVIEW'}
+                    </h2>
                     <span style={styles.meta}>
                         {plan.steps?.length || 0} steps • ~{estimatedTime}s
                     </span>
@@ -131,6 +196,33 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
                 <p style={{ color: '#fff', marginBottom: '16px' }}>
                     <strong>Task:</strong> {plan.task}
                 </p>
+
+                {/* Violations Display */}
+                {rejected && violations.length > 0 && (
+                    <div style={styles.violationBox}>
+                        <div style={styles.violationTitle}>
+                            🛡️ Blocked by Safety Policy
+                        </div>
+                        <ul style={styles.violationList}>
+                            {violations.map((violation, index) => (
+                                <li key={index} style={styles.violationItem} title={violation}>
+                                    <span style={styles.violationBullet}>•</span>
+                                    {violation}
+                                </li>
+                            ))}
+                        </ul>
+                        {onEditSettings && (
+                            <button
+                                style={styles.settingsBtn}
+                                onClick={onEditSettings}
+                                onMouseOver={e => e.target.style.background = 'rgba(255, 215, 0, 0.3)'}
+                                onMouseOut={e => e.target.style.background = 'rgba(255, 215, 0, 0.2)'}
+                            >
+                                ⚙️ Edit Safety Settings
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <ul style={styles.stepList}>
                     {plan.steps?.map((step, index) => (
@@ -149,14 +241,16 @@ export function PlanPreview({ plan, planId, estimatedTime, onApprove, onCancel }
                         style={{...styles.btn, ...styles.cancelBtn}}
                         onClick={onCancel}
                     >
-                        ❌ CANCEL
+                        ❌ CLOSE
                     </button>
                     <button 
                         style={{...styles.btn, ...styles.approveBtn}}
-                        onClick={() => onApprove(planId)}
+                        onClick={() => !rejected && onApprove(planId)}
+                        disabled={rejected}
                         data-testid="plan-approve-button"
+                        title={rejected ? "Plan rejected by safety policy" : "Approve and execute plan"}
                     >
-                        ✅ APPROVE & EXECUTE
+                        {rejected ? '🚫 BLOCKED' : '✅ APPROVE & EXECUTE'}
                     </button>
                 </div>
             </div>

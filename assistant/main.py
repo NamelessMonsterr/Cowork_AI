@@ -38,7 +38,7 @@ from assistant.computer.windows import WindowsComputer
 from assistant.executor.executor import ReliableExecutor
 from assistant.executor.verify import Verifier
 
-from assistant.executor.strategies import UIAStrategy, VisionStrategy, CoordsStrategy
+from assistant.executor.strategies import SystemStrategy, UIAStrategy, VisionStrategy, CoordsStrategy
 from assistant.ui_contracts.schemas import ActionStep, StepResult, ExecutionPlan
 
 # --- Recorder (W8) ---
@@ -60,6 +60,7 @@ from assistant.plugins.ipc import IpcClient
 from assistant.api.plugins import router as plugins_router
 from assistant.api.support import router as support_router
 from assistant.api.team import router as team_router
+from assistant.api.safety_routes import router as safety_router
 from assistant.cloud.auth import router as auth_router
 
 # --- Team/Cloud/Learning ---
@@ -212,7 +213,10 @@ async def lifespan(app: FastAPI):
         state.rate_limiter = InputRateLimiter()
         
         # 4. Strategies (W6)
+        # SystemStrategy handles OS-level commands (open_app, run_shell, open_url)
+        # Must be FIRST to handle these before UI strategies try and fail
         strategies = [
+            SystemStrategy(state.computer),  # OS commands - highest priority
             UIAStrategy(),
             VisionStrategy(),
             CoordsStrategy() # Coords is pure fallback
@@ -347,6 +351,11 @@ async def lifespan(app: FastAPI):
         # V2: Start pending plan cleanup task
         state.plan_cleanup_task = asyncio.create_task(cleanup_expired_plans())
         logger.info("✅ Pending plan cleanup task started (TTL: 10 min)")
+        
+        # PIPELINE FIX: Wire global state to FastAPI app.state
+        # This allows routes to access state via request.app.state.state
+        app.state.state = state
+        logger.info("✅ Global state wired to app.state")
     
     except Exception as e:
         logger.critical(f"❌ Initialization Failed: {e}", exc_info=True)
@@ -430,10 +439,16 @@ if _settings.server.cors_enabled:
         allow_credentials=True
     )
 
-app.include_router(plugins_router)
-app.include_router(support_router)
-app.include_router(team_router)
-app.include_router(auth_router)
+try:
+    from assistant.api.safety_routes import router as safety_router
+    app.include_router(plugins_router, prefix="/plugins", tags=["plugins"])
+    app.include_router(support_router, prefix="/support", tags=["support"])
+    app.include_router(team_router, prefix="/team", tags=["team"])
+    app.include_router(safety_router, prefix="/safety", tags=["safety"])
+    app.include_router(auth_router, prefix="/auth", tags=["auth"])
+except ImportError:
+    logger.warning("Safety router could not be imported")
+    pass
 
 # V21: Voice routes
 try:
@@ -675,18 +690,24 @@ async def get_version():
 
 @app.post("/voice/listen")
 async def voice_listen():
+    logger.info("[VOICE] Listen endpoint called")
     if not state.stt:
         raise HTTPException(503, "STT not ready")
         
     # Security Harden: Require active session (No Zero-Click)
     if not state.session_auth.check():
+        logger.warning("[VOICE] Unauthorized: No active session")
         raise HTTPException(401, "Unauthorized: Active session required")
         
+    logger.info("[VOICE] Started listening")
+    logger.info("[WS] broadcast event=listening_started")
     await state.broadcast("listening_started", {})
     
     try:
         # Listen & Transcribe
         text = await state.stt.listen()
+        logger.info(f"[VOICE] transcript={text}")
+        logger.info(f"[WS] broadcast event=speech_recognized text={text}")
         await state.broadcast("speech_recognized", {"text": text})
         
         if text:
@@ -767,17 +788,27 @@ async def plan_preview(req: PlanPreviewRequest):
 
 
 @app.post("/plan/approve")
-async def plan_approve(req: PlanApproveRequest):
+async def plan_approve(request: Request, req: PlanApproveRequest):
     """
-    Approve and execute a previously previewed plan.
-    Requires SessionAuth.
+    Approve and execute a plan.
+    Security: Requires active session + rate limiting.
     """
-    # Security: Require active session
-    if not state.session_auth.check():
-        raise HTTPException(403, "Forbidden: Active session required")
+    # PRODUCTION: Rate limiting to prevent spam/loops
+    from assistant.safety.rate_limiter import RateLimiter
+    if not hasattr(state, 'approve_limiter'):
+        state.approve_limiter = RateLimiter(max_requests=10, window_seconds=60)
+    
+    if not state.approve_limiter.is_allowed():
+        logger.warning(f"[APPROVE] Rate limit exceeded")
+        raise HTTPException(429, "Too many approval requests. Please wait a moment.")
     
     plan_id = req.plan_id
-    logger.info(f"[PLAN] Approve requested | plan_id={plan_id}")
+    logger.info(f"[APPROVE] Approve requested | plan_id={plan_id}")
+    
+    # Security: Require active session
+    if not state.session_auth.check():
+        logger.warning(f"[APPROVE] Rejected - no session | plan_id={plan_id}")
+        raise HTTPException(403, "Forbidden: Active session required")
     
     # Fetch pending plan (stored as tuple with timestamp)
     entry = state.pending_plans.get(plan_id)
@@ -790,9 +821,11 @@ async def plan_approve(req: PlanApproveRequest):
     del state.pending_plans[plan_id]
     
     # Execute the plan
-    logger.info(f"[EXEC] Started | plan_id={plan_id} | task_id={state.current_task_id}")
+    logger.info(f"[APPROVE] Approved | plan_id={plan_id} | task={plan.task[:50]}")
+    logger.info(f"[EXEC] Starting execution | plan_id={plan_id}")
     asyncio.create_task(execute_approved_plan(plan))
     
+    logger.info(f"[WS] broadcast event=execution_started plan_id={plan_id}")
     await state.broadcast("execution_started", {"plan_id": plan_id})
     
     return {
@@ -803,10 +836,29 @@ async def plan_approve(req: PlanApproveRequest):
 
 async def execute_approved_plan(plan: ExecutionPlan):
     """Execute an approved plan (internal helper)."""
+    logger.info(f"[EXEC] execute_approved_plan called | plan_id={plan.id}")
+    
+    # PIPELINE FIX: Pre-execution validation
+    if not state.session_auth.check():
+        logger.error(f"[EXEC] Validation failed: No session | plan_id={plan.id}")
+        await state.broadcast("execution_error", {"error": "Session expired"})
+        return
+    
+    if not state.executor:
+        logger.error(f"[EXEC] Validation failed: No executor | plan_id={plan.id}")
+        await state.broadcast("execution_error", {"error": "Executor not initialized"})
+        return
+        
+    if not state.plan_guard:
+        logger.error(f"[EXEC] Validation failed: No plan guard | plan_id={plan.id}")
+        await state.broadcast("execution_error", {"error": "Plan guard not initialized"})
+        return
+    
     state.is_executing = True
     state.current_task_id = plan.id
     
-    logger.info(f"[EXEC] Executing plan: {plan.task}")
+    logger.info(f"[EXEC] Executing plan | plan_id={plan.id} | task={plan.task}")
+    logger.info(f"[WS] broadcast event=plan_started")
     await state.broadcast("plan_started", {"task": plan.task})
     
     if state.computer:
@@ -817,9 +869,27 @@ async def execute_approved_plan(plan: ExecutionPlan):
         try:
             state.plan_guard.validate(plan)
             logger.info("[EXEC] Plan validated")
-        except Exception as e:
-            logger.error(f"[EXEC] Plan rejected: {e}")
-            await state.broadcast("plan_rejected", {"error": str(e)})
+        except PlanValidationError as e:
+            # Extract violations for detailed feedback
+            violations = []
+            if hasattr(e, 'violations'):
+                violations = e.violations
+                logger.error(f"[EXEC] Plan rejected with {len(violations)} violations:")
+                for v in violations:
+                    logger.error(f"[EXEC]   - {v}")
+            else:
+                logger.error(f"[EXEC] Plan rejected: {e}")
+            
+            # PRODUCTION: Voice feedback on rejection
+            voice_message = "Blocked by safety policy. Open Settings to allow this action."
+            
+            logger.info(f"[WS] broadcast event=plan_rejected violations={len(violations)}")
+            await state.broadcast("plan_rejected", {
+                "plan_id": plan.id,
+                "error": str(e),
+                "violations": violations,
+                "speak": voice_message  # Voice feedback
+            })
             return
         
         await state.broadcast("plan_generated", plan.dict())
@@ -847,7 +917,8 @@ async def execute_approved_plan(plan: ExecutionPlan):
                     duration_ms=timeout * 1000
                 )
             
-            logger.info(f"[EXEC] Step completed | step_id={step.id} | success={result.success} | plan_id={plan.id}")
+            logger.info(f"[EXEC] step result | step_id={step.id} | success={result.success} | plan_id={plan.id}")
+            logger.info(f"[WS] broadcast event=step_completed step_id={step.id}")
             await state.broadcast("step_completed", result.dict())
             
             if not result.success:

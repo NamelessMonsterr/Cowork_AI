@@ -1,0 +1,13 @@
+{
+  "trusted_domains": [
+    "github.com",
+    "google.com",
+    "microsoft.com",
+    "openai.com",
+    "stackoverflow.com",
+    "wikipedia.org",
+    "docs.python.org",
+    "npmjs.com",
+    "dev.to"
+  ]
+}

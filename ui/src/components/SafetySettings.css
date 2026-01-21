@@ -1,0 +1,146 @@
+.safety-settings {
+    padding: 20px;
+    color: #fff;
+}
+
+.safety-settings h2 {
+    color: #ffd700;
+    margin-bottom: 20px;
+}
+
+.section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section h3 {
+    color: #ffd700;
+    margin-bottom: 8px;
+}
+
+.description {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+
+.add-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.add-item input {
+    flex: 1;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.add-item input:focus {
+    outline: none;
+    border-color: #ffd700;
+}
+
+.btn-add, .btn-save {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-add:hover, .btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.btn-add:active, .btn-save:active {
+    transform: translateY(0);
+}
+
+.btn-save {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+}
+
+.btn-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.item:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.item span {
+    color: #fff;
+    font-family: 'Courier New', monospace;
+}
+
+.btn-remove {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.4);
+    color: #ff4444;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+    background: rgba(255, 0, 0, 0.3);
+    border-color: #ff4444;
+}
+
+.message {
+    padding: 12px 16px;
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    border-radius: 6px;
+    color: #00ff00;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.warning-box {
+    padding: 16px;
+    background: rgba(255, 165, 0, 0.1);
+    border: 2px solid rgba(255, 165, 0, 0.4);
+    border-radius: 8px;
+    color: #ffaa00;
+    font-size: 0.9rem;
+    margin-top: 24px;
+}
+
+.warning-box strong {
+    color: #ff8800;
+}
