@@ -27,8 +27,16 @@ class AgentResponse(BaseModel):
 
 class LLMClient:
     def __init__(self):
-        # OpenAI API Key provided by user
-        self.api_key = "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"
+        from assistant.config.settings import get_settings
+        
+        # Try environment variable first, then settings
+        self.api_key = os.environ.get("OPENAI_API_KEY")
+        if not self.api_key:
+            settings = get_settings()
+            self.api_key = settings.voice.openai_api_key
+            
+        if not self.api_key:
+            logger.warning("OpenAI API Key not found. Set OPENAI_API_KEY env var or configure in settings.")
         
         if HAS_OPENAI:
             self.client = OpenAI(api_key=self.api_key)
