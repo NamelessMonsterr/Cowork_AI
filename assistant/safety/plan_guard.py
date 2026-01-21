@@ -63,7 +63,9 @@ SAFE_TOOLS = {
     # Window actions
     "focus_window", "get_active_window",
     # Utility
-    "wait", "screenshot"
+    "wait", "screenshot",
+    # Voice feedback - safe, non-destructive output
+    "speak"
 }
 
 # Restricted but safe tools - require allowlist validation

@@ -2,7 +2,7 @@
  * Flash Assistant - Electron Main Process
  * P2: Production-grade with port discovery, watchdog, and recovery.
  */
-const { app, BrowserWindow, dialog, shell } = require('electron');
+const { app, BrowserWindow, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -16,6 +16,17 @@ let isDev = process.env.ELECTRON_START_URL ? true : false;
 let backendRestarts = 0;
 const MAX_RESTARTS = 3;
 const HEALTH_CHECK_TIMEOUT = 30000; // 30 seconds
+
+// CRITICAL: Handle permission requests (WebRTC/Mic)
+app.on('web-contents-created', (event, contents) => {
+  contents.on('permission-request', (event, permission) => {
+    const allowed = ['media', 'audioCapture', 'microphone', 'mediaKeySystem'];
+    if (allowed.includes(permission)) {
+      event.preventDefault(); // Approve
+      // Optional: Verify explicitly if needed, but for now allow trusted permissions
+    }
+  });
+});
 
 // P2.2: Port file path (matches Python's paths.py)
 function getPortFilePath() {
@@ -177,17 +188,25 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      enableBlinkFeatures: 'WebRTCPeerConnection', // ENABLE WEBRTC
       // P2: Inject backend URL into renderer
       additionalArguments: [`--backend-port=${backendPort}`]
     },
     icon: path.join(__dirname, 'icon.ico')
   });
 
+  // CRITICAL: Set permission handler
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'audioCapture', 'microphone', 'mediaKeySystem'];
+    console.log('Permission requested:', permission);
+    callback(allowedPermissions.includes(permission));
+  });
+
   // Inject backend URL as global variable
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.executeJavaScript(`
-      window.BACKEND_URL = 'http://127.0.0.1:${backendPort}';
-      window.BACKEND_PORT = ${backendPort};
+    window.BACKEND_URL = 'http://127.0.0.1:${backendPort}';
+    window.BACKEND_PORT = ${backendPort};
     `);
   });
 

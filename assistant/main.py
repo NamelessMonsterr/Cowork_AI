@@ -13,9 +13,10 @@ from typing import List, Dict, Optional, Any, Tuple
 
 from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 import sys
-import signal
+import datetime
 
 # --- Config (P1) ---
 from assistant.config.paths import get_appdata_dir, get_learning_db_path, get_sync_db_path, get_skills_dir, ensure_dirs
@@ -428,6 +429,17 @@ def handle_step_complete_sync(result: StepResult):
 _settings = get_settings()
 
 app = FastAPI(title="Flash Assistant", lifespan=lifespan)
+# Reload trigger
+
+# CRITICAL: Add session middleware BEFORE CORS for voice permissions
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="flash-assistant-secret-key-change-in-production",
+    session_cookie="flash_session",
+    max_age=1800,  # 30 minutes
+    https_only=False,  # Allow in dev (HTTP)
+    same_site="lax"  # Allow cross-port access (localhost:3000 → localhost:8765)
+)
 
 # P1.4: Strict CORS - Only allow dev origins, disabled in production
 if _settings.server.cors_enabled:
@@ -438,6 +450,9 @@ if _settings.server.cors_enabled:
         allow_headers=["*"],
         allow_credentials=True
     )
+
+# CRITICAL: Add session middleware for voice permissions
+
 
 try:
     from assistant.api.safety_routes import router as safety_router
@@ -452,8 +467,16 @@ except ImportError:
 
 # V21: Voice routes
 try:
-    from assistant.api.voice_routes import router as voice_router
-    app.include_router(voice_router)
+    from assistant.api.voice_routes import router as voice_api_router
+    app.include_router(voice_api_router)
+    
+    # NEW: WebSocket Stream
+    from assistant.api.voice import router as voice_stream_router
+    app.include_router(voice_stream_router)
+    
+    # Debug: Verify router registration
+    logger.info(f"✅ Voice Stream Router Registered: {voice_stream_router.routes}")
+    
 except ImportError:
     pass
 
@@ -627,12 +650,40 @@ async def revoke_permission():
 
 
 @app.post("/permission/grant")
-async def grant_permission(req: PermissionGrantRequest = PermissionGrantRequest()):
+async def grant_permission(request: Request, response: Response, req: PermissionGrantRequest = PermissionGrantRequest()):
     """Grant session permission for executing actions."""
+    
+    # 1. Internal State Grant
     ttl_sec = req.ttl_min * 60
     state.session_auth.grant(mode=req.mode, ttl_sec=ttl_sec)
+    
+    # 2. Session Cookie Grant (Voice Middleware)
+    session_id = request.cookies.get("flash_session") or str(uuid.uuid4())
+    if "session_id" not in request.session:
+        request.session["session_id"] = session_id
+        
+    request.session["voice_granted"] = True
+    request.session["voice_timestamp"] = datetime.datetime.utcnow().isoformat()
+    
     await state.broadcast("permission_granted", {"ttl_sec": ttl_sec})
-    return {"status": "granted", "ttl_sec": ttl_sec}
+    
+    # CRITICAL: Set JS-accessible cookie for WebSocket authentication
+    # Starlette's SessionMiddleware sets httponly=True by default (can't be changed)
+    # So we set a duplicate cookie that JavaScript CAN read
+    response.set_cookie(
+        key="flash_session_js",
+        value=session_id,
+        max_age=ttl_sec,
+        httponly=False,  # CRITICAL: Allow JavaScript access
+        samesite="lax",
+        secure=False  # Allow HTTP in dev
+    )
+    
+    return {
+        "status": "granted", 
+        "ttl_sec": ttl_sec,
+        "session_id": session_id
+    }
 
 
 @app.post("/debug/crash")

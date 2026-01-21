@@ -8,6 +8,7 @@ import { MainLayout } from "./components/MainLayout";
 import { CoreInterface } from "./components/CoreInterface";
 import { PlanPreview } from "./components/PlanPreview";
 import { TextCommandInput } from "./components/TextCommandInput";
+import VoiceWidget from "./components/VoiceWidget";
 
 // P2: Use dynamic port or default
 const API_URL = window.BACKEND_URL || "http://127.0.0.1:8765";
@@ -290,6 +291,11 @@ function AppContent() {
             disabled={status !== "I AM VENGEANCE"}
             placeholder="Type a command (e.g., 'Open Notepad')..."
         />
+
+        {/* V21: Real-time Voice Widget */}
+        <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'center' }}>
+            <VoiceWidget />
+        </div>
 
         {/* V2: Plan Preview Modal */}
         {pendingPlan && (
