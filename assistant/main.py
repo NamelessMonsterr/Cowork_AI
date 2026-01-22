@@ -22,6 +22,22 @@ import datetime
 from assistant.platform_check import ensure_windows_os
 ensure_windows_os()
 
+# --- Security Configuration ---
+import secrets
+# P0-2: Dev/Debug endpoint control (disabled by default for security)
+FLASH_DEV_ENDPOINTS_ENABLED = os.getenv("FLASH_DEV_ENDPOINTS_ENABLED", "false").lower() == "true"
+# P0-3: Session secret (must be set in production)
+FLASH_SESSION_SECRET = os.getenv("FLASH_SESSION_SECRET")
+IS_PRODUCTION = os.getenv("ENV", "").lower() == "production"
+
+if not FLASH_SESSION_SECRET:
+    if IS_PRODUCTION:
+        logger.critical("CRITICAL: FLASH_SESSION_SECRET must be set in production!")
+        sys.exit(1)
+    # Auto-generate for dev with warning
+    FLASH_SESSION_SECRET = "dev-only-insecure-key-" + secrets.token_hex(16)
+    logging.warning("⚠️ Using auto-generated session secret (DEV ONLY - not for production!)")
+
 # --- Config (P1) ---
 from assistant.config.paths import get_appdata_dir, get_learning_db_path, get_sync_db_path, get_skills_dir, ensure_dirs
 from assistant.config.settings import get_settings, AppSettings
@@ -436,13 +452,15 @@ app = FastAPI(title="Flash Assistant", lifespan=lifespan)
 # Reload trigger
 
 # CRITICAL: Add session middleware BEFORE CORS for voice permissions
+# P0-3: Use configurable session secret
+# P0-4: Make cookies secure in production
 app.add_middleware(
     SessionMiddleware,
-    secret_key="flash-assistant-secret-key-change-in-production",
+    secret_key=FLASH_SESSION_SECRET,  # From environment variable
     session_cookie="flash_session",
     max_age=1800,  # 30 minutes
-    https_only=False,  # Allow in dev (HTTP)
-    same_site="lax"  # Allow cross-port access (localhost:3000 → localhost:8765)
+    https_only=IS_PRODUCTION,  # True in production for security
+    same_site="strict" if IS_PRODUCTION else "lax"  # Strict in production
 )
 
 # P1.4: Strict CORS - Only allow dev origins, disabled in production
@@ -693,6 +711,10 @@ async def grant_permission(request: Request, response: Response, req: Permission
 @app.post("/debug/crash")
 async def debug_crash():
     """Trigger a backend crash for recovery testing."""
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+    
     # Security: Require active session
     if not state.session_auth.check():
         raise HTTPException(403, "Forbidden")
@@ -1056,6 +1078,10 @@ async def dev_run_task(req: DevTaskRequest):
     Rescue mode: Bypass voice and run a task directly.
     Auto-grants permission and starts execution.
     """
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+    
     logger.info(f"[DEV] Running task directly: {req.task}")
     
     # Auto-grant session
@@ -1072,6 +1098,10 @@ async def voice_simulate(text: str = "Open Notepad"):
     """
     Debug endpoint: Bypass mic and simulate speech input.
     """
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+    
     logger.info(f"[DEV] Simulating voice input: {text}")
     
     # Check session
@@ -1086,6 +1116,10 @@ async def voice_simulate(text: str = "Open Notepad"):
 @app.post("/debug/type")
 async def debug_type(text: str = "HELLO"):
     """Debug: Direct input test."""
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+    
     if not state.session_auth.check():
         state.session_auth.grant(mode="session", ttl_sec=1800)
     

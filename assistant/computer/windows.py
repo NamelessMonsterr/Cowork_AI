@@ -201,9 +201,19 @@ class WindowsComputer:
             return False
 
     def run_shell_command(self, command: str) -> bool:
+        """
+        DEPRECATED: This method bypasses RestrictedShellTool security.
+        Use RestrictedShellTool instead for safe command execution.
+        """
+        logger.warning(
+            f"DEPRECATED: run_shell_command called with: {command[:50]}... "
+            "This bypasses security validation. Use RestrictedShellTool instead."
+        )
         self._ensure_permission()
         try:
-            subprocess.Popen(f'powershell.exe -Command "{command}"', shell=True)
+            # SECURITY FIX: Use list args instead of shell=True
+            # Prevents shell metacharacter injection
+            subprocess.Popen(['powershell.exe', '-Command', command])
             return True
         except Exception as e:
             logger.error(f"Command failed: {e}")

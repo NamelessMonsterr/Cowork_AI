@@ -196,12 +196,19 @@ class Verifier:
     # --- OS Checks ---
 
     def _check_process(self, name: str) -> Tuple[bool, str]:
+        """Check if process is running using safe subprocess call."""
         try:
-            cmd = f'tasklist /FI "IMAGENAME eq {name}" /NH'
-            output = subprocess.check_output(cmd, shell=True).decode()
+            # SECURITY FIX: Use list args instead of shell=True to prevent injection
+            # BEFORE: cmd = f'tasklist /FI "IMAGENAME eq {name}"', shell=True
+            # AFTER: Safe list arguments
+            output = subprocess.check_output(
+                ['tasklist', '/FI', f'IMAGENAME eq {name}', '/NH'],
+                text=True
+            )
             return name.lower() in output.lower(), output[:50]
-        except:
-            return False, "Process check failed"
+        except Exception as e:
+            self.logger.debug(f"Process check failed for {name}: {e}")
+            return False, f"Process check failed: {str(e)[:30]}"
 
     def _check_window_title(self, text: str) -> Tuple[bool, str]:
         hwnd = self._user32.GetForegroundWindow()
