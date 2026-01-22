@@ -12,6 +12,8 @@
 
 ## 🚀 Quick Start
 
+> **⚠️ Windows Only**: Flash Assistant requires Windows 10/11. The application will exit on other platforms.
+
 ### 1. Install Dependencies
 
 ```bash
