@@ -190,47 +190,18 @@ class RestrictedShellTool:
         if engine not in ["cmd", "powershell"]:
             raise SecurityError(f"Invalid engine: {engine}. Must be 'cmd' or 'powershell'")
         
-        # HARDENED: Check for command chaining, pipes, redirects, and bypass attempts
-        dangerous_chars = [
-            '|', '&', ';', '>', '<', '>>', '2>', '&&', '||',  # Standard
-            '`', '^', '$(',  # Bash/PowerShell injection
-            '%COMSPEC%', '%SystemRoot%'  # Environment variable expansion
-        ]
-        for char in dangerous_chars:
-            if char in command:
-                raise SecurityError(f"Dangerous character/pattern not allowed: found '{char}'")
+        # SECURITY FIX: Use hardened validator with unicode normalization
+        from assistant.safety.shell_validator import RestrictedShellValidator
         
-        # Check multiline
-        if '\n' in command or '\r' in command:
-            raise SecurityError("Multiline commands not allowed")
+        validator = RestrictedShellValidator(
+            allowed_cmd=self.config.get("allowed_cmd", []),
+            allowed_powershell=self.config.get("allowed_powershell", [])
+        )
         
-        # Extract first command token
-        tokens = command.strip().split()
-        if not tokens:
-            raise SecurityError("Empty command")
+        # Validate with enhanced checks (unicode normalization, PowerShell flags, etc.)
+        validator.validate_command(engine, command)
         
-        # HARDENED: Strip punctuation from first token before allowlist check
-        # Prevents bypasses like: "dir." or "whoami!"
-        first_token_raw = tokens[0]
-        first_token = first_token_raw.strip('.,;:!?\'"-').lower()
-        
-        if not first_token:
-            raise SecurityError("Invalid command token")
-        
-        # Check allowlist
-        allowlist_key = f"allowed_{engine}"
-        allowlist = self.config.get(allowlist_key, [])
-        
-        if first_token not in [cmd.lower() for cmd in allowlist]:
-            allowed_display = ", ".join(allowlist[:10])
-            if len(allowlist) > 10:
-                allowed_display += f" (+ {len(allowlist) - 10} more)"
-            raise SecurityError(
-                f"Command '{first_token}' not in {engine} allowlist. "
-                f"Allowed: {allowed_display}"
-            )
-        
-        # Check blocked patterns
+        # Check blocked patterns (in addition to validator checks)
         command_lower = command.lower()
         for pattern in self.config.get("blocked_patterns", []):
             if pattern.lower() in command_lower:

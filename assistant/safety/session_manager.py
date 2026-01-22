@@ -1,0 +1,185 @@
+"""
+Session Manager - Persistent session storage with CSRF protection.
+
+Features:
+- Stores sessions in %APPDATA%/CoworkAI/sessions.json
+- Hashes session tokens for security
+- Manages CSRF tokens
+- Handles session expiration and cleanup
+"""
+
+import os
+import json
+import time
+import hashlib
+import secrets
+import threading
+import logging
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class SessionManager:
+    """
+    Manages persistent session storage and CSRF validation.
+    
+    Storage format:
+    {
+        "sessions": {
+            "session_id_hash": {
+                "created_at": timestamp,
+                "expires_at": timestamp,
+                "csrf_token": "token",
+                "mode": "session|once",
+                "apps": [],
+                "folders": []
+            }
+        }
+    }
+    """
+    
+    def __init__(self, storage_path: Optional[str] = None):
+        if storage_path:
+            self.storage_path = Path(storage_path)
+        else:
+            app_data = os.getenv('APPDATA')
+            if not app_data:
+                # Fallback for non-Windows or if var missing
+                 app_data = os.path.expanduser("~/.coworkai")
+            else:
+                 app_data = os.path.join(app_data, "CoworkAI")
+            
+            self.storage_path = Path(app_data) / "sessions.json"
+            
+        self._lock = threading.Lock()
+        self._ensure_storage_dir()
+        
+    def _ensure_storage_dir(self):
+        """Ensure storage directory exists."""
+        try:
+            self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error(f"[SessionManager] Failed to create storage dir: {e}")
+
+    def _hash_token(self, token: str) -> str:
+        """Hash token for storage."""
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def load_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Load a session by ID. Returns session dict if valid, None if not found/expired.
+        """
+        if not session_id:
+            return None
+            
+        session_hash = self._hash_token(session_id)
+        
+        with self._lock:
+            data = self._read_file()
+            session = data.get("sessions", {}).get(session_hash)
+            
+            if not session:
+                return None
+                
+            # Check expiry
+            if time.time() > session.get("expires_at", 0):
+                self._delete_session(session_hash, data)
+                return None
+                
+            return session
+
+    def save_session(self, session_id: str, permit_data: Dict[str, Any], csrf_token: str) -> bool:
+        """
+        Save a new session or update existing one.
+        """
+        if not session_id:
+            return False
+            
+        session_hash = self._hash_token(session_id)
+        
+        with self._lock:
+            data = self._read_file()
+            
+            # Clean up expired sessions first
+            self._cleanup_expired(data)
+            
+            # Add new session
+            data.setdefault("sessions", {})[session_hash] = {
+                "created_at": permit_data.get("issued_at", time.time()),
+                "expires_at": permit_data.get("expires_at", 0),
+                "csrf_token": csrf_token,
+                "mode": permit_data.get("mode", "session"),
+                "granted_apps": permit_data.get("granted_apps", []),
+                "granted_folders": permit_data.get("granted_folders", []),
+                "allow_network": permit_data.get("allow_network", False)
+            }
+            
+            return self._write_file(data)
+
+    def revoke_session(self, session_id: str) -> bool:
+        """Revoke a session."""
+        if not session_id:
+            return False
+            
+        session_hash = self._hash_token(session_id)
+        
+        with self._lock:
+            data = self._read_file()
+            if session_hash in data.get("sessions", {}):
+                del data["sessions"][session_hash]
+                return self._write_file(data)
+        return False
+
+    def generate_csrf_token(self) -> str:
+        """Generate a secure CSRF token."""
+        return secrets.token_urlsafe(32)
+        
+    def validate_csrf(self, session_id: str, token: str) -> bool:
+        """Validate CSRF token for a given session."""
+        session = self.load_session(session_id)
+        if not session:
+            return False
+            
+        stored_token = session.get("csrf_token")
+        if not stored_token:
+            return False
+            
+        return secrets.compare_digest(stored_token, token)
+
+    def _read_file(self) -> Dict[str, Any]:
+        """Read sessions from disk."""
+        if not self.storage_path.exists():
+            return {"sessions": {}}
+            
+        try:
+            with open(self.storage_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"[SessionManager] Read error: {e}")
+            return {"sessions": {}}
+
+    def _write_file(self, data: Dict[str, Any]) -> bool:
+        """Write sessions to disk."""
+        try:
+            with open(self.storage_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"[SessionManager] Write error: {e}")
+            return False
+
+    def _cleanup_expired(self, data: Dict[str, Any]):
+        """Remove expired sessions from data dict (in-place)."""
+        now = time.time()
+        sessions = data.get("sessions", {})
+        expired_hashes = [k for k, v in sessions.items() if now > v.get("expires_at", 0)]
+        
+        for k in expired_hashes:
+            del sessions[k]
+            
+    def _delete_session(self, session_hash: str, data: Dict[str, Any]):
+        """Delete specific session and save."""
+        if session_hash in data.get("sessions", {}):
+            del data["sessions"][session_hash]
+            self._write_file(data)

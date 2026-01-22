@@ -41,6 +41,7 @@ class PlanGuardConfig:
     require_verification: bool = True  # Each step must have verify OR marked unverifiable
     allowed_tools: Optional[Set[str]] = None  # None = allow all known tools
     blocked_domains: Set[str] = None
+    trusted_domains: Set[str] = None  # P0-1: Allowlist for open_url
     
     def __post_init__(self):
         if self.blocked_domains is None:
@@ -48,6 +49,17 @@ class PlanGuardConfig:
                 "*.exe",  # Direct executables
                 "registry",  # Registry modifications
                 "admin",  # Admin operations
+            }
+        
+        # Default trusted domains if None
+        if self.trusted_domains is None:
+            self.trusted_domains = {
+                "google.com",
+                "wikipedia.org",
+                "github.com",
+                "stackoverflow.com",
+                "python.org",
+                "microsoft.com"
             }
 
 
@@ -222,7 +234,13 @@ class PlanGuard:
         
         # Task 1: Load config-driven trusted apps and domains
         self.trusted_apps, self.app_aliases = load_trusted_apps()
-        self.trusted_domains = load_trusted_domains()
+        
+        # Prefer config trusted_domains if set (for testing/overrides)
+        if self._config.trusted_domains:
+            self.trusted_domains = self._config.trusted_domains
+        else:
+            self.trusted_domains = load_trusted_domains()
+            
         self.restricted_shell_config = load_restricted_shell_config()
 
     def validate(self, plan: "ExecutionPlan", allow_high_risk: bool = False) -> None:
@@ -329,6 +347,7 @@ class PlanGuard:
                 try:
                     from urllib.parse import urlparse
                     import re
+                    import ipaddress
                     
                     parsed = urlparse(url)
                     domain = parsed.netloc
@@ -337,15 +356,53 @@ class PlanGuard:
                     if domain.startswith("www."):
                         domain = domain[4:]
                     
-                    # Block IP addresses (security requirement)
-                    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', domain):
+                    # SECURITY FIX: Block IP addresses (IPv4, IPv6, localhost, private networks)
+                    # Remove port if present
+                    host = domain.split(':')[0]
+                    
+                    # Check for localhost variants
+                    if host.lower() in ['localhost', '127.0.0.1', '::1', '0.0.0.0', '::']:
                         violations.append(
-                            f"Step {step_num}: IP addresses are not allowed for security (domain: {domain})"
+                            f"Step {step_num}: Localhost addresses are not allowed for security"
                         )
+                        logger.warning(f"[PlanGuard] Blocked localhost URL: {url}")
                         continue
                     
-                    # Check against trusted domains
-                    if domain not in self.trusted_domains:
+                    # Check if it's an IP address (IPv4 or IPv6)
+                    is_ip = False
+                    try:
+                        ip_obj = ipaddress.ip_address(host)
+                        is_ip = True
+                        
+                        # Check if it's a private network
+                        if ip_obj.is_private:
+                            violations.append(
+                                f"Step {step_num}: Private IP addresses are not allowed for security (IP: {host})"
+                            )
+                            logger.warning(f"[PlanGuard] Blocked private IP URL: {url}")
+                            continue
+                        
+                        # Block all IPs for SSRF prevention
+                        violations.append(
+                            f"Step {step_num}: IP addresses are not allowed for security (IP: {host})"
+                        )
+                        logger.warning(f"[PlanGuard] Blocked IP URL: {url}")
+                        continue
+                    except ValueError:
+                        # Not an IP address, continue with domain validation
+                        pass
+                    
+                    # Domain allowlist check with subdomain support
+                    domain_lower = domain.lower()
+                    allowed = False
+                    for trusted in self.trusted_domains:
+                        trusted_lower = trusted.lower()
+                        # Exact match OR subdomain match
+                        if domain_lower == trusted_lower or domain_lower.endswith('.' + trusted_lower):
+                            allowed = True
+                            break
+                    
+                    if not allowed:
                         violations.append(
                             f"Step {step_num}: Domain '{domain}' not in trusted list. "
                             f"Allowed: {', '.join(sorted(self.trusted_domains))}"

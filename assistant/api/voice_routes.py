@@ -75,6 +75,7 @@ async def test_stt(request: Request, seconds: int = 3):
         engine: STT engine used
         transcript: Recognized text
         duration_ms: Total processing time in milliseconds
+        error: Structured error if failed
     """
     import time
     start = time.time()
@@ -94,9 +95,22 @@ async def test_stt(request: Request, seconds: int = 3):
             "duration_ms": duration_ms
         }
     except Exception as e:
+        duration_ms = int((time.time() - start) * 1000)
         logger.error(f"[Voice] Test failed: {e}")
+        
+        # Check for structured STTError
+        error_code = "unknown_error"
+        error_msg = str(e)
+        
+        if hasattr(e, "code"):  # STTError has code attribute
+            error_code = e.code
+            error_msg = e.message
+            
         return {
             "success": False,
-            "error": str(e),
-            "duration_ms": int((time.time() - start) * 1000)
+            "error": {
+                "code": error_code,
+                "message": error_msg
+            },
+            "duration_ms": duration_ms
         }

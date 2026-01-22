@@ -33,6 +33,7 @@ class SessionPermit:
         issued_at: Unix timestamp when permission was granted
         expires_at: Unix timestamp when permission expires
         task_completed: For 'once' mode, tracks if task is done
+        csrf_token: Unique token for CSRF protection
     """
     allowed: bool = False
     mode: PermissionMode = PermissionMode.DENIED
@@ -42,6 +43,7 @@ class SessionPermit:
     issued_at: float = 0
     expires_at: float = 0
     task_completed: bool = False
+    csrf_token: Optional[str] = None
 
 
 class PermissionDeniedError(Exception):
@@ -74,6 +76,7 @@ class SessionAuth:
     DEFAULT_TTL_SEC = 30 * 60  # 30 minutes
     DEFAULT_APPS = ["notepad", "chrome", "vscode", "explorer", "terminal"]
     DEFAULT_FOLDERS = ["Documents", "Downloads", "Desktop"]
+    SESSION_ID = "current_session"  # Single session ID for now
 
     def __init__(
         self,
@@ -95,6 +98,37 @@ class SessionAuth:
         self._on_expire = on_expire
         self._on_revoke = on_revoke
         self._expiry_timer: Optional[threading.Timer] = None
+        
+        # Initialize session manager
+        from .session_manager import SessionManager
+        self._manager = SessionManager()
+        
+        # Try to load existing session
+        self._load_saved_session()
+
+    def _load_saved_session(self):
+        """Load session from disk if valid."""
+        saved = self._manager.load_session(self.SESSION_ID)
+        if (saved):
+            with self._lock:
+                now = time.time()
+                self._permit = SessionPermit(
+                    allowed=True,
+                    mode=PermissionMode(saved["mode"]),
+                    granted_apps=saved["granted_apps"],
+                    granted_folders=saved["granted_folders"],
+                    allow_network=saved["allow_network"],
+                    issued_at=saved["created_at"],
+                    expires_at=saved["expires_at"],
+                    csrf_token=saved["csrf_token"]
+                )
+                
+                # Restore timer
+                remaining = saved["expires_at"] - now
+                if remaining > 0:
+                    self._expiry_timer = threading.Timer(remaining, self._on_auto_expire)
+                    self._expiry_timer.daemon = True
+                    self._expiry_timer.start()
 
     @property
     def permit(self) -> SessionPermit:
@@ -109,6 +143,7 @@ class SessionAuth:
                 issued_at=self._permit.issued_at,
                 expires_at=self._permit.expires_at,
                 task_completed=self._permit.task_completed,
+                csrf_token=self._permit.csrf_token
             )
 
     def grant(
@@ -132,6 +167,9 @@ class SessionAuth:
         now = time.time()
         ttl = ttl_override if ttl_override is not None else self._ttl_sec
         
+        # Generate CSRF token
+        csrf_token = self._manager.generate_csrf_token()
+        
         with self._lock:
             # Cancel existing timer
             if self._expiry_timer:
@@ -146,7 +184,19 @@ class SessionAuth:
                 issued_at=now,
                 expires_at=now + ttl,
                 task_completed=False,
+                csrf_token=csrf_token
             )
+            
+            # Save to disk
+            permit_dict = {
+                "issued_at": now,
+                "expires_at": now + ttl,
+                "mode": mode,
+                "granted_apps": self._permit.granted_apps,
+                "granted_folders": self._permit.granted_folders,
+                "allow_network": allow_network
+            }
+            self._manager.save_session(self.SESSION_ID, permit_dict, csrf_token)
             
             # Set expiry timer
             self._expiry_timer = threading.Timer(ttl, self._on_auto_expire)
@@ -168,9 +218,17 @@ class SessionAuth:
                 self._expiry_timer = None
             
             self._permit = SessionPermit()  # Reset to default (denied)
+            self._manager.revoke_session(self.SESSION_ID)
         
         if was_allowed and self._on_revoke:
             self._on_revoke()
+
+    def validate_csrf(self, token: str) -> bool:
+        """Validate CSRF token against current session."""
+        with self._lock:
+            if not self._permit.allowed:
+                return False
+            return self._manager.validate_csrf(self.SESSION_ID, token)
 
     def ensure(self) -> None:
         """
@@ -230,6 +288,7 @@ class SessionAuth:
             self._permit.task_completed = True
             if self._permit.mode == PermissionMode.ONCE:
                 self._permit.allowed = False
+                self._manager.revoke_session(self.SESSION_ID)
 
     def extend(self, additional_sec: int) -> None:
         """
@@ -276,4 +335,5 @@ class SessionAuth:
                 "%Y-%m-%dT%H:%M:%S", 
                 time.localtime(permit.expires_at)
             ) if permit.expires_at > 0 else None,
+            "csrf_token": permit.csrf_token
         }

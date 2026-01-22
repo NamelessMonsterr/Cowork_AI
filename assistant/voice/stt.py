@@ -37,6 +37,14 @@ class STTEngine(Protocol):
         ...
 
 
+class STTError(Exception):
+    """Structured STT error."""
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)
+
+
 # ==================== Engine Implementations ====================
 
 class FasterWhisperSTT:
@@ -55,10 +63,8 @@ class FasterWhisperSTT:
         """Initialize audio and whisper dependencies."""
         # Audio dependencies
         try:
-            import numpy as np
-            import sounddevice as sd
-            self._np = np
-            self._sd = sd
+            from .audio_recorder import AudioRecorder
+            self._recorder = AudioRecorder()
             self._has_audio = True
         except ImportError as e:
             self._error = f"Audio deps missing: {e}"
@@ -88,20 +94,22 @@ class FasterWhisperSTT:
     async def transcribe_mic(self, seconds: int = 5) -> str:
         """Record from microphone and transcribe."""
         if not self.is_available():
-            raise RuntimeError(f"FasterWhisperSTT not available: {self._error}")
+            raise STTError("stt_unavailable", f"FasterWhisperSTT not available: {self._error}")
         
         return await asyncio.to_thread(self._transcribe_sync, seconds)
     
     def _transcribe_sync(self, seconds: int) -> str:
         """Synchronous recording and transcription."""
-        logger.info(f"[FasterWhisper] Recording for {seconds}s...")
+        
+        # 1. Record Audio
+        audio_data, error = self._recorder.record(seconds)
+        if error:
+            raise STTError(error["code"], error["message"])
+            
+        logger.info(f"[FasterWhisper] Transcribing {len(audio_data)} samples...")
         
         try:
-            samplerate = 16000
-            recording = self._sd.rec(int(seconds * samplerate), samplerate=samplerate, channels=1, dtype='float32')
-            self._sd.wait()
-            
-            audio_data = recording.flatten()
+            # 2. Transcribe
             segments, info = self._model.transcribe(audio_data, beam_size=5)
             text = " ".join([segment.text for segment in segments]).strip()
             
@@ -110,7 +118,7 @@ class FasterWhisperSTT:
             
         except Exception as e:
             logger.error(f"[FasterWhisper] Transcription error: {e}")
-            raise
+            raise STTError("transcription_failed", str(e))
 
 
 class OpenAIWhisperSTT:
@@ -133,14 +141,14 @@ class OpenAIWhisperSTT:
         
         # Audio dependencies
         try:
-            import numpy as np
-            import sounddevice as sd
+            from .audio_recorder import AudioRecorder
             import wave
             import tempfile
-            self._np = np
-            self._sd = sd
+            import numpy as np
+            self._recorder = AudioRecorder()
             self._wave = wave
             self._tempfile = tempfile
+            self._np = np
             self._has_audio = True
         except ImportError as e:
             self._error = f"Audio deps missing: {e}"
@@ -170,18 +178,21 @@ class OpenAIWhisperSTT:
     async def transcribe_mic(self, seconds: int = 5) -> str:
         """Record from microphone and transcribe via API."""
         if not self.is_available():
-            raise RuntimeError(f"OpenAIWhisperSTT not available: {self._error}")
+            raise STTError("stt_unavailable", f"OpenAIWhisperSTT not available: {self._error}")
         
         return await asyncio.to_thread(self._transcribe_sync, seconds)
     
     def _transcribe_sync(self, seconds: int) -> str:
         """Synchronous recording and API transcription."""
-        logger.info(f"[OpenAIWhisper] Recording for {seconds}s...")
         
+        # 1. Record Audio
+        audio_data, error = self._recorder.record(seconds, samplerate=16000)
+        if error:
+            raise STTError(error["code"], error["message"])
+            
         try:
-            samplerate = 16000
-            recording = self._sd.rec(int(seconds * samplerate), samplerate=samplerate, channels=1, dtype='int16')
-            self._sd.wait()
+            # Convert float32 to int16 for WAV
+            audio_int16 = (audio_data * 32767).astype(self._np.int16)
             
             # Save to temp WAV file
             with self._tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -189,8 +200,8 @@ class OpenAIWhisperSTT:
                 with self._wave.open(f, 'wb') as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)  # int16 = 2 bytes
-                    wf.setframerate(samplerate)
-                    wf.writeframes(recording.tobytes())
+                    wf.setframerate(16000)
+                    wf.writeframes(audio_int16.tobytes())
             
             # Send to API
             with open(temp_path, 'rb') as audio_file:
@@ -208,7 +219,7 @@ class OpenAIWhisperSTT:
             
         except Exception as e:
             logger.error(f"[OpenAIWhisper] Transcription error: {e}")
-            raise
+            raise STTError("transcription_failed", str(e))
 
 
 class MockSTT:
@@ -347,20 +358,16 @@ class STT:
     async def listen(self, duration: int = 5) -> str:
         """
         Record and transcribe (async).
-        Returns transcript or empty string on failure.
+        Returns transcript. Raises STTError on known failures.
         """
         task_id = os.environ.get("CURRENT_TASK_ID", "unknown")
         
         logger.info(f"[VOICE] Listen started | task_id={task_id}")
         logger.info(f"[VOICE] Engine selected: {self._engine.name} | task_id={task_id}")
         
-        try:
-            text = await self._engine.transcribe_mic(duration)
-            logger.info(f"[VOICE] Transcript received: '{text}' | task_id={task_id}")
-            return text
-        except Exception as e:
-            logger.error(f"[VOICE] Transcription failed: {e} | task_id={task_id}")
-            return ""
+        # Let STTError propagate to caller (router/main) for structured handling
+        # Any unknown errors call propagated as exceptions too
+        return await self._engine.transcribe_mic(duration)
     
     def get_health(self) -> dict:
         """Get STT health status."""

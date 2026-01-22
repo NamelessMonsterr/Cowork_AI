@@ -18,6 +18,10 @@ from pydantic import BaseModel
 import sys
 import datetime
 
+# --- Platform Guard (P1) ---
+from assistant.platform_check import ensure_windows_os
+ensure_windows_os()
+
 # --- Config (P1) ---
 from assistant.config.paths import get_appdata_dir, get_learning_db_path, get_sync_db_path, get_skills_dir, ensure_dirs
 from assistant.config.settings import get_settings, AppSettings
