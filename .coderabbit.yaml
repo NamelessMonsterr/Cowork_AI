@@ -1,0 +1,51 @@
+# CodeRabbit Configuration for Flash Assistant
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: "en-US"
+early_access: false
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+chat:
+  auto_reply: true
+
+# Focus areas for this project
+tone_instructions: |
+  Focus on:
+  - Security vulnerabilities (command injection, SQL injection, XSS)
+  - Unsafe subprocess calls with shell=True
+  - Hardcoded secrets and credentials
+  - Missing input validation
+  - Thread safety issues
+  - Error handling gaps (bare except blocks)
+  - Authentication/authorization bypasses
+  - Session management issues
+  - CORS misconfigurations
+
+  Be direct and specific. Suggest concrete fixes.
+
+# Files to always review
+path_filters:
+  - "!**/node_modules/**"
+  - "!**/venv/**"
+  - "!**/__pycache__/**"
+  - "!**/dist/**"
+  - "!**/build/**"
+  - "assistant/**/*.py"
+  - "tests/**/*.py"
+  - "ui/src/**/*.js"
+
+# Auto-review settings
+auto_review:
+  enabled: true
+  ignore_title_keywords:
+    - "WIP"
+    - "DO NOT REVIEW"
