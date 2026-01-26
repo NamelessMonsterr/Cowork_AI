@@ -11,7 +11,7 @@ All data exchanged between components should use these types.
 
 from typing import Optional, Literal, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ==================== UI Selector (Unified element reference) ====================
@@ -91,8 +91,7 @@ class VerifySpec(BaseModel):
     region: Optional[tuple[int, int, int, int]] = None  # Screen region for text search
     negate: bool = False  # If True, verification succeeds when condition is NOT met
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class VerificationResult(BaseModel):
@@ -139,8 +138,7 @@ class ActionStep(BaseModel):
     # Selector (cached from previous execution or pre-computed)
     selector: Optional[UISelector] = None
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class StepResult(BaseModel):
@@ -254,8 +252,7 @@ class AgentEvent(BaseModel):
     # For error events
     error: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # ==================== Session / Permission ====================

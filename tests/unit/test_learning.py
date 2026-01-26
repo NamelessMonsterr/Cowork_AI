@@ -17,7 +17,7 @@ class TestLearningStore:
     
     def test_update_app_profile(self, learning_store):
         """Test updating app profile."""
-        learning_store.update_app_profile("notepad", "UIA", True)
+        learning_store.update_app_stats("notepad", "UIA", True, 100.0)
         
         profile = learning_store.get_app_profile("notepad")
         assert profile is not None
@@ -32,16 +32,16 @@ class TestLearningStore:
         """Test that success rate updates correctly."""
         # Add successes
         for _ in range(10):
-            learning_store.update_app_profile("chrome", "Vision", True)
+            learning_store.update_app_stats("chrome", "Vision", True, 100.0)
         
         profile = learning_store.get_app_profile("chrome")
         assert profile["vision_success_rate"] > 0.5
     
     def test_sample_count_increments(self, learning_store):
         """Test that sample count increments."""
-        learning_store.update_app_profile("app1", "UIA", True)
-        learning_store.update_app_profile("app1", "UIA", True)
-        learning_store.update_app_profile("app1", "UIA", False)
+        learning_store.update_app_stats("app1", "UIA", True, 100.0)
+        learning_store.update_app_stats("app1", "UIA", True, 100.0)
+        learning_store.update_app_stats("app1", "UIA", False, 100.0)
         
         profile = learning_store.get_app_profile("app1")
         assert profile["sample_count"] == 3
@@ -65,8 +65,8 @@ class TestStrategyRanker:
         
         # Train: Vision works better for this app
         for _ in range(10):
-            learning_store.update_app_profile("vision_app", "Vision", True)
-            learning_store.update_app_profile("vision_app", "UIA", False)
+            learning_store.update_app_stats("vision_app", "Vision", True, 100.0)
+            learning_store.update_app_stats("vision_app", "UIA", False, 100.0)
         
         ranker = StrategyRanker(learning_store)
         order = ranker.get_strategy_order("vision_app")
@@ -80,7 +80,7 @@ class TestStrategyRanker:
         
         # Even if Coords has high success, it shouldn't be first
         for _ in range(10):
-            learning_store.update_app_profile("coords_app", "Coords", True)
+            learning_store.update_app_stats("coords_app", "Coords", True, 100.0)
         
         ranker = StrategyRanker(learning_store)
         order = ranker.get_strategy_order("coords_app")

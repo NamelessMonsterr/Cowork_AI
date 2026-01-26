@@ -1,7 +1,7 @@
 import inspect
 import pytest
 
-from computers import Computer, default, contrib
+from assistant.computer import Computer, default, contrib
 
 
 def get_module_classes(module):

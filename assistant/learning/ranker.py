@@ -42,7 +42,7 @@ class StrategyRanker:
         # Safety: Coords should never be first for high-risk actions
         # (We can add action_type param later for finer control)
         # For now, if Coords is first AND its rate is not significantly higher, demote it.
-        if ranked[0] == "Coords" and rates["Coords"] < 0.9:
+        if ranked[0] == "Coords":
             # Move Coords to end
             ranked.remove("Coords")
             ranked.append("Coords")

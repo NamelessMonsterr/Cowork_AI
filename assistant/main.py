@@ -124,6 +124,21 @@ class AppState:
         self.computer: Optional[WindowsComputer] = None
         self.stt: Optional[STT] = None
         
+    def cleanup_pending_plans(self, max_age_seconds: int = 300):
+        """
+        Remove pending plans that are older than max_age_seconds.
+        This prevents memory leaks in long-running processes.
+        """
+        now = time.time()
+        expired_ids = [
+            pid for pid, (_, created_at) in self.pending_plans.items()
+            if now - created_at > max_age_seconds
+        ]
+        for pid in expired_ids:
+            # Use .pop() to avoid KeyError if the plan was already removed by another request
+            self.pending_plans.pop(pid, None)
+
+        
         # Brain & Limbs
         self.planner: Optional[Planner] = None
         self.executor: Optional[ReliableExecutor] = None
@@ -866,6 +881,7 @@ async def plan_preview(req: PlanPreviewRequest):
         
         # Store for later approval (with TTL timestamp)
         state.pending_plans[plan_id] = (plan, time.time())
+        state.cleanup_pending_plans() # Lazy cleanup on new plan creation
         
         # Estimate time (rough: 3 sec per step)
         estimated_time = len(action_steps) * 3

@@ -250,5 +250,27 @@ class TestPlanGuardHardening:
         assert any("notepad" in v.lower() or "calc" in v.lower() for v in violations)
 
 
+    def test_block_ip_addresses(self, plan_guard):
+        """❌ Verify that IP addresses (IPv4/IPv6) are blocked."""
+        # IPv4
+        plan = ExecutionPlan(
+            id="ip-1", task="IP",
+            steps=[ActionStep(id="1", tool="open_url", args={"url": "http://1.1.1.1"})]
+        )
+        with pytest.raises(PlanValidationError) as exc_info:
+            plan_guard.validate(plan)
+        # Using lowered violation string check
+        assert any("ip addresses" in v.lower() for v in exc_info.value.violations)
+
+        # IPv4 Localhost
+        plan = ExecutionPlan(
+            id="ip-2", task="Localhost",
+            steps=[ActionStep(id="1", tool="open_url", args={"url": "http://127.0.0.1"})]
+        )
+        with pytest.raises(PlanValidationError) as exc_info:
+            plan_guard.validate(plan)
+        assert any("localhost" in v.lower() or "ip addresses" in v.lower() for v in exc_info.value.violations)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

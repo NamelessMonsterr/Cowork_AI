@@ -146,6 +146,21 @@ class SessionAuth:
                 csrf_token=self._permit.csrf_token
             )
 
+    def check(self) -> bool:
+        """
+        Check whether there is an active session without raising.
+        Returns True if allowed and not expired; False otherwise.
+        """
+        with self._lock:
+            if not self._permit.allowed:
+                return False
+            
+            now = time.time()
+            if now > self._permit.expires_at:
+                return False
+                
+            return True
+
     def grant(
         self,
         mode: Literal["session", "once"] = "session",
