@@ -133,6 +133,11 @@ class ReliableExecutor:
         # W20.3: Learning Components (Optional)
         self._ranker = ranker
         self._collector = collector
+        
+        # P6 FIX: Store verifier's computer reference for error snapshots
+        self._computer = None
+        if self._verifier and hasattr(self._verifier, '_computer'):
+            self._computer = self._verifier._computer
 
     def execute(self, step: ActionStep) -> StepResult:
         """
@@ -353,6 +358,14 @@ class ReliableExecutor:
             # All strategies failed
             self._budget.record_action(success=False)
             
+            # P6 FIX: Capture error snapshot for debugging
+            screenshot_path = ""
+            if hasattr(self, '_computer') and self._computer:
+                try:
+                    screenshot_path = self._computer.capture_error_snapshot(f"{step.tool}_{last_error[:50]}")
+                except:
+                    pass
+            
             # W20.3: Record failure for learning
             if self._collector and app_name:
                 self._collector.ingest_execution_step(
@@ -368,6 +381,7 @@ class ReliableExecutor:
                 error=f"All strategies failed. Last error: {last_error}",
                 strategy_used=strategy_used,
                 screenshot_before=screenshot_before,
+                screenshot_after=screenshot_path,  # P6 FIX: Include error screenshot
                 requires_takeover=True,
                 takeover_reason="All automation strategies failed",
             )

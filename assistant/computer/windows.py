@@ -55,6 +55,55 @@ class WindowsComputer:
         """
         # GetForegroundWindow returns 0 if there is no foreground window (locked session)
         return bool(self.user32.GetForegroundWindow() == 0)
+    
+    def capture_error_snapshot(self, reason: str) -> str:
+        """
+        Takes a screenshot and saves it to errors folder.
+        P6 FIX: Black box feature for visual debugging.
+        
+        Returns:
+            Path to the saved screenshot
+        """
+        from datetime import datetime
+        import os
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_reason = reason.replace(" ", "_").replace("/", "_").replace("\\", "_")[:30]
+        filename = f"error_{timestamp}_{safe_reason}.png"
+        
+        # Ensure directory exists
+        error_dir = "logs/screenshots/errors"
+        os.makedirs(error_dir, exist_ok=True)
+        
+        full_path = os.path.join(error_dir, filename)
+        
+        # Capture screenshot
+        try:
+            screenshot = pyautogui.screenshot()
+            screenshot.save(full_path)
+            logger.error(f"[Snapshot] Saved failure screenshot to {full_path}")
+            
+            # P6 FIX: Cleanup old screenshots (keep last 100)
+            self._cleanup_old_screenshots(error_dir, max_files=100)
+            
+            return os.path.abspath(full_path)
+        except Exception as e:
+            logger.error(f"[Snapshot] Failed to capture screenshot: {e}")
+            return ""
+    
+    def _cleanup_old_screenshots(self, directory: str, max_files: int = 100):
+        """Remove old error screenshots to prevent disk bloat."""
+        try:
+            files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.png')]
+            if len(files) > max_files:
+                # Sort by modification time, oldest first
+                files.sort(key=os.path.getmtime)
+                # Delete oldest files
+                for f in files[:len(files) - max_files]:
+                    os.remove(f)
+                    logger.info(f"[Cleanup] Removed old screenshot: {f}")
+        except Exception as e:
+            logger.warning(f"[Cleanup] Failed to cleanup screenshots: {e}")
         
         # Fail-safes
         pyautogui.FAILSAFE = True
