@@ -160,13 +160,31 @@ class SessionManager:
             return {"sessions": {}}
 
     def _write_file(self, data: Dict[str, Any]) -> bool:
-        """Write sessions to disk."""
+        """Write sessions to disk (atomic)."""
+        import tempfile
         try:
-            with open(self.storage_path, 'w') as f:
-                json.dump(data, f, indent=2)
+            # P2 FIX: Atomic write to prevent corruption
+            # Write to temp file first, then rename
+            dir_name = os.path.dirname(self.storage_path)
+            with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False, encoding='utf-8') as tf:
+                json.dump(data, tf, indent=2)
+                temp_name = tf.name
+            
+            # Atomic replacement
+            if os.path.exists(self.storage_path):
+                os.replace(temp_name, self.storage_path)
+            else:
+                os.rename(temp_name, self.storage_path)
+                
             return True
         except Exception as e:
             logger.error(f"[SessionManager] Write error: {e}")
+            # Try to clean up temp file if it exists
+            try:
+                if 'temp_name' in locals() and os.path.exists(temp_name):
+                    os.remove(temp_name)
+            except:
+                pass
             return False
 
     def _cleanup_expired(self, data: Dict[str, Any]):

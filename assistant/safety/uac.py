@@ -65,7 +65,8 @@ def is_elevated() -> bool:
     """Check if the current process has admin privileges."""
     try:
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except:
+    except Exception as e:
+        logger.debug(f"UAC elevation check failed: {e}")
         return False
 
 def get_elevation_requirement(window_handle: int) -> bool:

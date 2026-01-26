@@ -177,6 +177,11 @@ class AppState:
         self.is_executing = False
         self.websocket_clients: List[WebSocket] = []
         
+        # P2 FIX: Thread safety locks for concurrent access
+        self._ws_lock = asyncio.Lock()
+        self._plans_lock = asyncio.Lock()
+        self._logs_lock = asyncio.Lock()
+        
         # Plan Preview Storage (Task B) - stores (plan, created_at)
         self.pending_plans: Dict[str, Tuple[ExecutionPlan, float]] = {}
         self.plan_cleanup_task: Optional[asyncio.Task] = None
@@ -185,14 +190,22 @@ class AppState:
         self.execution_logs: List[Dict[str, Any]] = []
 
     async def broadcast(self, event: str, data: dict):
-        """Send event to all connected UI clients."""
+        """Send event to all connected UI clients (thread-safe)."""
         payload = {"event": event, "data": data, "timestamp": time.time()}
-        for ws in self.websocket_clients[:]:
+        
+        # P2 FIX: Thread-safe client list access
+        async with self._ws_lock:
+            clients = list(self.websocket_clients)  # Safe copy
+        
+        # Broadcast to all clients
+        for ws in clients:
             try:
                 await ws.send_json(payload)
-            except:
-                if ws in self.websocket_clients:
-                    self.websocket_clients.remove(ws)
+            except Exception as e:
+                logger.debug(f"WebSocket send failed, removing client: {e}")
+                async with self._ws_lock:
+                    if ws in self.websocket_clients:
+                        self.websocket_clients.remove(ws)
 
 state = AppState()
 
@@ -392,8 +405,9 @@ async def lifespan(app: FastAPI):
         host_process.terminate()
         try:
             host_process.wait(timeout=3)
-        except:
-             host_process.kill()
+        except Exception as e:
+            logger.debug(f"Plugin host forced kill: {e}")
+            host_process.kill()
 
     if state.environment:
         state.environment.stop()
@@ -548,6 +562,14 @@ async def run_plan_execution(task: str):
         plan = ExecutionPlan(id=plan_id, task=task, steps=action_steps)
         await state.broadcast("plan_generated", plan.dict())
         
+        # Add logging to bare except block for session manager loading
+        try:
+            self.session_manager.load_from_file()
+            logger.info("Loaded existing sessions.")
+        except Exception as e:
+            logger.debug(f"No existing sessions file or load failed: {e}")
+            pass  # First boot, no saved sessions
+        
         # 3. Guard Validation
         try:
             state.plan_guard.validate(plan)
@@ -624,8 +646,9 @@ async def run_plan_execution(task: str):
         if state.computer:
             state.computer.set_fps(1)
             
-        # Auto-cleanup session if needed (optional)
-        state.session_auth.revoke() 
+        # P1 FIX: Don't auto-revoke session after every task
+        # Sessions now persist until TTL expiry or manual user revocation
+        # This prevents forcing users to re-auth after each command
 
 # ==================== Routes ====================
 
@@ -638,14 +661,6 @@ async def health():
         "session_active": state.session_auth.check()
     }
 
-@app.get("/version")
-async def get_version():
-    """P1.3: Version endpoint."""
-    return {
-        "backend": "1.0.0",
-        "schema": 2,
-        "build": "2026-01-16"
-    }
 
 @app.get("/capabilities")
 async def get_capabilities():
@@ -721,10 +736,10 @@ async def debug_crash():
         
     logger.critical("💥 SIMULATING CRASH (Debug Endpoint) 💥")
     
-    # Force immediate exit with error code
+    # P2 FIX: Use graceful exit instead of hard exit
     def crash_it():
         time.sleep(0.5)
-        os._exit(1)
+        sys.exit(1)  # Graceful - allows finally blocks to run
     
     import threading
     threading.Thread(target=crash_it).start()
@@ -745,23 +760,26 @@ async def shutdown():
     state.session_auth.revoke()
     if state.environment:
         state.environment.stop()
+        
+    logger.info("Shutdown complete.")
     
-    # Trigger exit in background to allow response to return
-    def exit_app():
+    # Run in thread to allow response to return
+    def delayed_exit():
         time.sleep(1)
-        logger.info("Exiting...")
-        os._exit(0) # Force exit
+        # P2 FIX: Use graceful exit
+        sys.exit(0)
         
     import threading
-    threading.Thread(target=exit_app).start()
+    threading.Thread(target=delayed_exit).start()
     return {"status": "shutting_down"}
 
 @app.get("/version")
 async def get_version():
-    """Version handshake for Electron."""
+    """Version handshake for Electron (Merged)."""
     return {
         "backend": "1.0.0",
         "schema": 2,
+        "build": "2026-01-16",
         "mode": "gold_standard"
     }
 

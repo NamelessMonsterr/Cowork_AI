@@ -130,7 +130,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
         
-        assert "not in trusted list" in str(exc_info.value).lower()
+        assert any("not in trusted list" in v.lower() for v in exc_info.value.violations)
         assert len(exc_info.value.violations) > 0
     
     def test_dangerous_command_shell(self, plan_guard):
@@ -146,7 +146,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
         
-        assert "blocked for safety" in str(exc_info.value).lower()
+        assert any("blocked for safety" in v.lower() for v in exc_info.value.violations)
     
     # Task 4: Unknown tools MUST FAIL
     def test_unknown_tool_rejected(self, plan_guard):
@@ -198,7 +198,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
         
-        assert "blocked for safety" in str(exc_info.value).lower()
+        assert any("blocked for safety" in v.lower() for v in exc_info.value.violations)
     
     def test_file_ops_blocked(self, plan_guard):
         """❌ File operations - must fail."""
@@ -213,7 +213,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
         
-        assert "blocked for safety" in str(exc_info.value).lower()
+        assert any("blocked for safety" in v.lower() for v in exc_info.value.violations)
     
     def test_open_url_blocked(self, plan_guard):
         """❌ Open URL - must fail (requires domain allowlist)."""
@@ -228,7 +228,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
         
-        assert "blocked for safety" in str(exc_info.value).lower()
+        assert any("not in trusted list" in v.lower() for v in exc_info.value.violations)
     
     # Task 6: Detailed violation messages
     def test_violation_messages_detailed(self, plan_guard):

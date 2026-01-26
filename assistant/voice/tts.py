@@ -58,7 +58,8 @@ class TTS:
             # Cleanup
             try:
                 os.remove(temp_path)
-            except:
+            except Exception as e:
+                logger.debug(f"Failed to cleanup TTS temp file: {e}")
                 pass
                 
         except Exception as e:

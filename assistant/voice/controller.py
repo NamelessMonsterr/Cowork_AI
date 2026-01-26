@@ -133,7 +133,8 @@ class VoiceController:
             try:
                 keyboard.remove_hotkey(self._config.push_to_talk_key)
                 self._hotkey_registered = False
-            except:
+            except Exception as e:
+                logger.debug(f"Failed to remove hotkey: {e}")
                 pass
         
         self._tts.stop()
