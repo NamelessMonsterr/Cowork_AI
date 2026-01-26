@@ -55,6 +55,42 @@ class SessionManager:
         self._lock = threading.Lock()
         self._ensure_storage_dir()
         
+        # P9 FIX: Auto-recovery - Initialize with backup fallback
+        self._initialize_session_data()
+    
+    def _initialize_session_data(self):
+        """Initialize session data with automatic recovery from backup if needed."""
+        try:
+            if self.storage_path.exists():
+                with open(self.storage_path, 'r', encoding='utf-8') as f:
+                    json.load(f)  # Validate that it's valid JSON
+                logger.info("[SessionManager] Session file loaded successfully")
+                return
+        except json.JSONDecodeError:
+            logger.warning(f"[SessionManager] Main session file corrupt. Attempting recovery from .bak...")
+        except Exception as e:
+            logger.warning(f"[SessionManager] Failed to read main file: {e}. Checking backup...")
+        
+        # Fallback to backup
+        backup_path = str(self.storage_path) + ".bak"
+        if os.path.exists(backup_path):
+            try:
+                with open(backup_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Self-healing: Restore main file from validated backup
+                with open(self.storage_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
+                
+                logger.info("[SessionManager] ✅ Session recovered from .bak and main file restored")
+                return
+            except Exception as e:
+                logger.error(f"[SessionManager] Backup also corrupt: {e}. Starting fresh.")
+        
+        # Both failed - start fresh
+        logger.warning("[SessionManager] Starting with fresh session state")
+        self._write_file({"sessions": {}})
+        
     def _ensure_storage_dir(self):
         """Ensure storage directory exists."""
         try:

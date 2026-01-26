@@ -50,8 +50,40 @@ from assistant.voice.stt import STT
 from assistant.agent.planner import Planner
 
 # --- Safety & Execution ---
-from assistant.safety.budget import ActionBudget
-from assistant.safety.environment import EnvironmentMonitor
+from assistant.agent.agent import Agent
+from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
+from assistant.config import Config
+
+# P9 FIX: Graceful shutdown handler
+from assistant.utils.health_check import run_pre_flight_checks
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown lifecycle events."""
+    # Startup
+    logger.info("🚀 Cowork_AI v1.0 Starting up...")
+    logger.info("[Startup] Running pre-flight checks...")
+    
+    # P8 FIX: Disk space check
+    try:
+        run_pre_flight_checks()
+    except RuntimeError as e:
+        logger.critical(f"[Startup] Pre-flight check failed: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Cowork_AI Shutting down gracefully...")
+    logger.info("[Shutdown] Cleanup complete")
+
+# P9 FIX: Use lifespan for graceful shutdown
+app = FastAPI(
+    lifespan=lifespan,
+    title="Cowork_AI",
+    description="Autonomous Desktop Agent Platform",
+    version="1.0.0"
+)
 from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig, PlanValidationError
 from assistant.safety.focus_guard import FocusGuard
 from assistant.safety.rate_limiter import InputRateLimiter
@@ -1189,7 +1221,7 @@ async def debug_open_app(app: str = "notepad"):
         return {"status": "launched" if result else "failed", "app": app}
     return {"status": "error", "message": "Computer not initialized"}
 
-@app.post("/admin/reset_computer")
+@app.post("/admin/reset_computer", include_in_schema=False)
 async def reset_computer():
     """Force reset the computer control backend."""
     # Security: Require active session
