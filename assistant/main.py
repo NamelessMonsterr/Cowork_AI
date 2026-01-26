@@ -1016,17 +1016,22 @@ async def execute_approved_plan(plan: ExecutionPlan):
             await state.broadcast("plan_rejected", {
                 "plan_id": plan.id,
                 "error": str(e),
-                "violations": violations,
-                "speak": voice_message  # Voice feedback
+                "violations": violations
             })
             return
         
         await state.broadcast("plan_generated", plan.dict())
         
+        execution_success = False
+        execution_error = None
+        
+        # P8 FIX: Circuit breaker to prevent resource thrashing
+        CONSECUTIVE_FAILURE_LIMIT = 3
+        consecutive_failures = 0
+        
         # Execute each step
         for i, step in enumerate(plan.steps):
             # Check for zombie execution (no clients listening)
-            # Thread-safe check using the lock
             async with state._ws_lock:
                  has_clients = bool(state.websocket_clients)
             
@@ -1039,29 +1044,26 @@ async def execute_approved_plan(plan: ExecutionPlan):
                 await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
                 break
             
-            # V24: Enforce timeout at execution level
-            timeout = state.executor._config.action_timeout_sec
             try:
-                result: StepResult = await asyncio.wait_for(
-                    asyncio.to_thread(state.executor.execute, step),
-                    timeout=timeout
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"[EXEC] Step {step.id} timed out after {timeout}s")
-                result = StepResult(
-                    step_id=step.id,
-                    success=False,
-                    error=f"Action timed out after {timeout}s",
-                    attempts=1,
-                    duration_ms=timeout * 1000
-                )
-            
-            logger.info(f"[EXEC] step result | step_id={step.id} | success={result.success} | plan_id={plan.id}")
-            logger.info(f"[WS] broadcast event=step_completed step_id={step.id}")
-            await state.broadcast("step_completed", result.dict())
-            
-            if not result.success:
-                logger.error(f"[EXEC] Step failed: {result.error}")
+                await state.broadcast("step_started", {"step_index": i, "step_id": step.id})
+                
+                result = state.executor.execute(step)
+                
+                if result.success:
+                    consecutive_failures = 0
+                    await state.broadcast("step_completed", {"step_index": i, "success": True})
+                else:
+                    consecutive_failures += 1
+                    execution_error = result.error
+                    
+                    # Circuit breaker check
+                    if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
+                        logger.critical(f"[PANIC] {consecutive_failures} consecutive failures. Aborting.")
+                        await state.broadcast("execution_abort", {
+                            "reason": f"Circuit breaker: {consecutive_failures} failures",
+                            "last_error": result.error
+                        })
+                        break
                 if result.requires_takeover:
                     await state.broadcast("takeover_required", {"reason": result.takeover_reason})
                 break

@@ -178,10 +178,19 @@ class SessionManager:
                 os.rename(temp_name, self.storage_path)
             
             # P3 FIX: Quick backup to prevent lockouts
-            # If main file is deleted, we can restore from .bak
-            shutil.copy2(self.storage_path, str(self.storage_path) + ".bak")
+            # P8 FIX: Graceful handling if backup file is locked
+            try:
+                shutil.copy2(self.storage_path, str(self.storage_path) + ".bak")
+            except PermissionError:
+                # If backup is locked (e.g., admin has .bak open in Notepad), continue anyway
+                logger.warning("[SessionManager] Could not update .bak (File in use?). Main file saved.")
                 
             return True
+        except PermissionError as e:
+            # P8 FIX: Clearer error for locked files
+            logger.error(f"[SessionManager] CRITICAL: Cannot write session file (is it open in another app?): {e}")
+            logger.error("[SessionManager] Session changes will be lost on restart!")
+            return False
         except Exception as e:
             logger.error(f"[SessionManager] Write error: {e}")
             # Try to clean up temp file if it exists

@@ -133,6 +133,12 @@ Click the core → Say: **"Open Notepad and type hello"** ✨
 - **Enhanced GitIgnore**: Comprehensive secrets protection (sessions, certificates, screenshots)
 - **Pre-Deployment Checks**: Security audit workflow documented
 
+#### 🛡️ Phase 8: Final Polish (Production Edge Cases)
+
+- **Disk Space Check**: Pre-flight verification ensures sufficient space for logs/screenshots
+- **Permission Handling**: Graceful degradation when session files are locked
+- **Circuit Breaker**: Stops execution after 3 consecutive failures to prevent resource thrashing
+
 - Voice feedback on rejection
 
 ### 🔧 Diagnostic Shell Mode (Advanced)
