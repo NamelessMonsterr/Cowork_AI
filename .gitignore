@@ -59,3 +59,14 @@ ui/out/
 
 # AppData (created at runtime)
 CoworkAI/
+
+# P7A FIX: Secrets & Session Protection
+sessions.json
+sessions.json.bak
+*.key
+*.pem
+*.cert
+
+# P7A FIX: Screenshots & Logs (Observability)
+screenshots/
+logs/screenshots/

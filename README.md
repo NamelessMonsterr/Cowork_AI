@@ -118,13 +118,20 @@ Click the core → Say: **"Open Notepad and type hello"** ✨
 - **Screen Lock Detection**: Windows API check prevents automation on locked workstations
 - **File Size Limits**: 1MB cap on file reads prevents token exhaustion attacks
 
-#### 📸 Phase 6: Observability & Recovery (Latest)
+#### 📸 Phase 6: Observability & Recovery
 
 - **Auto-Screenshots on Error**: "Black Box" feature captures screen state when automation fails
 - **Visual Debugging**: Error screenshots saved to `logs/screenshots/errors/` with timestamps
 - **Smart Cleanup**: Keeps last 100 screenshots, auto-deletes older ones
 - **Screenshot Integration**: Error images included in failure payloads for frontend display
 - **Transparent Failures**: Agent shows you exactly what it saw when it failed
+
+#### 🔐 Phase 7A-Lite: Secrets & Supply Chain (Latest)
+
+- **Secrets Redaction**: Logging filter prevents API keys and tokens from leaking into log files
+- **Supply Chain Audit**: pip-audit integration for CVE detection in dependencies
+- **Enhanced GitIgnore**: Comprehensive secrets protection (sessions, certificates, screenshots)
+- **Pre-Deployment Checks**: Security audit workflow documented
 
 - Voice feedback on rejection
 
@@ -393,6 +400,18 @@ Output: `ui/dist/Flash-Assistant-Setup.exe`
 - [x] **Screen lock detection** (Prevents automation on locked workstation)
 - [x] **File size limits** (1MB cap for token budget protection)
 - [x] **Auto-screenshots on error** (Black Box feature for visual debugging)
+- [x] **Secrets redaction filter** (Prevents API key leakage in logs)
+- [x] **Supply chain audit** (pip-audit for CVE detection)
+- [x] **Enhanced .gitignore** (Comprehensive secrets protection)
+
+### Final Verification Before Launch
+
+Before deployment, perform these sanity checks:
+
+1. **Secrets Filter Active**: Verify `SecretsRedactionFilter()` is added to logger
+2. **Git Status Clean**: Run `git status` - ensure no `sessions.json`, `logs/`, or `.env` files staged
+3. **Single Worker**: Deployment command uses `--workers 1`
+4. **Security Audit**: Run `pip-audit --desc` to check for vulnerabilities
 
 ### Day 1 Operations Watchlist
 

@@ -33,6 +33,30 @@ To enable horizontal scaling with multiple workers:
 
 ## Security Notes
 
+### Supply Chain Security (P7A)
+
+**Before every deployment**, run a security audit to check for vulnerabilities in dependencies:
+
+```bash
+# Install pip-audit
+pip install pip-audit
+
+# Run vulnerability scan
+pip-audit --desc
+```
+
+This checks the National Vulnerability Database (NVD) for known CVEs in your installed packages. If vulnerabilities are reported, update the affected packages immediately.
+
+**Recommended**: Add this to your CI/CD pipeline:
+
+```yaml
+# .github/workflows/security.yml
+- name: Run pip-audit
+  run: |
+    pip install pip-audit
+    pip-audit --desc
+```
+
 ### Path Traversal Protection
 
 All file paths in execution plans are validated using `os.path.realpath` to prevent `../` attacks.
