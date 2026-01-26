@@ -160,8 +160,9 @@ class SessionManager:
             return {"sessions": {}}
 
     def _write_file(self, data: Dict[str, Any]) -> bool:
-        """Write sessions to disk (atomic)."""
+        """Write sessions to disk (atomic with backup)."""
         import tempfile
+        import shutil
         try:
             # P2 FIX: Atomic write to prevent corruption
             # Write to temp file first, then rename
@@ -175,6 +176,10 @@ class SessionManager:
                 os.replace(temp_name, self.storage_path)
             else:
                 os.rename(temp_name, self.storage_path)
+            
+            # P3 FIX: Quick backup to prevent lockouts
+            # If main file is deleted, we can restore from .bak
+            shutil.copy2(self.storage_path, str(self.storage_path) + ".bak")
                 
             return True
         except Exception as e:

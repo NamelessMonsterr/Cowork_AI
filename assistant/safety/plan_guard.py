@@ -10,8 +10,10 @@ Validates plans before execution to catch:
 - Destructive operations (drag, file ops, clipboard)
 """
 
+
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 from typing import Optional, Set
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +24,32 @@ from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
 from assistant.safety.destructive_guard import DestructiveGuard
 
 logger = logging.getLogger(__name__)
+
+# P3 FIX: Setup rotating file handler for safety audit
+# Prevents disk full scenarios (10MB per file, 5 backups = 50MB total)
+def _setup_audit_logger():
+    """Setup rotating file handler for safety audit logs."""
+    audit_logger = logging.getLogger("safety_audit")
+    audit_logger.setLevel(logging.INFO)
+    
+    # Only add handler if not already configured
+    if not audit_logger.handlers:
+        log_path = Path("logs/safety_audit.jsonl")
+        log_path.parent.mkdir(exist_ok=True)
+        
+        handler = RotatingFileHandler(
+            str(log_path),
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        )
+        formatter = logging.Formatter('%(message)s')  # JSON lines don't need extra formatting
+        handler.setFormatter(formatter)
+        audit_logger.addHandler(handler)
+    
+    return audit_logger
+
+# Initialize audit logger
+_audit_logger = _setup_audit_logger()
 
 
 class PlanValidationError(Exception):
@@ -499,12 +527,8 @@ class PlanGuard:
                     "tools_used": [step.tool for step in plan.steps]
                 }
                 
-                # Create logs dir and append to audit log
-                log_path = Path("logs/safety_audit.jsonl")
-                log_path.parent.mkdir(exist_ok=True)
-                
-                with open(log_path, 'a') as f:
-                    f.write(json.dumps(audit_entry) + "\n")
+                # P3 FIX: Use rotating file handler instead of direct write
+                _audit_logger.info(json.dumps(audit_entry))
                 
                 logger.info(f"[PlanGuard] Logged {len(violations)} violations to safety_audit.jsonl")
             except Exception as e:
