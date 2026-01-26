@@ -99,6 +99,18 @@ Click the core → Say: **"Open Notepad and type hello"** ✨
 - Clipboard access (data leakage risk)
 - Untrusted apps and domains
 - IP addresses (security requirement)
+- Path traversal attacks (`../` automatically normalized)
+- Plans exceeding 50 steps (DoS prevention)
+
+#### 🔐 Phase 4: Architectural Hardening (Latest)
+
+- **Path Traversal Protection**: All file paths validated with `os.path.realpath` to prevent directory escape attacks
+- **DoS Prevention**: Hard limit of 50 steps per plan to prevent resource exhaustion
+- **Zombie Process Handling**: WebSocket cleanup with `try...finally` ensures execution stops on disconnect
+- **Log Rotation**: Safety audit logs auto-rotate at 10MB (50MB total cap)
+- **Session Backups**: Automatic `.bak` creation prevents lockout scenarios
+- **Atomic Operations**: Race-free plan approval and thread-safe state cleanup
+- **Rate Limiter Bypass**: Agent actions bypass rate limits to prevent self-DoS
 
 - Voice feedback on rejection
 
@@ -331,20 +343,47 @@ Output: `ui/dist/Flash-Assistant-Setup.exe`
 
 ---
 
-## � Production Deployment Checklist
+## 🚀 Production Deployment Checklist
+
+### Phase 1-4: Security & Hardening (Complete)
 
 - [x] Voice pipeline 100% reliable (state wiring, structured logging)
 - [x] PlanGuard hardened (default-deny, config-driven, expanded blocklist)
-- [x] Safety audit logging enabled
-- [x] Rate limiting on critical endpoints
+- [x] Safety audit logging enabled with log rotation (50MB cap)
+- [x] Rate limiting on critical endpoints (Agent bypass implemented)
 - [x] Violations UI with clear error messages
 - [x] Voice feedback on rejection
 - [x] Settings UI for runtime configuration
 - [x] Domain validation for URLs
 - [x] Path normalization for app names
+- [x] **Path traversal protection** (`os.path.realpath` validation)
+- [x] **Max plan steps limit** (DoS prevention: 50 steps max)
+- [x] **Session backups** (`.bak` files on every write)
+- [x] **WebSocket cleanup** (`try...finally` for zombie prevention)
+- [x] **Atomic operations** (Race-free plan approval, thread-safe cleanup)
+- [x] **Admin reset endpoint** (`/admin/reset_computer`)
+- [x] **CSRF protection** (SessionAuth on all sensitive endpoints)
+
+### Deployment Notes
+
+**⚠️ IMPORTANT**: Flash Assistant requires **single-worker mode** until Redis backend is added.
+
+```bash
+# Correct deployment (single worker)
+uvicorn assistant.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+# DO NOT use multiple workers (session state is in-memory)
+# uvicorn assistant.main:app --workers 4  # ❌ This will cause random 403 errors
+```
+
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for detailed deployment instructions and architecture constraints.
+
+### Phase 2 (Future Enhancements)
+
 - [ ] Session timeout warnings (Week 2)
 - [ ] Safety mode selector (Safe/Standard/Developer)
 - [ ] Audit log viewer in UI
+- [ ] Redis backend for horizontal scaling
 
 ---
 
