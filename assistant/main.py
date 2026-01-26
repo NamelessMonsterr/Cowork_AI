@@ -36,7 +36,15 @@ if not FLASH_SESSION_SECRET:
         sys.exit(1)
     # Auto-generate for dev with warning
     FLASH_SESSION_SECRET = "dev-only-insecure-key-" + secrets.token_hex(16)
-    logging.warning("⚠️ Using auto-generated session secret (DEV ONLY - not for production!)")
+# --- P9 FIX: Consolidated Imports & Logging ---
+from assistant.utils.health_check import run_pre_flight_checks
+from assistant.utils.secrets_filter import SecretsRedactionFilter
+
+# Logging Configuration
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+# P7A FIX: Attach secrets redaction
+logging.getLogger().addFilter(SecretsRedactionFilter())
 
 # --- Config (P1) ---
 from assistant.config.paths import get_appdata_dir, get_learning_db_path, get_sync_db_path, get_skills_dir, ensure_dirs
@@ -54,36 +62,6 @@ from assistant.agent.agent import Agent
 from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
 from assistant.config import Config
 
-# P9 FIX: Graceful shutdown handler
-from assistant.utils.health_check import run_pre_flight_checks
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handle startup and shutdown lifecycle events."""
-    # Startup
-    logger.info("🚀 Cowork_AI v1.0 Starting up...")
-    logger.info("[Startup] Running pre-flight checks...")
-    
-    # P8 FIX: Disk space check
-    try:
-        run_pre_flight_checks()
-    except RuntimeError as e:
-        logger.critical(f"[Startup] Pre-flight check failed: {e}")
-        raise
-    
-    yield
-    
-    # Shutdown
-    logger.info("🛑 Cowork_AI Shutting down gracefully...")
-    logger.info("[Shutdown] Cleanup complete")
-
-# P9 FIX: Use lifespan for graceful shutdown
-app = FastAPI(
-    lifespan=lifespan,
-    title="Cowork_AI",
-    description="Autonomous Desktop Agent Platform",
-    version="1.0.0"
-)
 from assistant.safety.plan_guard import PlanGuard, PlanGuardConfig, PlanValidationError
 from assistant.safety.focus_guard import FocusGuard
 from assistant.safety.rate_limiter import InputRateLimiter
@@ -104,7 +82,7 @@ from assistant.recovery.manager import RecoveryManager
 from assistant.ui_contracts.events import RECOVERY_STARTED, RECOVERY_FAILED, RECOVERY_SUCCEEDED, RECOVERY_ATTEMPT
 
 # --- Plugins (W12/W13) ---
-from assistant.plugins.registry import ToolRegistry, PluginLoader
+from assistant.plugins.registry import ToolRegistry
 from assistant.plugins.lifecycle import PluginStateManager
 from assistant.plugins.permissions import PermissionManager
 from assistant.plugins.secrets import PluginSecrets
@@ -130,13 +108,6 @@ from assistant.learning.ranker import StrategyRanker
 # Host Process Handle
 host_process = None
 start_time = time.time()  # For uptime tracking
-
-# Setup Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("Main")
 
 # ==================== Models ====================
 
@@ -261,6 +232,14 @@ state = AppState()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing Flash Assistant (Production Architecture)...")
+    logger.info("[Startup] Running pre-flight checks...")
+    
+    # P8 FIX: Disk space check
+    try:
+        run_pre_flight_checks()
+    except RuntimeError as e:
+        logger.critical(f"[Startup] Pre-flight check failed: {e}")
+        raise
     
     # P1.2: Run startup validation
     validator = StartupValidator()
@@ -472,6 +451,35 @@ async def lifespan(app: FastAPI):
     
     # P2.2: Clear port file on shutdown
     clear_port_file()
+
+# --- App Definition ---
+app = FastAPI(
+    lifespan=lifespan,
+    title="Cowork_AI",
+    description="Autonomous Desktop Agent Platform",
+    version="1.0.0"
+)
+
+# --- Middleware ---
+# P2 FIX: Session Middleware First
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=_settings.security.secret_key, 
+    session_cookie="cowork_session",
+    max_age=86400, # 24 hours
+    same_site="strict",
+    https_only=_settings.server.https_enabled
+)
+
+# CORS
+if _settings.server.cors_enabled:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_settings.server.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # V2: Pending plan TTL cleanup (10 min)
@@ -1098,7 +1106,26 @@ async def execute_approved_plan(plan: ExecutionPlan):
                         break
                 if result.requires_takeover:
                     await state.broadcast("takeover_required", {"reason": result.takeover_reason})
-                break
+                    break
+                
+                # Regular failure, continue to next step
+                await state.broadcast("step_completed", {"step_index": i, "success": False, "error": result.error})
+                
+            except Exception as e:
+                consecutive_failures += 1
+                execution_error = str(e)
+                logger.exception(f"[EXEC] Step execution error")
+                
+                # Circuit breaker check
+                if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
+                    logger.critical(f"[PANIC] {consecutive_failures} exceptions in a row. Aborting.")
+                    await state.broadcast("execution_abort", {
+                        "reason": f"Circuit breaker: {consecutive_failures} consecutive exceptions",
+                        "last_error": str(e)
+                    })
+                    break
+                    
+                await state.broadcast("step_error", {"step_index": i, "error": str(e)})
         
         await state.broadcast("execution_finished", {"success": True})
         execution_success = True
@@ -1113,7 +1140,7 @@ async def execute_approved_plan(plan: ExecutionPlan):
         state.is_executing = False
         if state.computer:
             state.computer.set_fps(1)
-        state.session_auth.revoke()
+        # P9 FIX: Do not revoke session here - keeps user logged in
         
         # V23: Record execution log
         log_entry = {
