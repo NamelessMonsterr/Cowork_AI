@@ -457,6 +457,10 @@ class PlanGuard:
                     violations.append(
                         f"Step {step_num}: Path '{path}' is not in allowed folders"
                     )
+            
+            # Increment high risk count
+            if step.risk_level == "high":
+                high_risk_count += 1
         
         # 3. Check high-risk count
         max_high_risk = self._config.max_high_risk_steps if not allow_high_risk else 999
@@ -484,11 +488,13 @@ class PlanGuard:
             # Task 3: Safety audit logging
             try:
                 import time
+                
+                # Sanitize strings to prevent log injection
                 audit_entry = {
                     "timestamp": time.time(),
                     "plan_id": plan.id,
-                    "task": plan.task,
-                    "violations": violations,
+                    "task": plan.task.replace('\n', '\\n').replace('\r', ''),
+                    "violations": [v.replace('\n', '\\n').replace('\r', '') for v in violations],
                     "step_count": len(plan.steps),
                     "tools_used": [step.tool for step in plan.steps]
                 }

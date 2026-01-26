@@ -53,16 +53,20 @@ class InputRateLimiter:
         self._paused = False
         self._pause_reason: Optional[str] = None
         
-    def record_keystroke(self, count: int = 1):
+    def record_keystroke(self, count: int = 1, source: str = "user"):
         """
         Record keystroke(s) and check rate limit.
         
         Args:
             count: Number of keystrokes (for typing strings)
+            source: "user" or "agent". Agent actions bypass limits.
             
         Raises:
             RateLimitExceededError: If rate limit exceeded
         """
+        if source == "agent":
+            return
+
         if self._paused:
             raise RateLimitExceededError(f"Input paused: {self._pause_reason}")
         
@@ -84,13 +88,19 @@ class InputRateLimiter:
             logger.warning(f"[RateLimiter] Keystroke rate {current_rate:.1f}/sec exceeds soft limit")
             # Soft limit: log warning but allow (for now)
             
-    def record_click(self):
+    def record_click(self, source: str = "user"):
         """
         Record a click and check rate limit.
+        
+        Args:
+            source: "user" or "agent". Agent actions bypass limits.
         
         Raises:
             RateLimitExceededError: If rate limit exceeded
         """
+        if source == "agent":
+            return
+
         if self._paused:
             raise RateLimitExceededError(f"Input paused: {self._pause_reason}")
         

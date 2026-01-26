@@ -222,9 +222,9 @@ class ReliableExecutor:
                         count = 1
                         if step.tool == "type_text" and "text" in step.args:
                             count = len(step.args["text"])
-                        self._rate_limiter.record_keystroke(count)
+                        self._rate_limiter.record_keystroke(count, source="agent")
                     elif step.tool in ["click", "double_click", "right_click"]:
-                        self._rate_limiter.record_click()
+                        self._rate_limiter.record_click(source="agent")
                 except RateLimitExceededError as e:
                     return self._make_failed_result(
                         step, start_time,

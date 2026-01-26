@@ -131,7 +131,7 @@ class AppState:
         """
         now = time.time()
         expired_ids = [
-            pid for pid, (_, created_at) in self.pending_plans.items()
+            pid for pid, (_, created_at) in list(self.pending_plans.items())
             if now - created_at > max_age_seconds
         ]
         for pid in expired_ids:
@@ -863,6 +863,10 @@ async def plan_preview(req: PlanPreviewRequest):
     task_id = str(uuid.uuid4())
     logger.info(f"[PLAN] Preview requested | task='{req.task}' | task_id={task_id}")
     
+    # Security: Require active session for preview (prevention of LLM abuse)
+    if not state.session_auth.check():
+         raise HTTPException(status_code=403, detail="Forbidden: Active session required")
+
     if not state.planner:
         raise HTTPException(503, "Planner not initialized")
     
@@ -924,14 +928,14 @@ async def plan_approve(request: Request, req: PlanApproveRequest):
             raise HTTPException(403, "Forbidden: Active session required")
         
         # Fetch pending plan (stored as tuple with timestamp)
-        entry = state.pending_plans.get(plan_id)
+        # atomic pop to prevent double-execution race conditions
+        entry = state.pending_plans.pop(plan_id, None)
         if not entry:
             raise HTTPException(404, f"Plan not found: {plan_id}")
         
         plan, created_at = entry
         
-        # Remove from pending
-        del state.pending_plans[plan_id]
+        # Remove from pending (done by pop)
         
         # Execute the plan
         logger.info(f"[APPROVE] Approved | plan_id={plan_id} | task={plan.task[:50]}")
@@ -1021,6 +1025,16 @@ async def execute_approved_plan(plan: ExecutionPlan):
         
         # Execute each step
         for i, step in enumerate(plan.steps):
+            # Check for zombie execution (no clients listening)
+            # Thread-safe check using the lock
+            async with state._ws_lock:
+                 has_clients = bool(state.websocket_clients)
+            
+            if not has_clients:
+                 logger.warning(f"[EXEC] No clients connected, aborting zombie execution | plan_id={plan.id}")
+                 await state.broadcast("execution_error", {"error": "Client disconnected"})
+                 break
+
             if state.executor.is_paused():
                 await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
                 break
@@ -1172,6 +1186,29 @@ async def debug_open_app(app: str = "notepad"):
         result = state.computer.launch_app(app)
         return {"status": "launched" if result else "failed", "app": app}
     return {"status": "error", "message": "Computer not initialized"}
+
+@app.post("/admin/reset_computer")
+async def reset_computer():
+    """Force reset the computer control backend."""
+    # Security: Require active session
+    if not state.session_auth.check():
+        raise HTTPException(403, "Forbidden: Active session required")
+        
+    logger.warning("[ADMIN] Force resetting computer backend...")
+    
+    if state.computer:
+        try:
+            state.computer.set_fps(1)
+        except:
+            pass
+        state.computer = None
+        
+    # Re-initialize
+    from assistant.computer.windows import WindowsComputer
+    state.computer = WindowsComputer()
+    state.computer.set_session_verifier(state.session_auth.ensure)
+    
+    return {"status": "reset_complete", "computer": str(state.computer)}
 
 # --- Settings API (P3.1) ---
 
@@ -1342,10 +1379,14 @@ async def execute_task(req: TaskRequest):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    state.websocket_clients.append(websocket)
+    async with state._ws_lock:
+        state.websocket_clients.append(websocket)
     try:
         while True:
             await websocket.receive_text()
-    except:
-        if websocket in state.websocket_clients:
-            state.websocket_clients.remove(websocket)
+    except Exception as e:
+        logger.debug(f"WebSocket disconnected: {e}")
+    finally:
+        async with state._ws_lock:
+            if websocket in state.websocket_clients:
+                state.websocket_clients.remove(websocket)
