@@ -47,6 +47,14 @@ class WindowsComputer:
         
         # Safety Callback (to be set by SessionAuth)
         self.session_verifier = None
+    
+    def is_workstation_locked(self) -> bool:
+        """
+        Check if the Windows workstation is locked.
+        P5A FIX: Prevents automation from running on locked screen.
+        """
+        # GetForegroundWindow returns 0 if there is no foreground window (locked session)
+        return bool(self.user32.GetForegroundWindow() == 0)
         
         # Fail-safes
         pyautogui.FAILSAFE = True
@@ -123,6 +131,13 @@ class WindowsComputer:
 
     def mouse_click(self, x: int, y: int, double: bool = False):
         """Reliable click using SendInput."""
+        # P5A FIX: Check if workstation is locked before UI automation
+        if self.is_workstation_locked():
+            raise RuntimeError(
+                "Workstation is locked. UI automation cannot proceed. "
+                "Please unlock the screen to resume execution."
+            )
+        
         self.mouse_move(x, y)
         time.sleep(0.05)
         

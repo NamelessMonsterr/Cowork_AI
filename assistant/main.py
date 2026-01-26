@@ -1376,17 +1376,43 @@ async def execute_task(req: TaskRequest):
     asyncio.create_task(run_plan_execution(req.task))
     return {"status": "started", "task": req.task}
 
+async def websocket_heartbeat_loop(websocket: WebSocket):
+    """
+    Pings the client every 30s to keep connection alive through proxies.
+    P5A FIX: Prevents silent disconnections from idle timeouts.
+    """
+    try:
+        while True:
+            await asyncio.sleep(30)
+            await websocket.send_json({"type": "ping", "timestamp": time.time()})
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        # Connection is dead, main loop will handle cleanup
+        pass
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     async with state._ws_lock:
         state.websocket_clients.append(websocket)
+    
+    # P5A FIX: Start heartbeat task
+    heartbeat_task = asyncio.create_task(websocket_heartbeat_loop(websocket))
+    
     try:
         while True:
             await websocket.receive_text()
     except Exception as e:
         logger.debug(f"WebSocket disconnected: {e}")
     finally:
+        # Cancel heartbeat
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
+            
         async with state._ws_lock:
             if websocket in state.websocket_clients:
                 state.websocket_clients.remove(websocket)
