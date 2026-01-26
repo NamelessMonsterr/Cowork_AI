@@ -63,7 +63,7 @@ class PlanValidationError(Exception):
 @dataclass
 class PlanGuardConfig:
     """Configuration for plan validation."""
-    max_steps: int = 25
+    max_steps: int = 50  # P4 FIX: Hard limit to prevent DoS via large plans
     max_high_risk_steps: int = 0  # By default, block all high-risk
     max_retries_total: int = 20
     require_verification: bool = True  # Each step must have verify OR marked unverifiable

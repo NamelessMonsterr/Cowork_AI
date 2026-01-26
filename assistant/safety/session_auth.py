@@ -274,16 +274,38 @@ class SessionAuth:
             return app_name.lower() in [a.lower() for a in self._permit.granted_apps]
 
     def is_folder_allowed(self, folder_path: str) -> bool:
-        """Check if a folder path is allowed."""
+        """
+        Check if folder is in granted folders.
+        P4 FIX: Protected against path traversal attacks.
+        """
+        import os
+        
+        if not folder_path:
+            return False
+        
         with self._lock:
             if not self._permit.allowed:
                 return False
-            folder_lower = folder_path.lower()
-            return any(
-                allowed.lower() in folder_lower 
-                for allowed in self._permit.granted_folders
-            )
-
+                
+            # P4 FIX: Normalize the path to prevent traversal (../) attacks
+            try:
+                normalized_path = os.path.realpath(os.path.abspath(folder_path))
+            except (ValueError, OSError):
+                # Invalid path syntax
+                return False
+            
+            # Check against granted folders (also normalized)
+            for granted_folder in self._permit.granted_folders:
+                try:
+                    normalized_granted = os.path.realpath(os.path.abspath(granted_folder))
+                    # Check if the path starts with any granted folder
+                    if normalized_path.startswith(normalized_granted):
+                        return True
+                except (ValueError, OSError):
+                    continue
+            
+            return False
+    
     def is_network_allowed(self) -> bool:
         """Check if network access is permitted."""
         with self._lock:
