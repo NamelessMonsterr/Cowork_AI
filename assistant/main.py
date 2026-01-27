@@ -1240,6 +1240,10 @@ async def debug_type(text: str = "HELLO"):
 @app.post("/debug/open_app")
 async def debug_open_app(app: str = "notepad"):
     """Debug: Direct app launch test."""
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+
     if not state.session_auth.check():
         state.session_auth.grant(mode="session", ttl_sec=1800)
     
@@ -1251,6 +1255,10 @@ async def debug_open_app(app: str = "notepad"):
 @app.post("/admin/reset_computer", include_in_schema=False)
 async def reset_computer():
     """Force reset the computer control backend."""
+    # P0-2: Require dev endpoints to be explicitly enabled
+    if not FLASH_DEV_ENDPOINTS_ENABLED:
+        raise HTTPException(404, "Not found")
+
     # Security: Require active session
     if not state.session_auth.check():
         raise HTTPException(403, "Forbidden: Active session required")
