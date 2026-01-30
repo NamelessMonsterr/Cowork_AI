@@ -51,6 +51,29 @@ Click the core → Say: **"Open Notepad and type hello"** ✨
 
 ---
 
+## 🎤 Voice Demo (New!)
+
+We've added a **Voice Execution Demo** (`/voice/execute`) to showcase the system's capabilities immediately.
+
+### 🎮 Available Voice Commands
+
+| Say...           | Result                                            |
+| ---------------- | ------------------------------------------------- |
+| "Open [app]"     | Launches apps (notepad, calculator, chrome, etc.) |
+| "Type [text]"    | Types text at your current cursor position        |
+| "Screenshot"     | Saves a screenshot to your `screenshots/` folder  |
+| "Press [key]"    | Simulates a keypress (e.g., "press enter")        |
+| "Wait [seconds]" | Pauses execution for X seconds                    |
+| "Minimize"       | Minimizes current window                          |
+| "Volume up/down" | Adjusts system volume                             |
+
+### ⚠️ Demo Mode Warning
+
+This voice demo uses a **bypass endpoint** (`/just_do_it`) that auto-grants permissions for testing.
+**Use only for demonstration purposes.** Use the standard production flow for secure operations.
+
+---
+
 ## ✨ Features
 
 ### Core Capabilities
