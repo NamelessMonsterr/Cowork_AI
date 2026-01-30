@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎙️ Cowork AI - Voice Control Demo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 100%;
+        padding: 40px;
+        text-align: center;
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 32px;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 16px;
+      }
+
+      .voice-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        font-size: 48px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        margin: 20px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .voice-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+      }
+
+      .voice-button:active {
+        transform: scale(0.95);
+      }
+
+      .voice-button.recording {
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      .status {
+        margin-top: 20px;
+        font-size: 18px;
+        color: #666;
+        min-height: 30px;
+      }
+
+      .result {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        font-size: 16px;
+        text-align: left;
+        display: none;
+      }
+
+      .result.show {
+        display: block;
+      }
+
+      .result b {
+        color: #667eea;
+      }
+
+      .examples {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f0f4ff;
+        border-radius: 10px;
+        text-align: left;
+      }
+
+      .examples h3 {
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+
+      .examples ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .examples li {
+        padding: 8px 0;
+        color: #555;
+      }
+
+      .examples li::before {
+        content: "💬 ";
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎙️ Cowork AI</h1>
+      <p class="subtitle">Voice-Controlled Computer Automation</p>
+
+      <button id="voiceBtn" class="voice-button" onclick="voiceCommand()">
+        🎤
+      </button>
+
+      <div id="status" class="status"></div>
+      <div id="result" class="result"></div>
+
+      <div class="examples">
+        <h3>Try saying:</h3>
+        <ul>
+          <li>"Open notepad"</li>
+          <li>"Type hello world"</li>
+          <li>"Take a screenshot"</li>
+          <li>"Open calculator"</li>
+          <li>"Wait 2 seconds"</li>
+          <li>"Minimize window"</li>
+          <li>"Volume up"</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      async function voiceCommand() {
+        const statusEl = document.getElementById("status");
+        const resultEl = document.getElementById("result");
+        const btnEl = document.getElementById("voiceBtn");
+
+        statusEl.innerText = "🎤 Recording for 5 seconds... Speak now!";
+        statusEl.style.color = "#667eea";
+        resultEl.classList.remove("show");
+        btnEl.classList.add("recording");
+        btnEl.disabled = true;
+
+        try {
+          const response = await fetch(
+            "http://localhost:8765/voice/execute?seconds=5",
+            {
+              method: "POST",
+            },
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            statusEl.innerText = "✅ Command executed successfully!";
+            statusEl.style.color = "#28a745";
+
+            resultEl.innerHTML = `
+                        <b>📝 Heard:</b> "${data.transcript}"<br><br>
+                        <b>⚡ Action:</b> ${data.execution?.action || "unknown"}<br>
+                        <b>✓ Status:</b> ${data.execution?.status || "completed"}<br>
+                        <b>⏱️ Duration:</b> ${data.duration_ms}ms
+                    `;
+            resultEl.classList.add("show");
+          } else {
+            statusEl.innerText = "❌ " + (data.error || "Command failed");
+            statusEl.style.color = "#dc3545";
+
+            if (data.transcript) {
+              resultEl.innerHTML = `
+                            <b>📝 Heard:</b> "${data.transcript}"<br><br>
+                            <b>❌ Error:</b> ${data.error || "Unknown command"}
+                        `;
+              resultEl.classList.add("show");
+            }
+          }
+        } catch (e) {
+          statusEl.innerText = "❌ Connection error: " + e.message;
+          statusEl.style.color = "#dc3545";
+          resultEl.innerHTML = `
+                    <b>Error:</b> Could not connect to backend.<br>
+                    <b>Hint:</b> Make sure the server is running on port 8765
+                `;
+          resultEl.classList.add("show");
+        } finally {
+          btnEl.classList.remove("recording");
+          btnEl.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>

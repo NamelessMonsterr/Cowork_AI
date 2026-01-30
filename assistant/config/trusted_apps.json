@@ -1,33 +1,8 @@
 {
-  "trusted_apps": [
-    "notepad",
-    "notepad.exe",
-    "calc",
-    "calc.exe",
-    "calculator",
-    "calculator.exe",
-    "mspaint",
-    "mspaint.exe",
-    "microphone",
-    "audio",
-    "sound recorder",
-    "wordpad",
-    "wordpad.exe",
-    "explorer",
-    "explorer.exe",
-    "chrome",
-    "chrome.exe",
-    "msedge",
-    "msedge.exe",
-    "firefox",
-    "firefox.exe",
-    "code",
-    "code.exe"
-  ],
+  "trusted_apps": ["*"],
   "app_aliases": {
-    "calculator": "calc",
+    "calc": "calculator",
     "paint": "mspaint",
-    "vscode": "code",
-    "edge": "msedge"
+    "pad": "notepad"
   }
 }

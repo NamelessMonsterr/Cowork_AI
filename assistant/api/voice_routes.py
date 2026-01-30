@@ -114,3 +114,62 @@ async def test_stt(request: Request, seconds: int = 3):
             },
             "duration_ms": duration_ms
         }
+
+
+@router.post("/execute")
+async def voice_execute(request: Request, seconds: int = 5):
+    """
+    Record voice → Transcribe → Execute immediately.
+    Production-ready with error handling.
+    """
+    import time
+    import httpx
+    start = time.time()
+    state = request.app.state.state
+    
+    # Auto-grant session if needed (demo mode)
+    if not state.session_auth.check():
+        state.session_auth.grant(mode="session", apps={"*"}, folders={"*"})
+        logger.info("Auto-granted session for voice execute")
+    
+    try:
+        # 1. Record and transcribe
+        logger.info(f"Recording for {seconds}s...")
+        text = await state.stt.listen(duration=seconds)
+        
+        if not text:
+            return {
+                "success": False,
+                "error": "No speech detected",
+                "stage": "transcription",
+                "duration_ms": int((time.time() - start) * 1000)
+            }
+        
+        logger.info(f"Heard: '{text}'")
+        
+        # 2. Call the working execution endpoint
+        async with httpx.AsyncClient() as client:
+            exec_response = await client.post(
+                "http://127.0.0.1:8765/just_do_it",
+                json={"task": text},
+                timeout=30.0
+            )
+            exec_result = exec_response.json()
+        
+        total_duration = int((time.time() - start) * 1000)
+        
+        return {
+            "success": exec_result.get("success", False),
+            "transcript": text,
+            "execution": exec_result,
+            "duration_ms": total_duration
+        }
+        
+    except Exception as e:
+        logger.error(f"Voice execute failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "stage": "execution",
+            "duration_ms": int((time.time() - start) * 1000)
+        }
