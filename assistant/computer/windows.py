@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import keyboard
 import pyautogui
 
+from assistant.exceptions import SecurityError
 from assistant.screen.capture import ScreenCapture
 
 from .input_protocol import (
@@ -272,25 +273,32 @@ class WindowsComputer:
             logger.error(f"Launch failed for {app_name}: {e}")
             return False
 
+
     def run_shell_command(self, command: str) -> bool:
         """
-        DEPRECATED: This method bypasses RestrictedShellTool security.
+        DEPRECATED AND DISABLED: This method bypassed RestrictedShellTool security.
+        
+        P0 SECURITY FIX: This method is now disabled to prevent security bypass.
         Use RestrictedShellTool instead for safe command execution.
+        
+        Raises:
+            SecurityError: Always raised - method disabled for security
         """
-        logger.warning(
-            f"DEPRECATED: run_shell_command called with: {command[:50]}... "
-            "This bypasses security validation. Use RestrictedShellTool instead."
+        logger.critical("=" * 80)
+        logger.critical("🔴 SECURITY VIOLATION ATTEMPT")
+        logger.critical("=" * 80)
+        logger.critical(f"Attempted to call DEPRECATED run_shell_command with: {command[:50]}")
+        logger.critical("This method bypasses RestrictedShellTool security validation")
+        logger.critical("and has been DISABLED in P0 security fix.")
+        logger.critical("")
+        logger.critical("Use RestrictedShellTool instead for safe command execution.")
+        logger.critical("=" * 80)
+        raise SecurityError(
+            "run_shell_command is DISABLED (security fix). "
+            "Use RestrictedShellTool for validated command execution."
         )
-        self._ensure_permission()
-        try:
-            # SECURITY FIX: Use list args instead of shell=True
-            # Prevents shell metacharacter injection
-            subprocess.Popen(["powershell.exe", "-Command", command], shell=False)
-            return True
-        except Exception as e:
-            logger.error(f"Command failed: {e}")
-            return False
 
     def run_shell(self, command: str) -> bool:
-        """Alias for run_shell_command."""
+        """Alias for run_shell_command (also disabled)."""
         return self.run_shell_command(command)
+

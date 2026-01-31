@@ -17,6 +17,7 @@ import os
 import shutil
 import zipfile
 
+from assistant.exceptions import SecurityError
 from assistant.plugins.manifest import PluginManifest
 from assistant.plugins.registry import TRUSTED_PUBLISHERS
 from assistant.plugins.signing import PluginSigner
@@ -51,12 +52,23 @@ class PluginInstaller:
 
                 manifest = PluginManifest(**data)  # Validates schema
 
-                # 4. Check Trust
+                # 4. Check Trust - P0 SECURITY FIX: ENFORCE, don't just warn
                 if manifest.publisher not in TRUSTED_PUBLISHERS:
-                    # In MVP we block or warn.
-                    # Per W13 spec: state = BLOCKED_UNTRUSTED, but we allow install?
-                    # Let's install but log warning. The Lifecycle/API will handle enablement gating.
-                    logger.warning(f"Installing untrusted plugin from {manifest.publisher}")
+                    logger.critical("=" * 80)
+                    logger.critical("🔴 UNTRUSTED PLUGIN INSTALLATION BLOCKED")
+                    logger.critical("=" * 80)
+                    logger.critical(f"Plugin: {manifest.id}")
+                    logger.critical(f"Publisher: {manifest.publisher}")
+                    logger.critical(f"Trusted Publishers: {', '.join(TRUSTED_PUBLISHERS)}")
+                    logger.critical("")
+                    logger.critical("REFUSING INSTALLATION - Security Policy")
+                    logger.critical("Only plugins from trusted publishers can be installed.")
+                    logger.critical("=" * 80)
+                    raise SecurityError(
+                        f"Plugin from untrusted publisher '{manifest.publisher}' blocked. "
+                        f"Trusted publishers: {TRUSTED_PUBLISHERS}"
+                    )
+
 
                 # 5. Extract
                 # Create folder ID (sanitize?)
@@ -103,18 +115,34 @@ class PluginInstaller:
                 content_path = os.path.join(temp_extract, "content.zip")
                 sig_path = os.path.join(temp_extract, "signature.hex")
 
-                # 3. Verify Signature
+                # 3. Verify Signature - P0 SECURITY FIX: MANDATORY, not optional
                 with open(sig_path) as f:
                     sig_hex = f.read().strip()
 
-                if public_key_hex:
-                    logger.info("🔐 Verifying Plugin Signature...")
-                    valid = PluginSigner.verify_with_raw_hex(content_path, sig_hex, public_key_hex)
-                    if not valid:
-                        raise ValueError(f"❌ Signature Verification FAILED for package {package_path}. Aborting.")
-                    logger.info("✅ Signature Verified.")
-                else:
-                    logger.warning(f"⚠️ Installing Unverified Package (No Publisher Key Provided): {package_path}")
+                if not public_key_hex:
+                    logger.critical("=" * 80)
+                    logger.critical("🔴 UNSIGNED PLUGIN INSTALLATION BLOCKED")
+                    logger.critical("=" * 80)
+                    logger.critical(f"Package: {package_path}")
+                    logger.critical("No publisher public key provided for signature verification")
+                    logger.critical("")
+                    logger.critical("REFUSING INSTALLATION - Security Policy")
+                    logger.critical("All plugins MUST be signed and verified.")
+                    logger.critical("=" * 80)
+                    raise SecurityError(
+                        f"Plugin signature verification required but no public key provided. "
+                        f"Refusing to install unsigned package: {package_path}"
+                    )
+
+                logger.info("🔐 Verifying Plugin Signature...")
+                valid = PluginSigner.verify_with_raw_hex(content_path, sig_hex, public_key_hex)
+                if not valid:
+                    raise ValueError(
+                        f"❌ Signature Verification FAILED for package {package_path}. "
+                        f"Package may be tampered or corrupted. Aborting installation."
+                    )
+                logger.info("✅ Signature Verified - Plugin Authentic")
+
 
                 # To invoke install_inner:
                 with open(content_path, "rb") as f:

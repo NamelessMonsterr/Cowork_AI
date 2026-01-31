@@ -1,8 +1,23 @@
 {
-  "trusted_apps": ["*"],
+  "trusted_apps": [
+    "notepad",
+    "calc",
+    "mspaint",
+    "chrome",
+    "msedge",
+    "firefox",
+    "code",
+    "explorer",
+    "wordpad"
+  ],
   "app_aliases": {
-    "calc": "calculator",
+    "calculator": "calc",
+    "vscode": "code",
+    "edge": "msedge",
+    "pad": "notepad",
     "paint": "mspaint",
-    "pad": "notepad"
+    "browser": "chrome",
+    "vs code": "code",
+    "visual studio code": "code"
   }
 }

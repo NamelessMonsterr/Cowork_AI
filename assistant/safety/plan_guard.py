@@ -180,23 +180,67 @@ HIGH_RISK_TOOLS = {
 
 # Task 1: Load trusted apps from config
 def load_trusted_apps() -> tuple[set, dict]:
+    """Load trusted apps configuration from JSON.
+    
+    P0 CRITICAL: Validates that wildcard ("*") is NOT present in trusted_apps.
+    If wildcard detected, system refuses to start (fail-fast security).
+    
+    Returns:
+        tuple: (trusted_apps_set, app_aliases_dict)
+    
+    Raises:
+        SystemExit: If wildcard detected in configuration (CRITICAL security violation)
     """
-    Load trusted apps from config file with fallback to defaults.
-    Returns: (trusted_apps_set, app_aliases_dict)
-    """
-    try:
-        config_path = Path(__file__).parent.parent / "config" / "trusted_apps.json"
-        if config_path.exists():
-            with open(config_path) as f:
-                data = json.load(f)
-            trusted = set(data.get("trusted_apps", []))
-            aliases = data.get("app_aliases", {})
-            logger.info(f"[PlanGuard] Loaded {len(trusted)} trusted apps from config")
-            return trusted, aliases
-    except Exception as e:
-        logger.warning(f"[PlanGuard] Failed to load config: {e}, using defaults")
+    config_path = Path("assistant/config/trusted_apps.json")
+    if not config_path.exists():
+        logger.warning(f"Trusted apps config not found at {config_path}, using defaults")
+        return (
+            {
+                "notepad",
+                "calc",
+                "mspaint",
+                "chrome",
+                "msedge",
+                "firefox",
+                "code",
+                "explorer",
+            },
+            {"calculator": "calc", "vscode": "code", "edge": "msedge"},
+        )
 
-    return TRUSTED_APPS_DEFAULT, {}
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    trusted_apps = set(data.get("trusted_apps", []))
+    app_aliases = data.get("app_aliases", {})
+
+    # P0 CRITICAL SECURITY CHECK: Prevent wildcard bypass
+    if "*" in trusted_apps:
+        logger.critical("=" * 80)
+        logger.critical("🔴 CRITICAL SECURITY VIOLATION DETECTED")
+        logger.critical("=" * 80)
+        logger.critical("Wildcard ('*') detected in trusted_apps.json")
+        logger.critical("This configuration allows ANY application to execute,")
+        logger.critical("completely bypassing PlanGuard security controls.")
+        logger.critical("")
+        logger.critical("REFUSING TO START - Fix required:")
+        logger.critical(f"Edit {config_path} and replace wildcard with explicit app list")
+        logger.critical("=" * 80)
+        import sys
+
+        sys.exit(1)  # Fail-fast - do not allow system to start
+
+    # Additional validation: ensure no empty string tricks
+    if "" in trusted_apps or " " in trusted_apps:
+        logger.critical("Invalid empty/whitespace entry in trusted_apps - refusing to start")
+        import sys
+
+        sys.exit(1)
+
+    logger.info(f"Loaded {len(trusted_apps)} trusted apps and {len(app_aliases)} aliases")
+    logger.info(f"Trusted apps: {', '.join(sorted(trusted_apps))}")
+
+    return trusted_apps, app_aliases
 
 
 def load_trusted_domains() -> set:

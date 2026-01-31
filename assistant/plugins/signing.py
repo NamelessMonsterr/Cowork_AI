@@ -17,19 +17,45 @@ class PluginSigner:
         pass
 
     @staticmethod
-    def generate_keys(save_dir: str = "."):
-        """Generate a new Ed25519 keypair for a publisher."""
+    def generate_keys(save_dir: str = ".", password: bytes = None):
+        """
+        Generate a new Ed25519 keypair for a publisher.
+        
+        P0 SECURITY FIX: Private keys are now encrypted with password.
+        If no password provided, generates a secure random one.
+        
+        Args:
+            save_dir: Directory to save keys
+            password: Password for private key encryption (bytes)
+                     If None, generates random password and saves to .password file
+        
+        Returns:
+            tuple: (priv_path, pub_path, password_used)
+        """
         private_key = ed25519.Ed25519PrivateKey.generate()
         public_key = private_key.public_key()
 
-        # Save Private Key (Keep Safe!)
+        # P0 SECURITY: Generate password if not provided
+        if password is None:
+            import secrets
+
+            password = secrets.token_bytes(32)  # 256-bit random password
+            password_path = os.path.join(save_dir, "publisher_private.password")
+            with open(password_path, "wb") as f:
+                f.write(password)
+            logger.warning(
+                f"⚠️ Generated random password saved to: {password_path}\n"
+                f"KEEP THIS FILE SECURE! Required to use private key."
+            )
+
+        # Save Private Key - P0 FIX: Now ENCRYPTED
         priv_path = os.path.join(save_dir, "publisher_private.pem")
         with open(priv_path, "wb") as f:
             f.write(
                 private_key.private_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PrivateFormat.PKCS8,
-                    encryption_algorithm=serialization.NoEncryption(),
+                    encryption_algorithm=serialization.BestAvailableEncryption(password),
                 )
             )
 
@@ -43,12 +69,26 @@ class PluginSigner:
                 )
             )
 
-        return priv_path, pub_path
+        logger.info(f"✅ Generated ENCRYPTED keypair: {priv_path}, {pub_path}")
+        return priv_path, pub_path, password
 
     @staticmethod
-    def load_private_key(path: str) -> ed25519.Ed25519PrivateKey:
+    def load_private_key(path: str, password: bytes = None) -> ed25519.Ed25519PrivateKey:
+        """
+        Load private key from PEM file.
+        
+        P0 SECURITY: Now supports encrypted keys (mandatory for new keys).
+        
+        Args:
+            path: Path to private key PEM file
+            password: Password for encrypted key (bytes) or None for legacy unencrypted keys
+        
+        Returns:
+            Ed25519PrivateKey instance
+        """
         with open(path, "rb") as f:
-            return serialization.load_pem_private_key(f.read(), password=None)
+            return serialization.load_pem_private_key(f.read(), password=password)
+
 
     @staticmethod
     def load_public_key(path: str) -> ed25519.Ed25519PublicKey:
