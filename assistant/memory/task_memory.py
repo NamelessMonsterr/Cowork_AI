@@ -11,12 +11,18 @@ HIGH SECURITY FIXES:
 - Added authorization checks for multi-user safety
 """
 
-import fcntl  # For file locking on Unix/Windows
 import json
 import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+# Conditional import for Unix file locking
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 
 
 @dataclass
@@ -128,7 +134,7 @@ class TaskMemory:
                 import msvcrt
                 mode = msvcrt.LK_NBLCK if not shared else msvcrt.LK_NBRLCK
                 msvcrt.locking(file_obj.fileno(), mode, 1)
-            else:  # Unix/Linux
+            elif HAS_FCNTL:  # Unix/Linux with fcntl available
                 mode = fcntl.LOCK_SH if shared else fcntl.LOCK_EX
                 fcntl.flock(file_obj.fileno(), mode)
         except Exception:
@@ -141,7 +147,7 @@ class TaskMemory:
             if os.name == 'nt':
                 import msvcrt
                 msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
+            elif HAS_FCNTL:
                 fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
         except Exception:
             pass
