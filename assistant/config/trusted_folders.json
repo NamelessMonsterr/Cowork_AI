@@ -1,0 +1,48 @@
+{
+  "default_access": "deny",
+  "allowed_roots": [
+    "%USERPROFILE%\\Documents",
+    "%USERPROFILE%\\Desktop",
+    "%USERPROFILE%\\Downloads",
+    "%TEMP%"
+  ],
+  "blocked_paths": [
+    "*\\Windows\\*",
+    "*\\Windows\\System32\\*",
+    "*\\Program Files\\*",
+    "*\\Program Files (x86)\\*",
+    "*\\.ssh\\*",
+    "*\\.aws\\*",
+    "*\\.azure\\*",
+    "*\\.kube\\*",
+    "*\\AppData\\Local\\Google\\Chrome\\User Data\\*",
+    "*\\AppData\\Local\\Microsoft\\Edge\\User Data\\*",
+    "*\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\*",
+    "*\\NTUSER.DAT*",
+    "*\\SAM",
+    "*\\SECURITY",
+    "*\\SYSTEM",
+    "*\\config\\*"
+  ],
+  "max_file_size_mb": 10,
+  "blocked_extensions": [
+    ".key",
+    ".pem",
+    ".pfx",
+    ".p12",
+    ".pkcs12",
+    ".exe",
+    ".dll",
+    ".sys",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".msi",
+    ".scr",
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    ".mdb",
+    ".accdb"
+  ]
+}

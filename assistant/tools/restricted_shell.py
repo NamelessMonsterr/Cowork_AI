@@ -21,6 +21,7 @@ Usage:
 
 import json
 import logging
+import os
 import re
 import subprocess
 import time
@@ -60,6 +61,7 @@ class RestrictedShellTool:
     - No chaining: Blocks pipes, redirects, command chains
     - Output redaction: Removes API keys, passwords from output
     - Audit logging: Logs all executions to JSONL
+    - P1 SECURITY: Folder sandboxing, file size limits, content redaction
     """
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -72,6 +74,7 @@ class RestrictedShellTool:
         if config is None:
             config = self._load_config()
         self.config = config
+        self._load_folder_config()
 
     def _load_config(self) -> dict[str, Any]:
         """Load configuration from restricted_shell.json."""
@@ -89,6 +92,101 @@ class RestrictedShellTool:
 
         # Default: disabled
         return {"enabled": False}
+
+    def _load_folder_config(self):
+        """Load P1 folder sandboxing configuration."""
+        try:
+            folder_config_path = Path(__file__).parent.parent / "config" / "trusted_folders.json"
+            if folder_config_path.exists():
+                with open(folder_config_path) as f:
+                    folder_config = json.load(f)
+                    
+                    # Expand environment variables in allowed_roots
+                    self.allowed_roots = [
+                        Path(os.path.expandvars(root)) 
+                        for root in folder_config.get("allowed_roots", [])
+                    ]
+                    self.blocked_paths = folder_config.get("blocked_paths", [])
+                    self.max_file_size_mb = folder_config.get("max_file_size_mb", 10)
+                    self.blocked_extensions = folder_config.get("blocked_extensions", [])
+                    
+                    logger.info(
+                        f"[RestrictedShell] P1 Sandbox: {len(self.allowed_roots)} allowed roots, "
+                        f"{len(self.blocked_paths)} blocked patterns"
+                    )
+        except Exception as e:
+            logger.warning(f"[RestrictedShell] Failed to load folder config: {e}")
+            # Fallback to safe defaults
+            self.allowed_roots = [
+                Path.home() / "Documents",
+                Path.home() / "Desktop",
+            ]
+            self.blocked_paths = ["*\\Windows\\*", "*\\.ssh\\*"]
+            self.max_file_size_mb = 10
+            self.blocked_extensions = [".exe", ".key", ".pem"]
+
+    def validate_path(self, path: str) -> Path:
+        """
+        P1 SECURITY: Validate file path against sandbox rules.
+        
+        Args:
+            path: File or directory path to validate
+        
+        Returns:
+            Resolved Path object if valid
+        
+        Raises:
+            SecurityError: If path violates sandbox rules
+        """
+        try:
+            real_path = Path(path).resolve()
+        except Exception as e:
+            raise SecurityError(f"Invalid path: {e}")
+        
+        # Check blocked patterns
+        path_str = str(real_path).replace("/", "\\")
+        for pattern in self.blocked_paths:
+            # Convert glob pattern to regex
+            regex_pattern = pattern.replace("*", ".*").replace("\\", "\\\\")
+            if re.match(regex_pattern, path_str, re.IGNORECASE):
+                logger.critical(f"🔴 P1 BLOCKED: Path matches blocked pattern '{pattern}': {path}")
+                raise SecurityError(f"Access denied: {path} matches blocked pattern")
+        
+        # Check allowed roots (sandbox)
+        if self.allowed_roots:
+            is_allowed = False
+            for allowed_root in self.allowed_roots:
+                try:
+                    real_path.relative_to(allowed_root)
+                    is_allowed = True
+                    break
+                except ValueError:
+                    continue
+            
+            if not is_allowed:
+                logger.critical(f"🔴 P1 BLOCKED: Path outside sandbox: {path}")
+                logger.critical(f"Allowed roots: {[str(r) for r in self.allowed_roots]}")
+                raise SecurityError(
+                    f"Access denied: {path} is outside allowed directories. "
+                    f"Only {', '.join([r.name for r in self.allowed_roots])} folders are accessible."
+                )
+        
+        # Check file extension
+        if real_path.suffix.lower() in self.blocked_extensions:
+            logger.critical(f"🔴 P1 BLOCKED: Blocked file extension: {real_path.suffix}")
+            raise SecurityError(f"Access denied: {real_path.suffix} files are blocked")
+        
+        # Check file size (if file exists)
+        if real_path.exists() and real_path.is_file():
+            size_mb = real_path.stat().st_size / (1024 * 1024)
+            if size_mb > self.max_file_size_mb:
+                logger.critical(f"🔴 P1 BLOCKED: File too large: {size_mb:.1f}MB (max {self.max_file_size_mb}MB)")
+                raise SecurityError(
+                    f"File too large: {size_mb:.1f}MB exceeds limit of {self.max_file_size_mb}MB"
+                )
+        
+        logger.debug(f"✅ P1 Path validated: {path}")
+        return real_path
 
     def validate(
         self,

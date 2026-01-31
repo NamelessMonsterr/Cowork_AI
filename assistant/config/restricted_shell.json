@@ -9,22 +9,13 @@
     "type",
     "find",
     "findstr",
-    "ipconfig",
     "ping",
-    "tracert",
-    "nslookup",
-    "where",
-    "whoami",
     "hostname",
     "ver",
-    "systeminfo",
-    "tasklist",
-    "netstat",
     "notepad",
     "mspaint",
     "calc",
-    "wordpad",
-    "explorer"
+    "wordpad"
   ],
   "allowed_powershell": [
     "Get-Process",
@@ -82,7 +73,23 @@
     "copy ",
     "move ",
     "xcopy",
-    "robocopy"
+    "robocopy",
+    "&&",
+    "||",
+    "&",
+    "|",
+    ";",
+    ">",
+    "<",
+    "`",
+    "$(",
+    "..",
+    "*.*",
+    "C:\\\\Windows",
+    "C:\\\\Program Files",
+    "System32",
+    "\\\\AppData\\\\",
+    "\\\\.ssh\\\\"
   ],
   "redaction_patterns": [
     "sk-[a-zA-Z0-9]{32,}",
@@ -90,6 +97,11 @@
     "PASSWORD=.*",
     "TOKEN=.*",
     "SECRET=.*",
-    "API_KEY=.*"
+    "API_KEY=.*",
+    "-----BEGIN (RSA|DSA|EC|OPENSSH|ENCRYPTED|PRIVATE) PRIVATE KEY-----",
+    "(?:mongodb|postgresql|mysql|redis)://[^:]+:[^@]+@",
+    "AKIA[0-9A-Z]{16}",
+    "ghp_[a-zA-Z0-9]{36}",
+    "glpat-[a-zA-Z0-9_\\-]{20,}"
   ]
 }
