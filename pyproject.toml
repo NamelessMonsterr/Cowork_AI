@@ -1,0 +1,56 @@
+[tool.ruff]
+# Exclude directories
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "node_modules",
+    "dist",
+    "build",
+    "*.egg-info",
+]
+
+line-length = 120
+indent-width = 4
+
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable specific rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+
+# Ignore specific rules that are too strict for this project
+ignore = [
+    "E722",  # Bare except (we have many legitimate uses)
+    "E501",  # Line too long (handled by formatter)
+    "E741",  # Ambiguous variable name
+    "E712",  # True/False comparison (intentional in some contexts)
+    "F841",  # Unused variable (often used for unpacking)
+    "N802",  # Function name should be lowercase
+    "N803",  # Argument name should be lowercase
+    "N806",  # Variable in function should be lowercase
+]
+
+# Allow fix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.per-file-ignores]
+# Test files can have longer lines and different naming conventions
+"tests/**/*.py" = ["E501", "N802", "N803"]
+"test_phases/**/*.py" = ["E501", "N802", "N803"]
