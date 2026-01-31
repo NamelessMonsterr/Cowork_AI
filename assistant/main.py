@@ -548,11 +548,17 @@ app.add_middleware(
 
 # P1.4: Strict CORS - Only allow dev origins, disabled in production
 if _settings.server.cors_enabled:
+    # HIGH SECURITY FIX: Explicit header allowlist instead of wildcard
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_settings.server.cors_origins,
-        allow_methods=["GET", "POST", "OPTIONS"],  # Added OPTIONS for preflight
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-API-Key",
+            "Accept",
+        ],  # Explicit list, no wildcard
         allow_credentials=True,
     )
 
