@@ -17,6 +17,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from assistant.safety.destructive_guard import DestructiveGuard
+from assistant.safety.user_profile_manager import UserProfileManager
 from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 
 from .session_auth import SessionAuth
@@ -329,6 +330,14 @@ class PlanGuard:
         self._session = session_auth
         self._config = config or PlanGuardConfig()
         self.destructive_guard = DestructiveGuard()
+       
+        # P1.5: User-specific profile manager
+        try:
+            self.profile_manager = UserProfileManager()
+            logger.info("[PlanGuard] UserProfileManager enabled")
+        except Exception as e:
+            logger.warning(f"[PlanGuard] UserProfileManager initialization failed: {e}")
+            self.profile_manager = None
 
         # Task 1: Load config-driven trusted apps and domains
         self.trusted_apps, self.app_aliases = load_trusted_apps()
@@ -410,20 +419,43 @@ class PlanGuard:
                 # Check aliases
                 resolved_name = self.app_aliases.get(exe_no_ext, exe_no_ext)
 
-                # Allow if in trusted list (either full name or no-ext)
+                # P1.5: Check user-specific profile first
+                user_id = getattr(self._session, 'user_id', None)
+                is_allowed_by_profile = False
+                
+                if user_id and self.profile_manager:
+                    # Check user's profile permissions
+                    is_allowed_by_profile = self.profile_manager.validate_app(user_id, exe_no_ext)
+                    
+                    if is_allowed_by_profile:
+                        logger.info(
+                            f"[PlanGuard] ✅ App '{app_raw}' allowed for user '{user_id}' "
+                            f"via profile permissions"
+                        )
+                        total_retries += step.retries
+                        continue
+                
+                # Fallback: Check global trusted list (for backward compatibility)
                 is_trusted = (
                     exe_name in self.trusted_apps
                     or exe_no_ext in self.trusted_apps
                     or resolved_name in self.trusted_apps
                 )
 
-                if not is_trusted:
-                    # Fallback: check session allowlist
+                if not is_trusted and not is_allowed_by_profile:
+                    # Final fallback: check session allowlist
                     if not self._session.is_app_allowed(app_raw):
-                        violations.append(
-                            f"Step {step_num}: App '{app_raw}' not in trusted list. "
-                            f"Allowed: {', '.join(sorted(self.trusted_apps))}"
-                        )
+                        if user_id:
+                            violations.append(
+                                f"Step {step_num}: App '{app_raw}' not allowed for user '{user_id}' profile. "
+                                f"Global allowed: {', '.join(sorted(self.trusted_apps))}"
+                            )
+                        else:
+                            violations.append(
+                                f"Step {step_num}: App '{app_raw}' not in trusted list. "
+                                f"Allowed: {', '.join(sorted(self.trusted_apps))}"
+                            )
+
 
                 # Count retries
                 total_retries += step.retries

@@ -1,0 +1,230 @@
+{
+  "profiles": {
+    "admin": {
+      "role": "administrator",
+      "description": "Full system access with audit logging. Global blacklist still enforced.",
+      "allowed_apps": ["*"],
+      "allowed_folders": ["*"],
+      "allowed_commands": ["*"],
+      "browser_restrictions": {
+        "domain_whitelist": "*",
+        "protocol_whitelist": ["https", "http", "file"],
+        "allowed_private_ips": true
+      },
+      "max_file_size_mb": 100,
+      "requires_2fa": true,
+      "session_timeout_min": 30,
+      "can_modify_profiles": true
+    },
+    "developer": {
+      "role": "developer",
+      "description": "Access to development tools and project directories.",
+      "allowed_apps": [
+        "notepad",
+        "calc",
+        "chrome",
+        "code",
+        "explorer",
+        "powershell",
+        "cmd",
+        "git",
+        "python",
+        "node",
+        "npm",
+        "docker",
+        "postman"
+      ],
+      "allowed_folders": [
+        "%USERPROFILE%\\Documents",
+        "%USERPROFILE%\\Desktop",
+        "%USERPROFILE%\\Downloads",
+        "%USERPROFILE%\\Projects",
+        "%USERPROFILE%\\Source",
+        "%USERPROFILE%\\.vscode",
+        "%TEMP%"
+      ],
+      "allowed_commands": [
+        "dir",
+        "cd",
+        "echo",
+        "type",
+        "find",
+        "findstr",
+        "ping",
+        "git",
+        "npm",
+        "node",
+        "python",
+        "pip",
+        "docker",
+        "kubectl"
+      ],
+      "browser_restrictions": {
+        "domain_whitelist": "*",
+        "protocol_whitelist": ["https", "http"],
+        "allowed_private_ips": true
+      },
+      "max_file_size_mb": 50,
+      "requires_2fa": false,
+      "session_timeout_min": 60,
+      "can_modify_profiles": false
+    },
+    "power_user": {
+      "role": "power_user",
+      "description": "Extended app access for productivity users.",
+      "allowed_apps": [
+        "notepad",
+        "calc",
+        "chrome",
+        "code",
+        "explorer",
+        "excel",
+        "word",
+        "powerpoint",
+        "outlook",
+        "teams",
+        "slack",
+        "zoom"
+      ],
+      "allowed_folders": [
+        "%USERPROFILE%\\Documents",
+        "%USERPROFILE%\\Desktop",
+        "%USERPROFILE%\\Downloads",
+        "%USERPROFILE%\\OneDrive",
+        "%TEMP%"
+      ],
+      "allowed_commands": [
+        "dir",
+        "cd",
+        "echo",
+        "type",
+        "find",
+        "findstr",
+        "ping"
+      ],
+      "browser_restrictions": {
+        "domain_whitelist": [
+          "google.com",
+          "*.google.com",
+          "bing.com",
+          "stackoverflow.com",
+          "github.com",
+          "docs.microsoft.com",
+          "wikipedia.org",
+          "*.office.com",
+          "*.microsoft.com",
+          "slack.com",
+          "zoom.us"
+        ],
+        "protocol_whitelist": ["https", "http"],
+        "allowed_private_ips": false
+      },
+      "max_file_size_mb": 25,
+      "requires_2fa": false,
+      "session_timeout_min": 45,
+      "can_modify_profiles": false
+    },
+    "standard": {
+      "role": "standard_user",
+      "description": "Default profile with baseline security (P0+P1).",
+      "allowed_apps": [
+        "notepad",
+        "calc",
+        "chrome",
+        "explorer",
+        "wordpad",
+        "mspaint"
+      ],
+      "allowed_folders": [
+        "%USERPROFILE%\\Documents",
+        "%USERPROFILE%\\Desktop",
+        "%USERPROFILE%\\Downloads",
+        "%TEMP%"
+      ],
+      "allowed_commands": [
+        "dir",
+        "cd",
+        "echo",
+        "type",
+        "find",
+        "findstr",
+        "ping"
+      ],
+      "browser_restrictions": {
+        "domain_whitelist": [
+          "google.com",
+          "*.google.com",
+          "bing.com",
+          "duckduckgo.com",
+          "stackoverflow.com",
+          "github.com",
+          "docs.microsoft.com",
+          "wikipedia.org",
+          "*.office.com",
+          "*.microsoft.com"
+        ],
+        "protocol_whitelist": ["https"],
+        "allowed_private_ips": false
+      },
+      "max_file_size_mb": 10,
+      "requires_2fa": false,
+      "session_timeout_min": 30,
+      "can_modify_profiles": false
+    },
+    "restricted": {
+      "role": "restricted_user",
+      "description": "Minimal permissions for guest/untrusted users.",
+      "allowed_apps": [
+        "notepad",
+        "calc"
+      ],
+      "allowed_folders": [
+        "%USERPROFILE%\\Documents"
+      ],
+      "allowed_commands": [
+        "dir",
+        "echo"
+      ],
+      "browser_restrictions": {
+        "domain_whitelist": [
+          "google.com",
+          "bing.com",
+          "wikipedia.org"
+        ],
+        "protocol_whitelist": ["https"],
+        "allowed_private_ips": false
+      },
+      "max_file_size_mb": 5,
+      "requires_2fa": false,
+      "session_timeout_min": 15,
+      "can_modify_profiles": false
+    }
+  },
+  "user_assignments": {
+    "default": "standard",
+    "_comment": "Map user IDs/emails to profiles. Examples:",
+    "admin@cowork.ai": "admin",
+    "dev@cowork.ai": "developer",
+    "john@cowork.ai": "power_user",
+    "guest@cowork.ai": "restricted"
+  },
+  "global_blacklist": {
+    "_comment": "Commands blocked for ALL users, including admins",
+    "commands": [
+      "format",
+      "diskpart",
+      "bcdedit",
+      "sc delete",
+      "net user /delete",
+      "reg delete HKLM",
+      "Remove-Item -Recurse C:\\",
+      "rm -rf /",
+      "takeown /f C:\\Windows"
+    ],
+    "apps": [
+      "regedit",
+      "msconfig",
+      "services.msc"
+    ]
+  }
+}
