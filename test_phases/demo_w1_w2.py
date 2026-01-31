@@ -2,6 +2,7 @@
 Demo/Verification for Windows Modules W1 & W2.
 Run this to verify Capture and Input integration.
 """
+
 import time
 import os
 import sys
@@ -10,6 +11,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from assistant.computer.windows import WindowsComputer
+
 
 def main():
     print(">>> Initializing WindowsComputer...")
@@ -33,15 +35,16 @@ def main():
     print("Launching Notepad...")
     if comp.launch_app("notepad"):
         print("✅ Notepad launched (command sent). Waiting for Window...")
-        time.sleep(2) # Wait for load using simple sleep (heuristic)
-        
+        time.sleep(2)  # Wait for load using simple sleep (heuristic)
+
         print("Typing text...")
         comp.type_text("Hello from Phase W2 Automation! 🚀", interval=0.05)
         print("✅ Text typed.")
-        
+
         print("\n>>> Demo Complete.")
     else:
         print("❌ Launch failed.")
+
 
 if __name__ == "__main__":
     main()

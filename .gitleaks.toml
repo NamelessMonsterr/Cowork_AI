@@ -1,0 +1,28 @@
+# .gitleaks.toml - Gitleaks Configuration
+
+title = "Flash Assistant Gitleaks Config"
+
+# Allowlist for test files with fake API keys
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{20,}'''
+[[rules.allowlist]]
+paths = [
+    '''tests/test_secrets_redaction\.py''',
+    '''tests/test_restricted_shell_policy\.py''',
+    '''test_phases/test_phase8_resilience\.py''',
+    '''assistant/utils/secrets_filter\.py'''
+]
+description = "Test files with intentional fake API keys for testing redaction"
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)['"\s:=]+[a-zA-Z0-9_\-]{16,}'''
+[[rules.allowlist]]
+paths = [
+    '''tests/.*\.py''',
+    '''test_phases/.*\.py'''
+]
+description = "Test files"

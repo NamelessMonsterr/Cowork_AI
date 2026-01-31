@@ -1,63 +1,51 @@
 """Prometheus metrics endpoint for monitoring."""
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 from fastapi import Response
-import time
 
 # Define metrics
 request_count = Counter(
-    'flash_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status']
+    "flash_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
 )
 
 request_duration = Histogram(
-    'flash_request_duration_seconds',
-    'HTTP request duration in seconds',
-    ['method', 'endpoint']
+    "flash_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"],
 )
 
-active_sessions = Gauge(
-    'flash_active_sessions',
-    'Number of active permission sessions'
-)
+active_sessions = Gauge("flash_active_sessions", "Number of active permission sessions")
 
 plan_executions = Counter(
-    'flash_plan_executions_total',
-    'Total plan executions',
-    ['status']
+    "flash_plan_executions_total", "Total plan executions", ["status"]
 )
 
 voice_transcriptions = Counter(
-    'flash_voice_transcriptions_total',
-    'Total voice transcriptions',
-    ['engine', 'status']
+    "flash_voice_transcriptions_total",
+    "Total voice transcriptions",
+    ["engine", "status"],
 )
 
 
 async def metrics_endpoint():
     """Endpoint to expose Prometheus metrics."""
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 def track_request(method: str, endpoint: str, status: int):
     """Track HTTP request metrics."""
-    request_count.labels(
-        method=method,
-        endpoint=endpoint,
-        status=status
-    ).inc()
+    request_count.labels(method=method, endpoint=endpoint, status=status).inc()
 
 
 def track_request_duration(method: str, endpoint: str, duration: float):
     """Track request duration."""
-    request_duration.labels(
-        method=method,
-        endpoint=endpoint
-    ).observe(duration)
+    request_duration.labels(method=method, endpoint=endpoint).observe(duration)
 
 
 def update_active_sessions(count: int):
@@ -72,7 +60,4 @@ def track_plan_execution(status: str):
 
 def track_voice_transcription(engine: str, status: str):
     """Track voice transcription."""
-    voice_transcriptions.labels(
-        engine=engine,
-        status=status
-    ).inc()
+    voice_transcriptions.labels(engine=engine, status=status).inc()

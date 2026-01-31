@@ -12,6 +12,7 @@ logger = logging.getLogger("TTS")
 # Try imports
 try:
     import edge_tts
+
     HAS_EDGE_TTS = True
 except ImportError:
     HAS_EDGE_TTS = False
@@ -19,10 +20,12 @@ except ImportError:
 
 try:
     from playsound import playsound
+
     HAS_PLAYSOUND = True
 except ImportError:
     HAS_PLAYSOUND = False
     logger.warning("playsound not installed. Audio playback will be disabled.")
+
 
 class TTS:
     def __init__(self, voice: str = "en-GB-RyanNeural"):
@@ -43,25 +46,27 @@ class TTS:
         try:
             # Create a localized temporary file
             # edge-tts requires an output file
-            
+
             communicate = edge_tts.Communicate(text, self.voice)
-            
+
             # Save to a temp file
             # Using a unique name to avoid conflicts
-            temp_path = os.path.join(tempfile.gettempdir(), f"cowork_speech_{os.getpid()}.mp3")
-            
+            temp_path = os.path.join(
+                tempfile.gettempdir(), f"cowork_speech_{os.getpid()}.mp3"
+            )
+
             await communicate.save(temp_path)
-            
+
             # Play audio (blocking or threaded)
             await asyncio.to_thread(playsound, temp_path)
-            
+
             # Cleanup
             try:
                 os.remove(temp_path)
             except Exception as e:
                 logger.debug(f"Failed to cleanup TTS temp file: {e}")
                 pass
-                
+
         except Exception as e:
             logger.error(f"TTS Failed: {e}")
             logger.info(f"[FAILED SPEECH] >> {text}")

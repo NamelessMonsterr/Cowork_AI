@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class WindowInfo:
     """Information about a window."""
+
     hwnd: int
     title: str
     class_name: str
@@ -20,7 +21,7 @@ class WindowInfo:
 class Computer(Protocol):
     """
     Protocol defining the interface for computer control.
-    
+
     All implementations must provide these methods for the agent to interact
     with the computer environment.
     """

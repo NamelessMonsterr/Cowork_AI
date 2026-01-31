@@ -5,6 +5,7 @@ import os
 
 router = APIRouter(prefix="/support", tags=["Support"])
 
+
 @router.get("/diagnostics")
 async def get_diagnostics():
     """Generate and download a diagnostics bundle."""
@@ -13,11 +14,11 @@ async def get_diagnostics():
         zip_path = mgr.create_bundle()
         if not os.path.exists(zip_path):
             raise HTTPException(500, "Failed to generate bundle")
-            
+
         return FileResponse(
-            path=zip_path, 
+            path=zip_path,
             filename=os.path.basename(zip_path),
-            media_type="application/zip"
+            media_type="application/zip",
         )
     except Exception as e:
         raise HTTPException(500, f"Diagnostics error: {str(e)}")

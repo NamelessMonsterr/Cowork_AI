@@ -21,6 +21,7 @@ logger = logging.getLogger("MacroStorage")
 
 MACRO_DIR = os.path.join(os.getcwd(), ".conversations", "macros")
 
+
 class MacroStorage:
     def __init__(self):
         os.makedirs(MACRO_DIR, exist_ok=True)
@@ -30,7 +31,7 @@ class MacroStorage:
         macro_id = plan.id or str(uuid.uuid4())
         folder = os.path.join(MACRO_DIR, macro_id)
         os.makedirs(folder, exist_ok=True)
-        
+
         # 1. Save Plan
         with open(os.path.join(folder, "plan.json"), "w") as f:
             try:
@@ -39,15 +40,15 @@ class MacroStorage:
             except AttributeError:
                 # Pydantic V1 fallback
                 f.write(plan.json(indent=2))
-            
+
         # 2. Save Metadata
         metadata["id"] = macro_id
         metadata["saved_at"] = datetime.now().isoformat()
         metadata["macro_version"] = 1
-        
+
         with open(os.path.join(folder, "metadata.json"), "w") as f:
             json.dump(metadata, f, indent=2)
-            
+
         logger.info(f"Saved macro {macro_id} to {folder}")
         return macro_id
 
@@ -56,7 +57,7 @@ class MacroStorage:
         macros = []
         if not os.path.exists(MACRO_DIR):
             return []
-            
+
         for name in os.listdir(MACRO_DIR):
             meta_path = os.path.join(MACRO_DIR, name, "metadata.json")
             if os.path.exists(meta_path):
@@ -73,7 +74,7 @@ class MacroStorage:
         path = os.path.join(MACRO_DIR, macro_id, "plan.json")
         if not os.path.exists(path):
             return None
-            
+
         try:
             with open(path, "r") as f:
                 data = json.load(f)

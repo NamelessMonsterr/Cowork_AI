@@ -13,12 +13,12 @@ import time
 import threading
 from typing import Optional, Callable, List
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass
 class DownloadEvent:
     """Event triggered when a download activity is detected."""
+
     path: str
     filename: str
     size: int
@@ -29,19 +29,19 @@ class DownloadEvent:
 class DownloadWatcher:
     """
     Watches directories for new files and tracks download completion.
-    
+
     Usage:
         watcher = DownloadWatcher(
             paths=["C:/Users/User/Downloads"],
             on_download_complete=lambda event: print(f"Downloaded: {event.filename}")
         )
         watcher.start()
-        
+
         # ... perform download action ...
-        
+
         # Wait for next download
         event = watcher.wait_for_download(timeout=30)
-        
+
         watcher.stop()
     """
 
@@ -54,7 +54,7 @@ class DownloadWatcher:
     ):
         """
         Initialize DownloadWatcher.
-        
+
         Args:
             watch_paths: List of paths to watch (default: user Downloads)
             on_download_complete: Callback when download completes
@@ -63,25 +63,23 @@ class DownloadWatcher:
         """
         if watch_paths is None:
             # Default to Downloads folder
-            watch_paths = [
-                os.path.join(os.path.expanduser("~"), "Downloads")
-            ]
-        
+            watch_paths = [os.path.join(os.path.expanduser("~"), "Downloads")]
+
         self._watch_paths = [os.path.abspath(p) for p in watch_paths]
         self._on_complete = on_download_complete
         self._stability_duration = stability_duration
         self._check_interval = check_interval
-        
+
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
-        
+
         # Track pending files: {abspath: {"start_time": t, "last_size": s, "stable_since": t}}
         self._pending_files = {}
-        
+
         # Snapshots of directory state
         self._known_files = set()
-        
+
         # Event for synchronous waiting
         self._wait_event = threading.Event()
         self._last_download: Optional[DownloadEvent] = None
@@ -91,10 +89,10 @@ class DownloadWatcher:
         with self._lock:
             if self._running:
                 return
-            
+
             # Take initial snapshot
             self._known_files = self._scan_files()
-            
+
             self._running = True
             self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
             self._thread.start()
@@ -103,7 +101,7 @@ class DownloadWatcher:
         """Stop watching."""
         with self._lock:
             self._running = False
-        
+
         if self._thread:
             self._thread.join(timeout=2)
             self._thread = None
@@ -111,20 +109,20 @@ class DownloadWatcher:
     def wait_for_download(self, timeout: float = 30.0) -> Optional[DownloadEvent]:
         """
         Block until a new download completes.
-        
+
         Args:
             timeout: Max wait time in seconds
-            
+
         Returns:
             DownloadEvent if successful, None if timeout
         """
         self._wait_event.clear()
-        
+
         # If not running, start temporarily
         was_running = self._running
         if not was_running:
             self.start()
-        
+
         try:
             signaled = self._wait_event.wait(timeout)
             return self._last_download if signaled else None
@@ -152,41 +150,43 @@ class DownloadWatcher:
             try:
                 current_files = self._scan_files()
                 now = time.time()
-                
+
                 # Check for new files
                 new_files = current_files - self._known_files
-                
+
                 for file_path in new_files:
                     # Ignore temporary download files (.crdownload, .tmp, .part)
                     if self._is_temp_file(file_path):
                         continue
-                        
+
                     # Start tracking
                     self._pending_files[file_path] = {
                         "start_time": now,
                         "last_size": -1,
                         "stable_since": 0,
                     }
-                
+
                 # Update known files
                 self._known_files = current_files
-                
+
                 # Check pending files for completion
                 completed = []
-                
+
                 for path, info in list(self._pending_files.items()):
                     if not os.path.exists(path):
                         # File deleted/moved during download
                         del self._pending_files[path]
                         continue
-                    
+
                     try:
                         size = os.path.getsize(path)
-                        
+
                         if size == info["last_size"]:
                             if info["stable_since"] == 0:
                                 info["stable_since"] = now
-                            elif (now - info["stable_since"]) >= self._stability_duration:
+                            elif (
+                                now - info["stable_since"]
+                            ) >= self._stability_duration:
                                 # Completed!
                                 completed.append((path, size, now - info["start_time"]))
                                 del self._pending_files[path]
@@ -194,11 +194,11 @@ class DownloadWatcher:
                             # Size changed, reset stability
                             info["last_size"] = size
                             info["stable_since"] = 0
-                            
+
                     except OSError:
                         # File locked or inaccessible, just wait
                         continue
-                
+
                 # Notify completions
                 for path, size, duration in completed:
                     event = DownloadEvent(
@@ -206,26 +206,26 @@ class DownloadWatcher:
                         filename=os.path.basename(path),
                         size=size,
                         is_complete=True,
-                        duration_sec=duration
+                        duration_sec=duration,
                     )
-                    
+
                     self._last_download = event
                     self._wait_event.set()
-                    
+
                     if self._on_complete:
                         self._on_complete(event)
-                
+
             except Exception:
                 pass  # Keep monitoring
-                
+
             time.sleep(self._check_interval)
 
     def _is_temp_file(self, path: str) -> bool:
         """Check if file is a temporary download file."""
         lower = path.lower()
         return (
-            lower.endswith(".crdownload") or  # Chrome
-            lower.endswith(".tmp") or         # Generic
-            lower.endswith(".part") or        # Firefox
-            lower.endswith(".download")       # Safari
+            lower.endswith(".crdownload")  # Chrome
+            or lower.endswith(".tmp")  # Generic
+            or lower.endswith(".part")  # Firefox
+            or lower.endswith(".download")  # Safari
         )

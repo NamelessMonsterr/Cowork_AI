@@ -32,7 +32,7 @@ pyautogui.PAUSE = 0.05  # 50ms between actions
 class CoordsStrategy(Strategy):
     """
     Direct coordinate-based strategy using pyautogui.
-    
+
     This strategy handles actions that specify exact coordinates.
     It's the last resort when UIA/OCR/Vision strategies fail.
     """
@@ -54,41 +54,41 @@ class CoordsStrategy(Strategy):
         """
         tool = step.tool
         args = step.args
-        
+
         # Keyboard-only actions always work
         if tool in ("type", "keypress", "wait"):
             return True
-        
+
         # Check for explicit coordinates
         if "x" in args and "y" in args:
             return True
-        
+
         # Check for selector with bbox
         if step.selector and step.selector.bbox:
             return True
-        
+
         return False
 
     def execute(self, step: ActionStep) -> StrategyResult:
         """Execute the action using pyautogui."""
         tool = step.tool
         args = step.args.copy()
-        
+
         try:
             # Get coordinates from args or selector
             x, y = self._get_coordinates(step)
-            
+
             # Execute based on tool type
             if tool == "click":
                 button = args.get("button", "left")
                 pyautogui.click(x, y, button=button)
-                
+
             elif tool == "double_click":
                 pyautogui.doubleClick(x, y)
-                
+
             elif tool == "right_click":
                 pyautogui.rightClick(x, y)
-                
+
             elif tool == "scroll":
                 scroll_x = args.get("scroll_x", 0)
                 scroll_y = args.get("scroll_y", 0)
@@ -97,34 +97,31 @@ class CoordsStrategy(Strategy):
                 clicks = scroll_y // 100 if scroll_y != 0 else 0
                 if clicks != 0:
                     pyautogui.scroll(clicks)
-                    
+
             elif tool == "move":
                 pyautogui.moveTo(x, y)
-                
+
             elif tool == "drag":
                 path = args.get("path", [])
                 if path:
                     self._execute_drag(path)
-                    
+
             elif tool == "type":
                 text = args.get("text", "")
                 interval = args.get("interval", 0.02)
                 pyautogui.typewrite(text, interval=interval)
-                
+
             elif tool == "keypress":
                 keys = args.get("keys", [])
                 self._execute_keypress(keys)
-                
+
             elif tool == "wait":
                 ms = args.get("ms", 1000)
                 time.sleep(ms / 1000)
-                
+
             else:
-                return StrategyResult(
-                    success=False,
-                    error=f"Unknown tool: {tool}"
-                )
-            
+                return StrategyResult(success=False, error=f"Unknown tool: {tool}")
+
             # Create selector for caching if we used coordinates
             selector = None
             if x is not None and y is not None:
@@ -133,62 +130,57 @@ class CoordsStrategy(Strategy):
                     bbox=(x - 5, y - 5, x + 5, y + 5),  # Small bbox around click point
                     confidence=0.5,  # Low confidence for coord-based
                 )
-            
+
             return StrategyResult(
                 success=True,
                 selector=selector,
-                details={"x": x, "y": y} if x is not None else {}
+                details={"x": x, "y": y} if x is not None else {},
             )
-            
+
         except pyautogui.FailSafeException:
             return StrategyResult(
                 success=False,
-                error="PyAutoGUI failsafe triggered (mouse moved to corner)"
+                error="PyAutoGUI failsafe triggered (mouse moved to corner)",
             )
         except Exception as e:
             return StrategyResult(
-                success=False,
-                error=f"Coords execution failed: {str(e)}"
+                success=False, error=f"Coords execution failed: {str(e)}"
             )
 
     def _get_coordinates(self, step: ActionStep) -> tuple[Optional[int], Optional[int]]:
         """Extract coordinates from step args or selector."""
         args = step.args
-        
+
         # Explicit coordinates
         if "x" in args and "y" in args:
             return int(args["x"]), int(args["y"])
-        
+
         # From selector bbox (use center)
         if step.selector and step.selector.bbox:
             center = step.selector.get_center()
             if center:
                 return center
-        
+
         # Keyboard actions don't need coordinates
         if step.tool in ("type", "keypress", "wait"):
             return None, None
-        
+
         raise ValueError(f"No coordinates available for {step.tool}")
 
     def _execute_drag(self, path: list[dict]) -> None:
         """Execute a drag operation along a path."""
         if not path:
             return
-        
+
         # Move to start
         start = path[0]
         pyautogui.moveTo(start.get("x", 0), start.get("y", 0))
-        
+
         # Drag through path
         pyautogui.mouseDown()
         try:
             for point in path[1:]:
-                pyautogui.moveTo(
-                    point.get("x", 0), 
-                    point.get("y", 0),
-                    duration=0.1
-                )
+                pyautogui.moveTo(point.get("x", 0), point.get("y", 0), duration=0.1)
         finally:
             pyautogui.mouseUp()
 
@@ -224,7 +216,7 @@ class CoordsStrategy(Strategy):
             "arrowleft": "left",
             "arrowright": "right",
         }
-        
+
         mapped = [key_map.get(k.lower(), k.lower()) for k in keys]
         pyautogui.hotkey(*mapped)
 

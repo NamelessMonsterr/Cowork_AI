@@ -14,10 +14,12 @@ logger = logging.getLogger("LLM")
 
 try:
     from openai import OpenAI
+
     HAS_OPENAI = True
 except ImportError:
     HAS_OPENAI = False
     logger.warning("openai not installed. Run: pip install openai")
+
 
 class AgentResponse(BaseModel):
     thought: str
@@ -25,32 +27,34 @@ class AgentResponse(BaseModel):
     plan: List[Dict[str, Any]]
     needs_more_info: bool = False
 
+
 class LLMClient:
     def __init__(self):
         from assistant.config.settings import get_settings
-        
+
         # Try environment variable first, then settings
         self.api_key = os.environ.get("OPENAI_API_KEY")
         if not self.api_key:
             settings = get_settings()
             self.api_key = settings.voice.openai_api_key
-            
+
         if not self.api_key:
-            logger.warning("OpenAI API Key not found. Set OPENAI_API_KEY env var or configure in settings.")
-        
+            logger.warning(
+                "OpenAI API Key not found. Set OPENAI_API_KEY env var or configure in settings."
+            )
+
         if HAS_OPENAI:
             self.client = OpenAI(api_key=self.api_key)
         else:
             self.client = None
 
     def analyze_screen_and_plan(
-        self, 
-        task: str, 
+        self,
+        task: str,
         screenshot_path: Optional[str] = None,
         context: str = "",
-        system_append: str = ""
+        system_append: str = "",
     ) -> AgentResponse:
-        
         # === LOCAL-FIRST: Try rule-based fallback before hitting API ===
         # This saves API calls for common commands like "open notepad", "open chrome", etc.
         local_plan = self.detect_intent_fallback(task)
@@ -59,16 +63,16 @@ class LLMClient:
             return AgentResponse(
                 thought="Used local rules for common command.",
                 plan=local_plan,
-                reply_text="Processing locally."
+                reply_text="Processing locally.",
             )
-        
+
         # === API FALLBACK: Only call OpenAI for complex/unknown commands ===
         if not self.client:
             logger.warning("OpenAI not available and no local rules matched.")
             return AgentResponse(
                 thought="No matching local rules and OpenAI not installed.",
                 plan=[],
-                reply_text="Command not recognized. Try: 'open notepad' or 'open chrome'."
+                reply_text="Command not recognized. Try: 'open notepad' or 'open chrome'.",
             )
 
         logger.info(f"🌐 No local rules matched. Calling OpenAI for: {task}")
@@ -95,36 +99,41 @@ You MUST respond with valid JSON in this exact format:
         {"action": "speak", "value": "Done!"}
     ]
 }"""
-        
+
         if system_append:
-            system_prompt += f"\n\n=== ADDITIONAL SKILL INSTRUCTIONS ===\n{system_append}"
+            system_prompt += (
+                f"\n\n=== ADDITIONAL SKILL INSTRUCTIONS ===\n{system_append}"
+            )
 
         user_prompt = f"User Task: {task}\nContext: {context}"
 
         try:
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ]
-            
+
             # Add screenshot if available
             if screenshot_path and os.path.exists(screenshot_path):
                 with open(screenshot_path, "rb") as f:
-                    image_data = base64.b64encode(f.read()).decode('utf-8')
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
                 messages[1] = {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": user_prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}}
-                    ]
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{image_data}"},
+                        },
+                    ],
                 }
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
-            
+
             content = response.choices[0].message.content
             logger.info(f"LLM Response: {content}")
 
@@ -137,7 +146,7 @@ You MUST respond with valid JSON in this exact format:
             return AgentResponse(
                 thought=f"API error: {e}",
                 plan=[],
-                reply_text="I couldn't process that command. Try simpler commands like 'open notepad'."
+                reply_text="I couldn't process that command. Try simpler commands like 'open notepad'.",
             )
 
     def detect_intent_fallback(self, user_text: str) -> Optional[List[Dict[str, Any]]]:
@@ -146,9 +155,9 @@ You MUST respond with valid JSON in this exact format:
         To add new actions, edit: assistant/agent/actions.py
         """
         from assistant.agent.actions import match_action
+
         return match_action(user_text)
 
     def _get_fallback_plan(self, task: str) -> List[Dict[str, Any]]:
         # Alias for backward compatibility if needed
         return self.detect_intent_fallback(task) or []
-

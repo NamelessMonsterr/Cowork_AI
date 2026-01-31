@@ -8,9 +8,10 @@ import os
 import json
 import logging
 from enum import Enum
-from typing import Set, Dict
+from typing import Set
 
 logger = logging.getLogger("PluginLifecycle")
+
 
 class PluginState(Enum):
     INSTALLED = "installed"
@@ -21,15 +22,16 @@ class PluginState(Enum):
     NEEDS_PERMISSION = "needs_permission"
     NEEDS_SECRETS = "needs_secrets"
 
+
 class PluginStateManager:
     def __init__(self):
-        self.config_dir = os.path.join(os.getenv('APPDATA'), 'CoworkAI', 'plugins')
-        self.enabled_file = os.path.join(self.config_dir, 'enabled.json')
-        self.trusted_file = os.path.join(self.config_dir, 'trusted.json')
-        
+        self.config_dir = os.path.join(os.getenv("APPDATA"), "CoworkAI", "plugins")
+        self.enabled_file = os.path.join(self.config_dir, "enabled.json")
+        self.trusted_file = os.path.join(self.config_dir, "trusted.json")
+
         self.enabled_plugins: Set[str] = set()
-        self.trusted_publishers: Set[str] = {"CoworkAI Team", "LocalDev"} # Defaults
-        
+        self.trusted_publishers: Set[str] = {"CoworkAI Team", "LocalDev"}  # Defaults
+
         # Ensure dir exists
         os.makedirs(self.config_dir, exist_ok=True)
         self._load()
@@ -39,7 +41,7 @@ class PluginStateManager:
         # 1. Load Enabled Plugins
         if os.path.exists(self.enabled_file):
             try:
-                with open(self.enabled_file, 'r') as f:
+                with open(self.enabled_file, "r") as f:
                     data = json.load(f)
                     self.enabled_plugins = set(data.get("enabled", []))
             except Exception as e:
@@ -48,10 +50,10 @@ class PluginStateManager:
         # 2. Load Trusted Publishers
         if os.path.exists(self.trusted_file):
             try:
-                with open(self.trusted_file, 'r') as f:
+                with open(self.trusted_file, "r") as f:
                     data = json.load(f)
                     self.trusted_publishers = set(data.get("trusted", []))
-                    self.trusted_publishers.add("CoworkAI Team") # Always trust host
+                    self.trusted_publishers.add("CoworkAI Team")  # Always trust host
                     self.trusted_publishers.add("LocalDev")
             except Exception as e:
                 logger.error(f"Failed to load trusted publishers: {e}")
@@ -60,12 +62,12 @@ class PluginStateManager:
         """Persist enabled plugins and trusted publishers."""
         try:
             data = {"enabled": list(self.enabled_plugins)}
-            with open(self.enabled_file, 'w') as f:
+            with open(self.enabled_file, "w") as f:
                 json.dump(data, f, indent=2)
-                
+
             trust_data = {"trusted": list(self.trusted_publishers)}
-            with open(self.trusted_file, 'w') as f:
-                json.dump(trust_data, f, indent=2) 
+            with open(self.trusted_file, "w") as f:
+                json.dump(trust_data, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save plugin config: {e}")
 
@@ -83,11 +85,11 @@ class PluginStateManager:
 
     def is_trusted(self, publisher: str) -> bool:
         return publisher in self.trusted_publishers
-        
+
     def trust_publisher(self, publisher: str):
         self.trusted_publishers.add(publisher)
         self._save()
-        
+
     def untrust_publisher(self, publisher: str):
         if publisher in self.trusted_publishers:
             self.trusted_publishers.remove(publisher)

@@ -9,17 +9,21 @@ import time
 
 BASE = "http://127.0.0.1:8765"
 
+
 def test_command(task):
     """Test a single command and report result."""
     try:
         r = requests.post(f"{BASE}/just_do_it", json={"task": task}, timeout=5)
         data = r.json()
         status = "✅" if data.get("success") else "❌"
-        print(f"{status} {task:30} → {data.get('action', 'unknown'):15} {data.get('status', 'error')}")
+        print(
+            f"{status} {task:30} → {data.get('action', 'unknown'):15} {data.get('status', 'error')}"
+        )
         return data.get("success", False)
     except Exception as e:
         print(f"❌ {task:30} → ERROR: {e}")
         return False
+
 
 print("=" * 70)
 print("🎬 PRE-DEMO CHECKLIST - Testing All Commands")
@@ -93,5 +97,5 @@ if all_passed:
 else:
     print("⚠️  Some demo commands failed. Fix these first!")
     print("   Then run this test again before recording.")
-    
+
 print("=" * 70)

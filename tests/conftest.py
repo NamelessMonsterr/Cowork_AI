@@ -2,6 +2,7 @@
 P4.1 - Pytest Configuration.
 Shared fixtures and test utilities.
 """
+
 import os
 import sys
 import pytest
@@ -24,6 +25,7 @@ def temp_db(tmp_path):
 def mock_settings():
     """Provide default settings for tests."""
     from assistant.config.settings import AppSettings
+
     return AppSettings()
 
 
@@ -31,4 +33,5 @@ def mock_settings():
 def learning_store(temp_db):
     """Provide a fresh learning store."""
     from assistant.learning.store import LearningStore
+
     return LearningStore(str(temp_db))

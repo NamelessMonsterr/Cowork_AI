@@ -11,10 +11,14 @@ import time
 import os
 import subprocess
 import logging
-from typing import Optional, List, Dict, Any, Tuple
-from enum import Enum
+from typing import List, Dict, Any, Tuple
 
-from assistant.ui_contracts.schemas import VerifySpec, VerifyType, VerificationResult, UISelector
+from assistant.ui_contracts.schemas import (
+    VerifySpec,
+    VerifyType,
+    VerificationResult,
+    UISelector,
+)
 
 # Import Strategy interface for type hinting
 try:
@@ -22,31 +26,34 @@ try:
 except ImportError:
     Strategy = Any
 
+
 class VerificationError(Exception):
     pass
+
 
 class Verifier:
     def __init__(
         self,
         computer: "WindowsComputer" = None,
         strategies: List[Strategy] = None,
-        default_confidence: float = 0.7
+        default_confidence: float = 0.7,
     ):
         self._computer = computer
         self._strategies = strategies or []
         self._default_confidence = default_confidence
-        
+
         # Build strategy lookup map
         self._strategy_map = {s.name: s for s in self._strategies}
-        
+
         import ctypes
+
         self._user32 = ctypes.windll.user32
         self.logger = logging.getLogger("Verifier")
 
     def capture_state(self) -> Dict[str, Any]:
         """Capture current system state (screenshot + active window)."""
         state = {"timestamp": time.time()}
-        
+
         # Capture screenshot if computer available
         if self._computer:
             try:
@@ -61,7 +68,7 @@ class Verifier:
                     state["screenshot"] = path
             except Exception as e:
                 self.logger.warning(f"Failed to capture screenshot: {e}")
-                
+
             # Capture active window
             try:
                 win = self._computer.get_active_window()
@@ -69,28 +76,28 @@ class Verifier:
                     state["active_window"] = {
                         "title": win.title,
                         "process_id": win.process_id,
-                        "rect": win.rect
+                        "rect": win.rect,
                     }
             except Exception as e:
                 self.logger.warning(f"Failed to get active window: {e}")
-                
+
         return state
 
     def verify(self, spec: VerifySpec) -> VerificationResult:
         """Perform tiered verification."""
         start_time = time.time()
-        
+
         try:
             deadline = time.time() + spec.timeout
             last_error = None
-            
+
             while time.time() < deadline:
                 try:
                     success, details = self._check_condition_tiered(spec)
-                    
+
                     if spec.negate:
                         success = not success
-                    
+
                     if success:
                         return VerificationResult(
                             success=True,
@@ -99,14 +106,14 @@ class Verifier:
                             actual=str(details),
                             duration_ms=int((time.time() - start_time) * 1000),
                         )
-                    
+
                     last_error = f"Expected: {spec.value}, Details: {details}"
-                    
+
                 except Exception as e:
                     last_error = str(e)
-                
-                time.sleep(0.5) # Polling interval
-            
+
+                time.sleep(0.5)  # Polling interval
+
             return VerificationResult(
                 success=False,
                 verify_type=str(spec.type),
@@ -114,7 +121,7 @@ class Verifier:
                 duration_ms=int((time.time() - start_time) * 1000),
                 error=f"Timeout: {last_error}",
             )
-            
+
         except Exception as e:
             return VerificationResult(
                 success=False,
@@ -130,14 +137,14 @@ class Verifier:
         Returns: (success, details/confidence)
         """
         vtype = spec.type
-        
+
         # 1. OS-Level Checks (Fastest)
         if vtype == VerifyType.PROCESS_RUNNING:
             return self._check_process(spec.value)
-        
+
         if vtype == VerifyType.WINDOW_TITLE:
             return self._check_window_title(spec.value)
-            
+
         if vtype == VerifyType.FILE_EXISTS:
             return self._check_file(spec.value)
 
@@ -169,29 +176,29 @@ class Verifier:
             if vision:
                 selector = UISelector(strategy="vision", template_name=target)
                 if vision.validate_element(selector):
-                     return True, {"method": "vision", "confidence": 0.9}
+                    return True, {"method": "vision", "confidence": 0.9}
 
         # Tier 3: OCR (if text present check)
         # Assuming we might have an OCR strategy or vision strategy wraps OCR
         # For now, simplistic check: do we have a way to read text?
         # If 'ocr' strategy exists use it, otherwise check computer.screenshot logic
-        pass 
-        
+        pass
+
         # Fallback to legacy OCR check (slow, expensive)
         return self._check_ocr_legacy(target)
 
     def _check_ocr_legacy(self, text: str) -> Tuple[bool, Dict]:
         """Legacy OCR check using computer screenshot."""
         if not self._computer:
-             return False, {"error": "no_computer"}
-             
+            return False, {"error": "no_computer"}
+
         try:
-             # This assumes some OCR capability exists or computer can get text
-             # Optimally, we should use a proper OCR strategy
-             # For W7, we assume failure if no OCR strategy loaded
-             return False, {"reason": "no_ocr_strategy"}
+            # This assumes some OCR capability exists or computer can get text
+            # Optimally, we should use a proper OCR strategy
+            # For W7, we assume failure if no OCR strategy loaded
+            return False, {"reason": "no_ocr_strategy"}
         except:
-             return False, {}
+            return False, {}
 
     # --- OS Checks ---
 
@@ -202,8 +209,7 @@ class Verifier:
             # BEFORE: cmd = f'tasklist /FI "IMAGENAME eq {name}"', shell=True
             # AFTER: Safe list arguments
             output = subprocess.check_output(
-                ['tasklist', '/FI', f'IMAGENAME eq {name}', '/NH'],
-                text=True
+                ["tasklist", "/FI", f"IMAGENAME eq {name}", "/NH"], text=True
             )
             return name.lower() in output.lower(), output[:50]
         except Exception as e:
@@ -212,10 +218,11 @@ class Verifier:
 
     def _check_window_title(self, text: str) -> Tuple[bool, str]:
         hwnd = self._user32.GetForegroundWindow()
-        if not hwnd: return False, "No active window"
+        if not hwnd:
+            return False, "No active window"
         length = self._user32.GetWindowTextLengthW(hwnd)
-        buff = ctypes.create_unicode_buffer(length+1)
-        self._user32.GetWindowTextW(hwnd, buff, length+1)
+        buff = ctypes.create_unicode_buffer(length + 1)
+        self._user32.GetWindowTextW(hwnd, buff, length + 1)
         title = buff.value
         return text.lower() in title.lower(), title
 

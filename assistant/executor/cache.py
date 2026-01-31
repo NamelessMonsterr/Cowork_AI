@@ -7,37 +7,35 @@ Part of W7 optimization suite.
 
 import time
 import threading
-from typing import Optional, Any
+from typing import Optional
 from assistant.ui_contracts.schemas import UISelector
+
 
 class SelectorCache:
     def __init__(self, ttl_sec: float = 60.0):
         self._cache = {}
         self._lock = threading.Lock()
         self.ttl = ttl_sec
-        
+
     def get(self, key: str) -> Optional[UISelector]:
         """Retrieve cached selector if valid."""
         with self._lock:
             entry = self._cache.get(key)
             if not entry:
                 return None
-                
+
             # Check expiry
             if time.time() - entry["ts"] > self.ttl:
                 del self._cache[key]
                 return None
-                
+
             return entry["selector"]
 
     def set(self, key: str, selector: UISelector):
         """Cache a resolved selector."""
         with self._lock:
-            self._cache[key] = {
-                "selector": selector,
-                "ts": time.time()
-            }
-            
+            self._cache[key] = {"selector": selector, "ts": time.time()}
+
     def invalidate(self, key: str = None):
         """Invalidate specific key or entire cache."""
         with self._lock:
@@ -45,7 +43,7 @@ class SelectorCache:
                 self._cache.pop(key, None)
             else:
                 self._cache.clear()
-                
+
     def generate_key(self, tool: str, args: dict, window_title: str) -> str:
         """Generate deterministic cache key."""
         # Normalize args to string

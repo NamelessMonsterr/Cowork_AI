@@ -25,13 +25,12 @@ from dataclasses import dataclass
 from assistant.ui_contracts.schemas import (
     ActionStep,
     StepResult,
-    VerificationResult,
     UISelector,
 )
 from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
 from assistant.safety.budget import ActionBudget, BudgetExceededError
 from assistant.safety.environment import EnvironmentMonitor, EnvironmentState
-from .strategies.base import Strategy, StrategyResult
+from .strategies.base import Strategy
 from .cache import SelectorCache
 from .verify import Verifier
 
@@ -39,13 +38,14 @@ from .verify import Verifier
 try:
     from assistant.learning.ranker import StrategyRanker
     from assistant.learning.collector import LearningCollector
+
     HAS_LEARNING = True
 except ImportError:
     HAS_LEARNING = False
     StrategyRanker = None
     LearningCollector = None
 
-from assistant.safety.focus_guard import FocusGuard, FocusLostError
+from assistant.safety.focus_guard import FocusGuard
 from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
 
 
@@ -55,6 +55,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExecutorConfig:
     """Configuration for ReliableExecutor."""
+
     max_retries_per_strategy: int = 3
     retry_delays: list[float] = None  # Exponential backoff delays
     verify_timeout_sec: int = 5
@@ -62,7 +63,7 @@ class ExecutorConfig:
     capture_screenshots: bool = True
     use_selector_cache: bool = True
     safe_mode: bool = False  # If True, blocks destructive actions
-    
+
     def __post_init__(self):
         if self.retry_delays is None:
             self.retry_delays = [0.5, 1.0, 2.0]  # Exponential backoff
@@ -71,7 +72,7 @@ class ExecutorConfig:
 class ReliableExecutor:
     """
     Multi-strategy executor with verification and safety checks.
-    
+
     Usage:
         executor = ReliableExecutor(
             strategies=[uia_strategy, ocr_strategy, vision_strategy, coords_strategy],
@@ -81,7 +82,7 @@ class ReliableExecutor:
             environment=environment_monitor,
             cache=selector_cache,
         )
-        
+
         result = executor.execute(step)
         if not result.success:
             if result.requires_takeover:
@@ -89,8 +90,6 @@ class ReliableExecutor:
             else:
                 # Handle error
     """
-
-
 
     def __init__(
         self,
@@ -122,87 +121,92 @@ class ReliableExecutor:
         self._config = config or ExecutorConfig()
         self._on_takeover = on_takeover_required
         self._on_step_complete = on_step_complete
-        
+
         # V24 Safety Components
         self._focus_guard = focus_guard
         self._rate_limiter = rate_limiter
-        
+
         self._is_paused = False
         self._pause_reason = ""
-        
+
         # W20.3: Learning Components (Optional)
         self._ranker = ranker
         self._collector = collector
-        
+
         # P6 FIX: Store verifier's computer reference for error snapshots
         self._computer = None
-        if self._verifier and hasattr(self._verifier, '_computer'):
+        if self._verifier and hasattr(self._verifier, "_computer"):
             self._computer = self._verifier._computer
 
     def execute(self, step: ActionStep) -> StepResult:
         """
         Execute an action step with full safety and reliability.
-        
+
         Args:
             step: The action step to execute
-            
+
         Returns:
             StepResult with execution details
         """
         start_time = time.time()
         screenshot_before = None
         screenshot_after = None
-        
+
         DESTRUCTIVE_TOOLS = ["delete_file", "kill_process", "format_disk"]
-        
+
         try:
             # 1. Check paused state
             if self._is_paused:
                 return self._make_failed_result(
-                    step, start_time,
+                    step,
+                    start_time,
                     error=f"Executor paused: {self._pause_reason}",
                     requires_takeover=True,
                     takeover_reason=self._pause_reason,
                 )
-            
+
             # 1.5 Safe Mode Check (V24)
             if self._config.safe_mode and step.tool in DESTRUCTIVE_TOOLS:
                 return self._make_failed_result(
-                    step, start_time,
+                    step,
+                    start_time,
                     error=f"Action blocked by Safe Mode: {step.tool}",
                     requires_takeover=True,
                     takeover_reason="Destructive action blocked by Safe Mode",
                 )
-            
+
             # 2. Check session permission
             try:
                 self._session.ensure()
             except PermissionDeniedError as e:
                 return self._make_failed_result(
-                    step, start_time,
+                    step,
+                    start_time,
                     error=str(e),
                     requires_takeover=True,
                     takeover_reason="Session permission required",
                 )
-            
+
             # 3. Check budget
             try:
                 self._budget.check_budget()
             except BudgetExceededError as e:
                 return self._make_failed_result(
-                    step, start_time,
+                    step,
+                    start_time,
                     error=str(e),
                     requires_takeover=True,
                     takeover_reason=f"Budget exceeded: {e.budget_type}",
                 )
-            
+
             # 4. Check environment safety
             if self._environment:
                 env_state = self._environment.check_state()
                 if env_state != EnvironmentState.NORMAL:
                     reason = f"Unsafe environment: {env_state.value}"
                     return self._make_failed_result(
-                        step, start_time,
+                        step,
+                        start_time,
                         error=reason,
                         requires_takeover=True,
                         takeover_reason=reason,
@@ -214,12 +218,13 @@ class ReliableExecutor:
                 focus_res = self._focus_guard.check_focus()
                 if not focus_res.is_focused:
                     return self._make_failed_result(
-                        step, start_time,
+                        step,
+                        start_time,
                         error=f"Focus lost: {focus_res.error or 'Active window mismatch'}",
                         requires_takeover=True,
                         takeover_reason="Focus Guard: Execution paused due to focus loss",
                     )
-            
+
             # Check Rate Limit
             if self._rate_limiter:
                 try:
@@ -232,16 +237,17 @@ class ReliableExecutor:
                         self._rate_limiter.record_click(source="agent")
                 except RateLimitExceededError as e:
                     return self._make_failed_result(
-                        step, start_time,
+                        step,
+                        start_time,
                         error=str(e),
                         requires_takeover=True,
                         takeover_reason=f"Rate Limiter: {str(e)}",
                     )
-            
+
             # 5. Capture before state
             before_state = self._verifier.capture_state()
             screenshot_before = before_state.get("screenshot")
-            
+
             # 6. Check selector cache
             cache_key = None
             if self._config.use_selector_cache:
@@ -250,18 +256,20 @@ class ReliableExecutor:
                     win = self._verifier._computer.get_active_window()
                     if win:
                         current_title = win.title
-                        
-                cache_key = self._cache.generate_key(step.tool, step.args, current_title)
+
+                cache_key = self._cache.generate_key(
+                    step.tool, step.args, current_title
+                )
                 cached = self._cache.get(cache_key)
                 if cached:
                     step.selector = cached
                     logger.debug(f"Using cached selector for {cache_key}")
-            
+
             # 7. Try strategies in priority order (W20.3: Use Ranker if available)
             last_error = None
             strategy_used = None
             selector_to_cache = None
-            
+
             # Extract app name from window title for learning
             app_name = None
             if current_title:
@@ -269,14 +277,16 @@ class ReliableExecutor:
                 # In production, we'd get actual process name from Computer
                 parts = current_title.split(" - ")
                 app_name = parts[-1].lower() if parts else "unknown"
-            
+
             # W20.3: Reorder strategies based on learned success rates
             ordered_strategies = self._strategies
             if self._ranker and app_name:
                 strategy_order = self._ranker.get_strategy_order(app_name)
                 # Reorder self._strategies to match
                 name_to_strat = {s.name: s for s in self._strategies}
-                ordered_strategies = [name_to_strat[n] for n in strategy_order if n in name_to_strat]
+                ordered_strategies = [
+                    name_to_strat[n] for n in strategy_order if n in name_to_strat
+                ]
                 # Add any strategies not in the order (safety)
                 for s in self._strategies:
                     if s not in ordered_strategies:
@@ -285,42 +295,50 @@ class ReliableExecutor:
             for strategy in ordered_strategies:
                 if not strategy.can_handle(step):
                     continue
-                
+
                 strategy_used = strategy.name
-                
+
                 # Try with retries
                 for attempt, delay in enumerate(self._config.retry_delays):
                     if attempt > 0:
                         time.sleep(delay)
                         self._budget.record_action(success=False, was_retry=True)
-                    
+
                     try:
                         result = strategy.execute(step)
-                        
+
                         if result.success:
                             selector_to_cache = result.selector
-                            
+
                             # 8. Verify if spec provided
                             verification = None
                             if step.verify:
                                 verification = self._verifier.verify(step.verify)
-                                
+
                                 if not verification.success:
-                                    last_error = f"Verification failed: {verification.error}"
+                                    last_error = (
+                                        f"Verification failed: {verification.error}"
+                                    )
                                     continue  # Try next retry/strategy
-                            
+
                             # Success!
-                            self._budget.record_action(success=True, was_retry=attempt > 0)
-                            
+                            self._budget.record_action(
+                                success=True, was_retry=attempt > 0
+                            )
+
                             # Cache selector
-                            if selector_to_cache and self._config.use_selector_cache and cache_key:
+                            if (
+                                selector_to_cache
+                                and self._config.use_selector_cache
+                                and cache_key
+                            ):
                                 self._cache.set(cache_key, selector_to_cache)
-                            
+
                             # Capture after screenshot
                             if self._config.capture_screenshots:
                                 after_state = self._verifier.capture_state()
                                 screenshot_after = after_state.get("screenshot")
-                            
+
                             step_result = StepResult(
                                 step_id=step.id,
                                 success=True,
@@ -332,10 +350,10 @@ class ReliableExecutor:
                                 screenshot_after=screenshot_after,
                                 selector_cached=selector_to_cache,
                             )
-                            
+
                             if self._on_step_complete:
                                 self._on_step_complete(step_result)
-                            
+
                             # W20.3: Record success for learning
                             if self._collector and app_name:
                                 self._collector.ingest_execution_step(
@@ -343,29 +361,33 @@ class ReliableExecutor:
                                     window_title=current_title,
                                     strategy=strategy_used,
                                     success=True,
-                                    duration_ms=step_result.duration_ms
+                                    duration_ms=step_result.duration_ms,
                                 )
-                            
+
                             return step_result
-                        
+
                         else:
                             last_error = result.error
-                            
+
                     except Exception as e:
                         last_error = str(e)
-                        logger.exception(f"Strategy {strategy.name} failed on attempt {attempt + 1}")
-            
+                        logger.exception(
+                            f"Strategy {strategy.name} failed on attempt {attempt + 1}"
+                        )
+
             # All strategies failed
             self._budget.record_action(success=False)
-            
+
             # P6 FIX: Capture error snapshot for debugging
             screenshot_path = ""
-            if hasattr(self, '_computer') and self._computer:
+            if hasattr(self, "_computer") and self._computer:
                 try:
-                    screenshot_path = self._computer.capture_error_snapshot(f"{step.tool}_{last_error[:50]}")
+                    screenshot_path = self._computer.capture_error_snapshot(
+                        f"{step.tool}_{last_error[:50]}"
+                    )
                 except:
                     pass
-            
+
             # W20.3: Record failure for learning
             if self._collector and app_name:
                 self._collector.ingest_execution_step(
@@ -373,11 +395,12 @@ class ReliableExecutor:
                     window_title=current_title,
                     strategy=strategy_used or "unknown",
                     success=False,
-                    duration_ms=int((time.time() - start_time) * 1000)
+                    duration_ms=int((time.time() - start_time) * 1000),
                 )
-            
+
             return self._make_failed_result(
-                step, start_time,
+                step,
+                start_time,
                 error=f"All strategies failed. Last error: {last_error}",
                 strategy_used=strategy_used,
                 screenshot_before=screenshot_before,
@@ -385,11 +408,12 @@ class ReliableExecutor:
                 requires_takeover=True,
                 takeover_reason="All automation strategies failed",
             )
-            
+
         except Exception as e:
             logger.exception(f"Executor error on step {step.id}")
             return self._make_failed_result(
-                step, start_time,
+                step,
+                start_time,
                 error=str(e),
                 screenshot_before=screenshot_before,
             )
@@ -432,19 +456,19 @@ class ReliableExecutor:
             error=error,
             screenshot_before=screenshot_before,
         )
-        
+
         if requires_takeover and self._on_takeover:
             self._on_takeover(takeover_reason or error)
-        
+
         if self._on_step_complete:
             self._on_step_complete(result)
-        
+
         return result
 
     def find_element(self, step: ActionStep) -> Optional[UISelector]:
         """
         Pre-find an element using available strategies.
-        
+
         Useful for plan preview or pre-computing selectors.
         """
         for strategy in self._strategies:
@@ -459,11 +483,11 @@ class ReliableExecutor:
         selector = self._cache.get(step_id)
         if not selector:
             return False
-        
+
         for strategy in self._strategies:
             if strategy.name == selector.strategy:
                 return strategy.validate_element(selector)
-        
+
         return False
 
     def get_stats(self) -> dict:

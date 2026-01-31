@@ -10,15 +10,18 @@ import subprocess
 import ctypes
 import pyautogui
 import keyboard
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
 from .input_protocol import (
-    INPUT, INPUT_UNION, MOUSEINPUT, KEYBDINPUT,
-    INPUT_MOUSE, INPUT_KEYBOARD,
-    MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE,
-    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP
+    INPUT,
+    INPUT_UNION,
+    MOUSEINPUT,
+    INPUT_MOUSE,
+    MOUSEEVENTF_MOVE,
+    MOUSEEVENTF_ABSOLUTE,
+    MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP,
 )
 from assistant.screen.capture import ScreenCapture
 
@@ -31,6 +34,7 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Computer")
 
+
 @dataclass
 class WindowInfo:
     title: str
@@ -39,15 +43,16 @@ class WindowInfo:
     rect: Tuple[int, int, int, int]
     is_active: bool
 
+
 class WindowsComputer:
     def __init__(self):
         self.screen_capture = ScreenCapture(monitor_idx=0)
         self.width, self.height = pyautogui.size()
         self.user32 = ctypes.windll.user32
-        
+
         # Safety Callback (to be set by SessionAuth)
         self.session_verifier = None
-    
+
     def is_workstation_locked(self) -> bool:
         """
         Check if the Windows workstation is locked.
@@ -55,56 +60,60 @@ class WindowsComputer:
         """
         # GetForegroundWindow returns 0 if there is no foreground window (locked session)
         return bool(self.user32.GetForegroundWindow() == 0)
-    
+
     def capture_error_snapshot(self, reason: str) -> str:
         """
         Takes a screenshot and saves it to errors folder.
         P6 FIX: Black box feature for visual debugging.
-        
+
         Returns:
             Path to the saved screenshot
         """
         from datetime import datetime
         import os
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_reason = reason.replace(" ", "_").replace("/", "_").replace("\\", "_")[:30]
         filename = f"error_{timestamp}_{safe_reason}.png"
-        
+
         # Ensure directory exists
         error_dir = "logs/screenshots/errors"
         os.makedirs(error_dir, exist_ok=True)
-        
+
         full_path = os.path.join(error_dir, filename)
-        
+
         # Capture screenshot
         try:
             screenshot = pyautogui.screenshot()
             screenshot.save(full_path)
             logger.error(f"[Snapshot] Saved failure screenshot to {full_path}")
-            
+
             # P6 FIX: Cleanup old screenshots (keep last 100)
             self._cleanup_old_screenshots(error_dir, max_files=100)
-            
+
             return os.path.abspath(full_path)
         except Exception as e:
             logger.error(f"[Snapshot] Failed to capture screenshot: {e}")
             return ""
-    
+
     def _cleanup_old_screenshots(self, directory: str, max_files: int = 100):
         """Remove old error screenshots to prevent disk bloat."""
         try:
-            files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.png')]
+            files = [
+                os.path.join(directory, f)
+                for f in os.listdir(directory)
+                if f.endswith(".png")
+            ]
             if len(files) > max_files:
                 # Sort by modification time, oldest first
                 files.sort(key=os.path.getmtime)
                 # Delete oldest files
-                for f in files[:len(files) - max_files]:
+                for f in files[: len(files) - max_files]:
                     os.remove(f)
                     logger.info(f"[Cleanup] Removed old screenshot: {f}")
         except Exception as e:
             logger.warning(f"[Cleanup] Failed to cleanup screenshots: {e}")
-        
+
         # Fail-safes
         pyautogui.FAILSAFE = True
 
@@ -125,26 +134,26 @@ class WindowsComputer:
         hwnd = self.user32.GetForegroundWindow()
         if not hwnd:
             return None
-            
+
         length = self.user32.GetWindowTextLengthW(hwnd)
         buff = ctypes.create_unicode_buffer(length + 1)
         self.user32.GetWindowTextW(hwnd, buff, length + 1)
         title = buff.value
-        
+
         # Get Process ID
         pid = ctypes.c_ulong()
         self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        
+
         # Get Rect
         rect = ctypes.wintypes.RECT()
         self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-        
+
         return WindowInfo(
             title=title,
             handle=hwnd,
             process_id=pid.value,
             rect=(rect.left, rect.top, rect.right, rect.bottom),
-            is_active=True
+            is_active=True,
         )
 
     def _to_absolute(self, x: int, y: int) -> Tuple[int, int]:
@@ -164,16 +173,18 @@ class WindowsComputer:
     def mouse_move(self, x: int, y: int, duration: float = 0):
         """Move mouse using SendInput (Absolute)."""
         abs_x, abs_y = self._to_absolute(x, y)
-        
+
         mi = MOUSEINPUT(
-            dx=abs_x, dy=abs_y,
+            dx=abs_x,
+            dy=abs_y,
             mouseData=0,
             dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-            time=0, dwExtraInfo=None
+            time=0,
+            dwExtraInfo=None,
         )
         inp = INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=mi))
         self._send_input([inp])
-        
+
         # Optional: Sleep for natural movement if duration > 0 (SendInput is instant)
         if duration > 0:
             time.sleep(duration)
@@ -186,21 +197,21 @@ class WindowsComputer:
                 "Workstation is locked. UI automation cannot proceed. "
                 "Please unlock the screen to resume execution."
             )
-        
+
         self.mouse_move(x, y)
         time.sleep(0.05)
-        
+
         # Down + Up
         down = MOUSEINPUT(0, 0, 0, MOUSEEVENTF_LEFTDOWN, 0, None)
         up = MOUSEINPUT(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, None)
-        
+
         inputs = [
             INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=down)),
-            INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=up))
+            INPUT(type=INPUT_MOUSE, union=INPUT_UNION(mi=up)),
         ]
-        
+
         self._send_input(inputs)
-        
+
         if double:
             time.sleep(0.1)
             self._send_input(inputs)
@@ -220,6 +231,7 @@ class WindowsComputer:
         """Return screenshot as base64 string."""
         import io
         import base64
+
         img = self.screen_capture.capture()
         if img:
             buffered = io.BytesIO()
@@ -243,23 +255,23 @@ class WindowsComputer:
         """Launch application dynamically."""
         self._ensure_permission()
         import shutil
-        
+
         logger.info(f"Attempting to launch: {app_name}")
         try:
             # 1. Try finding in PATH
             path = shutil.which(app_name) or shutil.which(app_name + ".exe")
-            
+
             if path:
                 logger.info(f"Found executable: {path}")
                 subprocess.Popen(path)
                 return True
-                
+
             # 2. Try os.startfile (Windows Shell Execute - good for registered apps like 'chrome')
             # This handles protocol handlers and App Paths
             logger.info(f"Trying os.startfile for: {app_name}")
             os.startfile(app_name)
             return True
-            
+
         except Exception as e:
             logger.error(f"Launch failed for {app_name}: {e}")
             return False
@@ -277,7 +289,7 @@ class WindowsComputer:
         try:
             # SECURITY FIX: Use list args instead of shell=True
             # Prevents shell metacharacter injection
-            subprocess.Popen(['powershell.exe', '-Command', command], shell=False)
+            subprocess.Popen(["powershell.exe", "-Command", command], shell=False)
             return True
         except Exception as e:
             logger.error(f"Command failed: {e}")

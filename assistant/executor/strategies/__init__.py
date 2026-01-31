@@ -13,10 +13,10 @@ from .system import SystemStrategy
 from .uia import UIAStrategy
 from .vision import VisionStrategy
 from .coords import CoordsStrategy
+
 try:
     from .ocr import OCRStrategy
 except ImportError:
     pass
 
 __all__ = ["SystemStrategy", "UIAStrategy", "VisionStrategy", "CoordsStrategy"]
-

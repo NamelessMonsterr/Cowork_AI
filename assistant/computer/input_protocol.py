@@ -4,7 +4,6 @@ Defines structures for SendInput.
 """
 
 import ctypes
-from ctypes import wintypes
 
 # Types
 LONG = ctypes.c_long
@@ -38,6 +37,7 @@ KEYEVENTF_KEYUP = 0x0002
 KEYEVENTF_UNICODE = 0x0004
 KEYEVENTF_SCANCODE = 0x0008
 
+
 # Structs
 class MOUSEINPUT(ctypes.Structure):
     _fields_ = [
@@ -46,8 +46,9 @@ class MOUSEINPUT(ctypes.Structure):
         ("mouseData", DWORD),
         ("dwFlags", DWORD),
         ("time", DWORD),
-        ("dwExtraInfo", ULONG_PTR)
+        ("dwExtraInfo", ULONG_PTR),
     ]
+
 
 class KEYBDINPUT(ctypes.Structure):
     _fields_ = [
@@ -55,25 +56,17 @@ class KEYBDINPUT(ctypes.Structure):
         ("wScan", WORD),
         ("dwFlags", DWORD),
         ("time", DWORD),
-        ("dwExtraInfo", ULONG_PTR)
+        ("dwExtraInfo", ULONG_PTR),
     ]
+
 
 class HARDWAREINPUT(ctypes.Structure):
-    _fields_ = [
-        ("uMsg", DWORD),
-        ("wParamL", WORD),
-        ("wParamH", WORD)
-    ]
+    _fields_ = [("uMsg", DWORD), ("wParamL", WORD), ("wParamH", WORD)]
+
 
 class INPUT_UNION(ctypes.Union):
-    _fields_ = [
-        ("mi", MOUSEINPUT),
-        ("ki", KEYBDINPUT),
-        ("hi", HARDWAREINPUT)
-    ]
+    _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
+
 
 class INPUT(ctypes.Structure):
-    _fields_ = [
-        ("type", DWORD),
-        ("union", INPUT_UNION)
-    ]
+    _fields_ = [("type", DWORD), ("union", INPUT_UNION)]

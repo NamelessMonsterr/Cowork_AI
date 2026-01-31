@@ -14,29 +14,29 @@ import requests
 import subprocess
 import sys
 import os
-import signal
+
 
 def test_startup():
     print("--- Phase 1 Build Test: Application Startup ---")
-    
+
     # Command to start the backend
     cmd = [sys.executable, "-m", "assistant.main"]
-    
+
     print(f"Starting backend: {' '.join(cmd)}")
     process = subprocess.Popen(
         cmd,
         cwd=os.path.dirname(os.path.abspath(__file__)),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
     )
-    
+
     try:
         # Wait for potential startup
         print("Waiting for server initialization (10s)...")
         server_up = False
         start_wait = time.time()
-        
+
         while time.time() - start_wait < 15:
             try:
                 # Try to hit health endpoint
@@ -50,7 +50,7 @@ def test_startup():
                 # Not up yet
                 time.sleep(1)
                 print(".", end="", flush=True)
-        
+
         if not server_up:
             print("\n❌ Server failed to start within timeout.")
             # Check modules
@@ -78,6 +78,7 @@ def test_startup():
         except subprocess.TimeoutExpired:
             process.kill()
         print("Build test complete.")
+
 
 if __name__ == "__main__":
     success = test_startup()

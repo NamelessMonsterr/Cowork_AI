@@ -3,12 +3,11 @@ Screen Capture Module using DXCam (Primary) and MSS (Fallback).
 Supports multi-monitor, ROI, and dynamic FPS control (W7.1).
 """
 
-import time
 import threading
 import logging
 import io
 import base64
-from typing import Optional, Tuple
+from typing import Optional
 from PIL import Image
 import platform
 
@@ -17,6 +16,7 @@ HAS_DXCAM = False
 try:
     if platform.system() == "Windows":
         import dxcam
+
         HAS_DXCAM = True
 except ImportError:
     pass
@@ -27,13 +27,14 @@ import mss
 
 logger = logging.getLogger("ScreenCapture")
 
+
 class ScreenCapture:
     def __init__(self, preferred_fps: float = 2.0, monitor_idx: int = 0):
         self._lock = threading.Lock()
         self._target_fps = float(preferred_fps)
         self._interval = 1.0 / max(0.001, self._target_fps)
         self._monitor_idx = monitor_idx
-        
+
         self._dx_cam = None
         if HAS_DXCAM:
             try:
@@ -43,7 +44,7 @@ class ScreenCapture:
             except Exception as e:
                 logger.warning(f"DXCam init failed: {e}")
                 self._dx_cam = None
-                
+
         self._mss = mss.mss()
 
     def set_target_fps(self, fps: float):
@@ -57,7 +58,7 @@ class ScreenCapture:
         # dxcam capture call (fast) - returns a numpy image
         if not self._dx_cam:
             raise RuntimeError("DXCam not available")
-            
+
         # Region for dxcam is (left, top, right, bottom)
         if region:
             left, top, right, bottom = region
@@ -66,32 +67,32 @@ class ScreenCapture:
             img = self._dx_cam.grab(region=region_rect)
         else:
             img = self._dx_cam.grab()
-            
+
         if img is None:
             return None
-            
+
         return Image.fromarray(img)
 
     def _capture_with_mss(self, region: Optional[tuple] = None):
-        with self._lock: # MSS is not always thread safe depending on OS
-             # monitor[0] is all, monitor[1] is primary. 
-             # logic: map monitor_idx 0 -> monitor 1 (primary)
+        with self._lock:  # MSS is not always thread safe depending on OS
+            # monitor[0] is all, monitor[1] is primary.
+            # logic: map monitor_idx 0 -> monitor 1 (primary)
             monitors = self._mss.monitors
-            mon_idx = min(self._monitor_idx + 1, len(monitors)-1)
+            mon_idx = min(self._monitor_idx + 1, len(monitors) - 1)
             monitor = monitors[mon_idx]
-            
+
             if region:
                 left, top, right, bottom = region
                 # MSS wants: {'top': t, 'left': l, 'width': w, 'height': h}
                 # And coordinates must be relative to the monitor or absolute?
-                # Usually MSS handles absolute if monitor is not specified 
+                # Usually MSS handles absolute if monitor is not specified
                 # OR we specify the dict relative to virtual screen.
                 # Simplest: Just specify the rect properties.
                 capture_req = {
-                    'left': int(left), 
-                    'top': int(top), 
-                    'width': int(right-left), 
-                    'height': int(bottom-top)
+                    "left": int(left),
+                    "top": int(top),
+                    "width": int(right - left),
+                    "height": int(bottom - top),
                 }
             else:
                 capture_req = monitor
@@ -124,5 +125,5 @@ class ScreenCapture:
 
     def release(self):
         if self._dx_cam:
-             pass 
+            pass
         self._mss.close()

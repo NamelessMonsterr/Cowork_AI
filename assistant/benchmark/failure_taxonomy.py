@@ -4,9 +4,10 @@ Failure Taxonomy - Standardized error categories for Benchmarks (W11.6).
 
 from enum import Enum
 
+
 class FailureCategory(Enum):
     PERMISSION_MISSING = "permission_missing"
-    UAC_INTERVENTION = "uac_intervention" 
+    UAC_INTERVENTION = "uac_intervention"
     SUCCESS_CRITERIA_FAILED = "success_criteria_failed"
     ELEMENT_NOT_FOUND = "element_not_found"
     RECOVERY_FAILED = "recovery_failed"
@@ -14,6 +15,7 @@ class FailureCategory(Enum):
     CRASH_BACKEND = "crash_backend"
     CRASH_UI = "crash_ui"
     UNKNOWN = "unknown"
+
 
 def classify_error(error_msg: str) -> FailureCategory:
     """Map raw error string to failure category."""

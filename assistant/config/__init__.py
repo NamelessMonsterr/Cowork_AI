@@ -1,6 +1,7 @@
 """
 Flash Assistant Configuration Package.
 """
+
 from assistant.config.paths import (
     get_appdata_dir,
     get_logs_dir,
@@ -9,6 +10,6 @@ from assistant.config.paths import (
     get_learning_db_path,
     get_sync_db_path,
     get_settings_path,
-    ensure_dirs
+    ensure_dirs,
 )
 from assistant.config.settings import get_settings, reload_settings, AppSettings

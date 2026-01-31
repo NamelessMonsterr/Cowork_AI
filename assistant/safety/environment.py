@@ -15,7 +15,7 @@ import ctypes
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional, Callable, Literal
+from typing import Optional, Callable
 from enum import Enum
 
 from .uac import is_secure_desktop
@@ -23,17 +23,19 @@ from .uac import is_secure_desktop
 
 class EnvironmentState(str, Enum):
     """Current environment state."""
-    NORMAL = "normal"           # Safe to execute
-    LOCKED = "locked"           # Screen is locked
-    FOCUS_LOST = "focus_lost"   # Active window changed unexpectedly
+
+    NORMAL = "normal"  # Safe to execute
+    LOCKED = "locked"  # Screen is locked
+    FOCUS_LOST = "focus_lost"  # Active window changed unexpectedly
     SECURE_DESKTOP = "secure_desktop"  # UAC or other secure desktop
-    SLEEPING = "sleeping"       # Computer is sleeping/idle
-    UNKNOWN = "unknown"         # Cannot determine state
+    SLEEPING = "sleeping"  # Computer is sleeping/idle
+    UNKNOWN = "unknown"  # Cannot determine state
 
 
 @dataclass
 class WindowContext:
     """Expected window context during execution."""
+
     hwnd: Optional[int] = None
     title: Optional[str] = None
     process_name: Optional[str] = None
@@ -42,28 +44,28 @@ class WindowContext:
 class EnvironmentMonitor:
     """
     Monitors execution environment for unsafe conditions.
-    
+
     Usage:
         monitor = EnvironmentMonitor(
             on_unsafe=lambda state: executor.pause(f"Unsafe: {state}")
         )
-        
+
         monitor.start()
         monitor.set_expected_window(hwnd=12345, title="Chrome")
-        
+
         # Periodically or before actions:
         state = monitor.check_state()
         if state != EnvironmentState.NORMAL:
             # Handle unsafe state
             pass
-        
+
         monitor.stop()
     """
 
     # Windows API constants
     DESKTOP_READOBJECTS = 0x0001
     DESKTOP_WRITEOBJECTS = 0x0080
-    
+
     def __init__(
         self,
         on_unsafe: Optional[Callable[[EnvironmentState, str], None]] = None,
@@ -71,7 +73,7 @@ class EnvironmentMonitor:
     ):
         """
         Initialize EnvironmentMonitor.
-        
+
         Args:
             on_unsafe: Callback when unsafe state detected (state, reason)
             check_interval_sec: How often to check environment
@@ -83,7 +85,7 @@ class EnvironmentMonitor:
         self._monitor_thread: Optional[threading.Thread] = None
         self._last_state = EnvironmentState.NORMAL
         self._lock = threading.Lock()
-        
+
         # Windows API
         self._user32 = ctypes.windll.user32
         self._kernel32 = ctypes.windll.kernel32
@@ -93,11 +95,10 @@ class EnvironmentMonitor:
         with self._lock:
             if self._monitoring:
                 return
-            
+
             self._monitoring = True
             self._monitor_thread = threading.Thread(
-                target=self._monitor_loop,
-                daemon=True
+                target=self._monitor_loop, daemon=True
             )
             self._monitor_thread.start()
 
@@ -105,7 +106,7 @@ class EnvironmentMonitor:
         """Stop environment monitoring."""
         with self._lock:
             self._monitoring = False
-        
+
         if self._monitor_thread:
             self._monitor_thread.join(timeout=2)
             self._monitor_thread = None
@@ -118,7 +119,7 @@ class EnvironmentMonitor:
     ) -> None:
         """
         Set the expected active window during execution.
-        
+
         Args:
             hwnd: Expected window handle
             title: Expected window title (partial match)
@@ -139,22 +140,22 @@ class EnvironmentMonitor:
     def check_state(self) -> EnvironmentState:
         """
         Check current environment state.
-        
+
         Returns:
             Current EnvironmentState
         """
         # Check for secure desktop (UAC, lock screen, etc.)
         if self._is_secure_desktop():
             return EnvironmentState.SECURE_DESKTOP
-        
+
         # Check for screen lock
         if self._is_workstation_locked():
             return EnvironmentState.LOCKED
-        
+
         # Check for focus loss
         if self._expected_window and self._is_focus_lost():
             return EnvironmentState.FOCUS_LOST
-        
+
         return EnvironmentState.NORMAL
 
     def _is_secure_desktop(self) -> bool:
@@ -178,19 +179,19 @@ class EnvironmentMonitor:
         """Check if focus has been lost from expected window."""
         try:
             current_hwnd = self._user32.GetForegroundWindow()
-            
+
             if current_hwnd == 0:
                 return True
-            
+
             with self._lock:
                 if self._expected_window is None:
                     return False
-                
+
                 # Check by hwnd if specified
                 if self._expected_window.hwnd is not None:
                     if current_hwnd != self._expected_window.hwnd:
                         return True
-                
+
                 # Check by title if specified
                 if self._expected_window.title is not None:
                     length = self._user32.GetWindowTextLengthW(current_hwnd)
@@ -199,12 +200,12 @@ class EnvironmentMonitor:
                         self._user32.GetWindowTextW(current_hwnd, buffer, length + 1)
                         current_title = buffer.value.lower()
                         expected_title = self._expected_window.title.lower()
-                        
+
                         if expected_title not in current_title:
                             return True
-            
+
             return False
-            
+
         except Exception:
             return False
 
@@ -213,19 +214,19 @@ class EnvironmentMonitor:
         while self._monitoring:
             try:
                 state = self.check_state()
-                
+
                 if state != EnvironmentState.NORMAL and state != self._last_state:
                     # State changed to unsafe
                     reason = self._get_state_reason(state)
-                    
+
                     if self._on_unsafe:
                         self._on_unsafe(state, reason)
-                
+
                 self._last_state = state
-                
+
             except Exception:
                 pass  # Don't crash the monitor thread
-            
+
             time.sleep(self._check_interval)
 
     def _get_state_reason(self, state: EnvironmentState) -> str:
@@ -243,24 +244,24 @@ class EnvironmentMonitor:
         """Get info about the current foreground window."""
         try:
             hwnd = self._user32.GetForegroundWindow()
-            
+
             if hwnd == 0:
                 return {"hwnd": 0, "title": "", "class": ""}
-            
+
             # Get title
             length = self._user32.GetWindowTextLengthW(hwnd)
             title_buffer = ctypes.create_unicode_buffer(length + 1)
             self._user32.GetWindowTextW(hwnd, title_buffer, length + 1)
-            
+
             # Get class name
             class_buffer = ctypes.create_unicode_buffer(256)
             self._user32.GetClassNameW(hwnd, class_buffer, 256)
-            
+
             return {
                 "hwnd": hwnd,
                 "title": title_buffer.value,
                 "class": class_buffer.value,
             }
-            
+
         except Exception:
             return {"hwnd": 0, "title": "", "class": ""}

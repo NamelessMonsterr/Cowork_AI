@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass, field
 from typing import List
 
+
 @dataclass
 class SessionPermit:
     allowed: bool = False
@@ -11,8 +12,9 @@ class SessionPermit:
     issued_at: float = 0
     expires_at: float = 0
 
+
 class SessionAuth:
-    def __init__(self, ttl_sec: int = 30*60):
+    def __init__(self, ttl_sec: int = 30 * 60):
         self.ttl_sec = ttl_sec
         self.permit = SessionPermit()
 
@@ -39,7 +41,7 @@ class SessionAuth:
         if not self.permit.allowed:
             raise PermissionError("Session permission not granted")
         if now > self.permit.expires_at:
-            self.revoke() # Auto-revoke on expiry
+            self.revoke()  # Auto-revoke on expiry
             raise PermissionError("Session expired")
 
     def time_remaining(self) -> int:
@@ -63,26 +65,39 @@ class SessionAuth:
             time_remaining=self.time_remaining(),
             granted_apps=self.permit.granted_apps,
             granted_folders=self.permit.granted_folders,
-            allow_network=self.permit.mode == "session" and False, # logic to store network param needed?
-            mode=self.permit.mode
+            allow_network=self.permit.mode == "session"
+            and False,  # logic to store network param needed?
+            mode=self.permit.mode,
         )
 
     def is_app_allowed(self, app_name: str) -> bool:
         """Check if app is allowed."""
-        if not self.check(): return False
-        if "*" in self.permit.granted_apps: return True
-        return any(app_name.lower() in allowed.lower() for allowed in self.permit.granted_apps)
+        if not self.check():
+            return False
+        if "*" in self.permit.granted_apps:
+            return True
+        return any(
+            app_name.lower() in allowed.lower() for allowed in self.permit.granted_apps
+        )
 
     def is_folder_allowed(self, path: str) -> bool:
         """Check if folder path is allowed."""
-        if not self.check(): return False
-        if "*" in self.permit.granted_folders: return True
+        if not self.check():
+            return False
+        if "*" in self.permit.granted_folders:
+            return True
         # Simple check (expand this for real path matching)
-        return any(path.lower().startswith(allowed.lower()) for allowed in self.permit.granted_folders)
+        return any(
+            path.lower().startswith(allowed.lower())
+            for allowed in self.permit.granted_folders
+        )
 
     def is_network_allowed(self) -> bool:
         """Check if network is allowed."""
-        return self.check() # Simplified, assumes implied if session active or add field to Permit
+        return (
+            self.check()
+        )  # Simplified, assumes implied if session active or add field to Permit
+
 
 @dataclass
 class SessionStatus:
@@ -92,7 +107,7 @@ class SessionStatus:
     granted_apps: List[str] = field(default_factory=list)
     granted_folders: List[str] = field(default_factory=list)
     allow_network: bool = False
-    
+
     def dict(self):
         return {
             "allowed": self.allowed,
@@ -100,5 +115,5 @@ class SessionStatus:
             "mode": self.mode,
             "granted_apps": self.granted_apps,
             "granted_folders": self.granted_folders,
-            "allow_network": self.allow_network
+            "allow_network": self.allow_network,
         }

@@ -18,8 +18,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.computer.windows import WindowsComputer
 from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
-from assistant.safety.budget import ActionBudget
 from assistant.safety.environment import EnvironmentMonitor
+
 
 def test_safety_first():
     print("\n--- 1. Testing Default Safety (Should Fail) ---")
@@ -29,6 +29,7 @@ def test_safety_first():
         print("❌ CRITICAL: Allowed action without permission!")
     except PermissionDeniedError:
         print("✅ SUCCESS: Correctly blocked action without permission.")
+
 
 def test_mouse_and_screen():
     print("\n--- 2. Testing Computer Control (Watch your mouse) ---")
@@ -48,7 +49,7 @@ def test_mouse_and_screen():
         # Move in a small square relative to center
         cx, cy = w // 2, h // 2
         offset = 50
-        
+
         print("Moving mouse...")
         computer.move(cx - offset, cy - offset)
         time.sleep(0.2)
@@ -65,14 +66,16 @@ def test_mouse_and_screen():
         b64 = computer.screenshot()
         print(f"✅ Screenshot captured ({len(b64)} chars base64)")
 
+
 def test_environment_monitor():
     print("\n--- 3. Testing Environment Monitor ---")
     monitor = EnvironmentMonitor()
     state = monitor.check_state()
     print(f"✅ Current Environment State: {state.value}")
-    
+
     win = monitor.get_current_window_info()
     print(f"✅ Active Window: '{win['title']}' (PID: {win['hwnd']})")
+
 
 if __name__ == "__main__":
     print("=== STARTING STEP 1 HEALTH CHECK ===")
@@ -85,5 +88,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

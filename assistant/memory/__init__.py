@@ -23,7 +23,6 @@ __all__ = [
     "TaskMemory",
     "TaskRecord",
     "ActionPattern",
-    
     # Context
     "ContextAwareness",
     "AppContext",

@@ -37,24 +37,22 @@ from .permissions import (
 __all__ = [
     # Logging
     "CoworkLogger",
-    "LogConfig", 
+    "LogConfig",
     "PrivacySanitizer",
     "Timer",
     "timed",
     "get_logger",
     "configure_logging",
-    
     # Capture
     "ScreenCapture",
     "CaptureConfig",
     "get_capture",
     "HAS_DXCAM",
     "HAS_MSS",
-    
     # Permissions
     "Permission",
     "PluginManifest",
-    "PermissionGrant", 
+    "PermissionGrant",
     "PermissionManager",
     "requires",
     "optional",

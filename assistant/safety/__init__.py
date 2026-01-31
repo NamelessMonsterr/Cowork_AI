@@ -9,7 +9,7 @@ from .takeover import TakeoverManager, TakeoverReason, TakeoverState
 
 __all__ = [
     "SessionAuth",
-    "SessionPermit", 
+    "SessionPermit",
     "PlanGuard",
     "PlanValidationError",
     "EnvironmentMonitor",
@@ -23,4 +23,3 @@ __all__ = [
     "TakeoverReason",
     "TakeoverState",
 ]
-

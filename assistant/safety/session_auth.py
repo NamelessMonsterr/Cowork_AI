@@ -14,16 +14,17 @@ from enum import Enum
 
 class PermissionMode(str, Enum):
     """Permission grant modes."""
+
     SESSION = "session"  # Allow for duration of session (default 30 min)
-    ONCE = "once"        # Allow for single task only
-    DENIED = "denied"    # Explicitly denied
+    ONCE = "once"  # Allow for single task only
+    DENIED = "denied"  # Explicitly denied
 
 
 @dataclass
 class SessionPermit:
     """
     Represents the current permission state.
-    
+
     Attributes:
         allowed: Whether actions are currently allowed
         mode: The permission mode (session, once, denied)
@@ -35,6 +36,7 @@ class SessionPermit:
         task_completed: For 'once' mode, tracks if task is done
         csrf_token: Unique token for CSRF protection
     """
+
     allowed: bool = False
     mode: PermissionMode = PermissionMode.DENIED
     granted_apps: list[str] = field(default_factory=list)
@@ -48,27 +50,29 @@ class SessionPermit:
 
 class PermissionDeniedError(Exception):
     """Raised when an action is attempted without valid permission."""
+
     pass
 
 
 class SessionExpiredError(PermissionDeniedError):
     """Raised when session has expired."""
+
     pass
 
 
 class SessionAuth:
     """
     Session-based permission gate for all automation actions.
-    
+
     Usage:
         session = SessionAuth(ttl_sec=1800)  # 30 minutes
-        
+
         # User grants permission via UI
         session.grant(mode="session", apps=["chrome", "notepad"])
-        
+
         # Before any action:
         session.ensure()  # Raises if not permitted
-        
+
         # Revoke on exit, lock, or user request
         session.revoke()
     """
@@ -86,7 +90,7 @@ class SessionAuth:
     ):
         """
         Initialize SessionAuth.
-        
+
         Args:
             ttl_sec: Session timeout in seconds (default: 30 minutes)
             on_expire: Callback when session expires
@@ -98,18 +102,19 @@ class SessionAuth:
         self._on_expire = on_expire
         self._on_revoke = on_revoke
         self._expiry_timer: Optional[threading.Timer] = None
-        
+
         # Initialize session manager
         from .session_manager import SessionManager
+
         self._manager = SessionManager()
-        
+
         # Try to load existing session
         self._load_saved_session()
 
     def _load_saved_session(self):
         """Load session from disk if valid."""
         saved = self._manager.load_session(self.SESSION_ID)
-        if (saved):
+        if saved:
             with self._lock:
                 now = time.time()
                 self._permit = SessionPermit(
@@ -120,13 +125,15 @@ class SessionAuth:
                     allow_network=saved["allow_network"],
                     issued_at=saved["created_at"],
                     expires_at=saved["expires_at"],
-                    csrf_token=saved["csrf_token"]
+                    csrf_token=saved["csrf_token"],
                 )
-                
+
                 # Restore timer
                 remaining = saved["expires_at"] - now
                 if remaining > 0:
-                    self._expiry_timer = threading.Timer(remaining, self._on_auto_expire)
+                    self._expiry_timer = threading.Timer(
+                        remaining, self._on_auto_expire
+                    )
                     self._expiry_timer.daemon = True
                     self._expiry_timer.start()
 
@@ -143,7 +150,7 @@ class SessionAuth:
                 issued_at=self._permit.issued_at,
                 expires_at=self._permit.expires_at,
                 task_completed=self._permit.task_completed,
-                csrf_token=self._permit.csrf_token
+                csrf_token=self._permit.csrf_token,
             )
 
     def check(self) -> bool:
@@ -154,11 +161,11 @@ class SessionAuth:
         with self._lock:
             if not self._permit.allowed:
                 return False
-            
+
             now = time.time()
             if now > self._permit.expires_at:
                 return False
-                
+
             return True
 
     def grant(
@@ -171,7 +178,7 @@ class SessionAuth:
     ) -> None:
         """
         Grant permission for the session.
-        
+
         Args:
             mode: "session" (time-limited) or "once" (single task)
             apps: Allowed applications (None = use defaults)
@@ -181,27 +188,29 @@ class SessionAuth:
         """
         now = time.time()
         ttl = ttl_override if ttl_override is not None else self._ttl_sec
-        
+
         # Generate CSRF token
         csrf_token = self._manager.generate_csrf_token()
-        
+
         with self._lock:
             # Cancel existing timer
             if self._expiry_timer:
                 self._expiry_timer.cancel()
-            
+
             self._permit = SessionPermit(
                 allowed=True,
                 mode=PermissionMode(mode),
                 granted_apps=apps if apps is not None else self.DEFAULT_APPS.copy(),
-                granted_folders=folders if folders is not None else self.DEFAULT_FOLDERS.copy(),
+                granted_folders=folders
+                if folders is not None
+                else self.DEFAULT_FOLDERS.copy(),
                 allow_network=allow_network,
                 issued_at=now,
                 expires_at=now + ttl,
                 task_completed=False,
-                csrf_token=csrf_token
+                csrf_token=csrf_token,
             )
-            
+
             # Save to disk
             permit_dict = {
                 "issued_at": now,
@@ -209,10 +218,10 @@ class SessionAuth:
                 "mode": mode,
                 "granted_apps": self._permit.granted_apps,
                 "granted_folders": self._permit.granted_folders,
-                "allow_network": allow_network
+                "allow_network": allow_network,
             }
             self._manager.save_session(self.SESSION_ID, permit_dict, csrf_token)
-            
+
             # Set expiry timer
             self._expiry_timer = threading.Timer(ttl, self._on_auto_expire)
             self._expiry_timer.daemon = True
@@ -221,25 +230,25 @@ class SessionAuth:
     def revoke(self, reason: str = "manual") -> None:
         """
         Revoke current permission.
-        
+
         Args:
             reason: Why permission was revoked (for logging)
         """
         with self._lock:
             was_allowed = self._permit.allowed
-            
+
             if self._expiry_timer:
                 self._expiry_timer.cancel()
                 self._expiry_timer = None
-            
+
             self._permit = SessionPermit()  # Reset to default (denied)
             self._manager.revoke_session(self.SESSION_ID)
-        
+
         # Log security event
         if was_allowed:
             audit = get_security_logger()
             audit.log_auth_revoke(reason)
-        
+
         if was_allowed and self._on_revoke:
             self._on_revoke()
 
@@ -253,7 +262,7 @@ class SessionAuth:
     def ensure(self) -> None:
         """
         Ensure session is valid. Must be called before any automation action.
-        
+
         Raises:
             PermissionDeniedError: If no permission granted
             SessionExpiredError: If session has expired
@@ -261,12 +270,12 @@ class SessionAuth:
         with self._lock:
             if not self._permit.allowed:
                 raise PermissionDeniedError("Session permission not granted.")
-            
+
             now = time.time()
             if now > self._permit.expires_at:
                 self._permit.allowed = False
                 raise SessionExpiredError("Session permission has expired.")
-            
+
             # Check if 'once' mode and task already completed
             if self._permit.mode == PermissionMode.ONCE and self._permit.task_completed:
                 raise PermissionDeniedError("Single-task permission already used.")
@@ -284,33 +293,35 @@ class SessionAuth:
         P4 FIX: Protected against path traversal attacks.
         """
         import os
-        
+
         if not folder_path:
             return False
-        
+
         with self._lock:
             if not self._permit.allowed:
                 return False
-                
+
             # P4 FIX: Normalize the path to prevent traversal (../) attacks
             try:
                 normalized_path = os.path.realpath(os.path.abspath(folder_path))
             except (ValueError, OSError):
                 # Invalid path syntax
                 return False
-            
+
             # Check against granted folders (also normalized)
             for granted_folder in self._permit.granted_folders:
                 try:
-                    normalized_granted = os.path.realpath(os.path.abspath(granted_folder))
+                    normalized_granted = os.path.realpath(
+                        os.path.abspath(granted_folder)
+                    )
                     # Check if the path starts with any granted folder
                     if normalized_path.startswith(normalized_granted):
                         return True
                 except (ValueError, OSError):
                     continue
-            
+
             return False
-    
+
     def is_network_allowed(self) -> bool:
         """Check if network access is permitted."""
         with self._lock:
@@ -335,20 +346,20 @@ class SessionAuth:
     def extend(self, additional_sec: int) -> None:
         """
         Extend the current session.
-        
+
         Args:
             additional_sec: Seconds to add to expiry time
         """
         with self._lock:
             if not self._permit.allowed:
                 return
-            
+
             self._permit.expires_at += additional_sec
-            
+
             # Reset timer
             if self._expiry_timer:
                 self._expiry_timer.cancel()
-            
+
             remaining = self._permit.expires_at - time.time()
             if remaining > 0:
                 self._expiry_timer = threading.Timer(remaining, self._on_auto_expire)
@@ -359,7 +370,7 @@ class SessionAuth:
         """Called when session expires automatically."""
         with self._lock:
             self._permit.allowed = False
-        
+
         if self._on_expire:
             self._on_expire()
 
@@ -374,8 +385,9 @@ class SessionAuth:
             "allow_network": permit.allow_network,
             "time_remaining_sec": self.time_remaining(),
             "expires_at_iso": time.strftime(
-                "%Y-%m-%dT%H:%M:%S", 
-                time.localtime(permit.expires_at)
-            ) if permit.expires_at > 0 else None,
-            "csrf_token": permit.csrf_token
+                "%Y-%m-%dT%H:%M:%S", time.localtime(permit.expires_at)
+            )
+            if permit.expires_at > 0
+            else None,
+            "csrf_token": permit.csrf_token,
         }

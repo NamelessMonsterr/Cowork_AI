@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import sys
 import os
 
@@ -7,10 +7,11 @@ import os
 sys.path.append(os.getcwd())
 
 from assistant.executor.executor import ReliableExecutor, ExecutorConfig
-from assistant.ui_contracts.schemas import ActionStep, StepResult, VerificationResult
+from assistant.ui_contracts.schemas import ActionStep, VerificationResult
 from assistant.safety.budget import ActionBudget, BudgetExceededError
 from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
 from assistant.executor.strategies.base import Strategy, StrategyResult
+
 
 class MockStrategy(Strategy):
     def __init__(self, name, priority=1, should_fail=False):
@@ -37,6 +38,7 @@ class MockStrategy(Strategy):
             return StrategyResult(success=False, error="Mock Failure")
         return StrategyResult(success=True)
 
+
 class TestReliableExecutor(unittest.TestCase):
     def setUp(self):
         self.auth = MagicMock(spec=SessionAuth)
@@ -44,22 +46,19 @@ class TestReliableExecutor(unittest.TestCase):
         self.verifier = MagicMock()
         # Provide ALL required fields for VerificationResult
         self.verifier.verify.return_value = VerificationResult(
-            success=True,
-            verify_type="text_present",
-            expected="test",
-            duration_ms=100
+            success=True, verify_type="text_present", expected="test", duration_ms=100
         )
         self.verifier.capture_state.return_value = {"screenshot": "base64"}
-        
+
         self.step = ActionStep(id="step1", tool="click", args={"target": "btn"})
 
     def test_execute_success(self):
         """Test simple successful execution."""
         strategy = MockStrategy("success_strat")
         executor = ReliableExecutor([strategy], self.verifier, self.auth, self.budget)
-        
+
         result = executor.execute(self.step)
-        
+
         self.assertTrue(result.success)
         self.assertEqual(result.strategy_used, "success_strat")
         self.auth.ensure.assert_called_once()
@@ -69,9 +68,9 @@ class TestReliableExecutor(unittest.TestCase):
         """Test failing when session is invalid."""
         self.auth.ensure.side_effect = PermissionDeniedError("No session")
         executor = ReliableExecutor([], self.verifier, self.auth, self.budget)
-        
+
         result = executor.execute(self.step)
-        
+
         self.assertFalse(result.success)
         self.assertIn("No session", result.error)
 
@@ -79,9 +78,9 @@ class TestReliableExecutor(unittest.TestCase):
         """Test failing when budget is exceeded."""
         self.budget.check_budget.side_effect = BudgetExceededError("Day limit", "daily")
         executor = ReliableExecutor([], self.verifier, self.auth, self.budget)
-        
+
         result = executor.execute(self.step)
-        
+
         self.assertFalse(result.success)
         self.assertIn("Day limit", result.error)
 
@@ -89,26 +88,33 @@ class TestReliableExecutor(unittest.TestCase):
         """Test falling back to second strategy."""
         fail_strat = MockStrategy("fail", priority=1, should_fail=True)
         success_strat = MockStrategy("success", priority=2)
-        
-        executor = ReliableExecutor([fail_strat, success_strat], self.verifier, self.auth, self.budget)
-        
+
+        executor = ReliableExecutor(
+            [fail_strat, success_strat], self.verifier, self.auth, self.budget
+        )
+
         result = executor.execute(self.step)
-        
+
         self.assertTrue(result.success)
         self.assertEqual(result.strategy_used, "success")
-        self.assertEqual(fail_strat.call_count, 3) # Retries (default 3)
+        self.assertEqual(fail_strat.call_count, 3)  # Retries (default 3)
         self.assertEqual(success_strat.call_count, 1)
 
     def test_retry_logic(self):
         """Test retries on a single strategy."""
         strat = MockStrategy("retry_strat", should_fail=True)
         config = ExecutorConfig(max_retries_per_strategy=2, retry_delays=[0, 0])
-        executor = ReliableExecutor([strat], self.verifier, self.auth, self.budget, config=config)
-        
-        result = executor.execute(self.step)
-        
-        self.assertFalse(result.success)
-        self.assertEqual(strat.call_count, 2) # 2 attempts based on delay list length/config
+        executor = ReliableExecutor(
+            [strat], self.verifier, self.auth, self.budget, config=config
+        )
 
-if __name__ == '__main__':
+        result = executor.execute(self.step)
+
+        self.assertFalse(result.success)
+        self.assertEqual(
+            strat.call_count, 2
+        )  # 2 attempts based on delay list length/config
+
+
+if __name__ == "__main__":
     unittest.main()
