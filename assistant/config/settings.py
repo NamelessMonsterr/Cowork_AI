@@ -63,12 +63,22 @@ class VoiceSettings(BaseModel):
     push_to_talk_key: str = "ctrl+space"
     # STT Engine Settings
     engine_preference: str = Field(default="auto", pattern="^(auto|faster-whisper|openai|mock)$")
-    openai_api_key: str | None = None  # If set, enables OpenAI Whisper API fallback
+   # CRITICAL SECURITY FIX: Removed - now read from environment variable
+    # openai_api_key is accessed via property below, never stored in JSON
     prefer_local_stt: bool = True  # Try local FasterWhisper first, API second
     mock_stt: bool = False  # Force mock mode (dev only)
     # Recording Settings
     mic_device: str | None = None  # Specific mic device ID, None = system default
     record_seconds: int = Field(default=5, ge=2, le=30)  # Recording duration
+    
+    @property
+    def openai_api_key(self) -> str | None:
+        """
+        CRITICAL SECURITY FIX: Read OpenAI API key from environment variable.
+        Never store API keys in plaintext configuration files.
+        """
+        import os
+        return os.getenv("OPENAI_API_KEY")
 
 
 class ServerSettings(BaseModel):

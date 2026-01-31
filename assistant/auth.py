@@ -35,6 +35,11 @@ async def require_api_key(api_key: str = Security(api_key_header)):
     """
     # TEST MODE BYPASS: Skip auth in test environment
     if os.getenv("COWORK_TEST_MODE") == "1":
+        # SECURITY: Never allow test mode in production
+        if os.getenv("ENV", "").lower() == "production":
+            raise RuntimeError(
+                "SECURITY ERROR: Test mode cannot be enabled in production environment!"
+            )
         return "test-mode-bypass"
     
     if not api_key:

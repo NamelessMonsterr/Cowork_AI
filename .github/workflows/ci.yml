@@ -51,12 +51,14 @@ jobs:
     name: 🔐 Secrets Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # CRITICAL SECURITY FIX: Pinned to SHA instead of v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0 # Full history for scanning
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        # CRITICAL SECURITY FIX: Pinned to SHA instead of v2
+        uses: gitleaks/gitleaks-action@1f21ec5f7cbd9cb45d345a623d2fcc6b36b84c5a # v2.3.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -70,7 +72,8 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      # CRITICAL SECURITY FIX: Pinned to SHA instead of v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Set up Python
         uses: actions/setup-python@v5
