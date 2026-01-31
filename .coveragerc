@@ -1,0 +1,20 @@
+# Coverage Configuration for pytest
+
+[run]
+source = assistant
+omit = 
+    */tests/*
+    */venv/*
+    */__pycache__/*
+    */site-packages/*
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+# Fail if coverage < 85%
+fail_under = 85
+
+[html]
+directory = htmlcov

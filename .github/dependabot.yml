@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Enable version updates for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "NamelessMonsterr"
+    labels:
+      - "dependencies"
+      - "security"
+    # Only security updates for production
+    versioning-strategy: increase-if-necessary
+    # Group all patch updates together
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+    # Auto-approve security patches
+    allow:
+      - dependency-type: "all"
