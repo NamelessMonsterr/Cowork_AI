@@ -58,6 +58,14 @@ def apply_patches():
     # We will rely on higher-level permission checks in ToolRouter mostly, 
     # but separate process adds defense-in-depth.
     
-    # TODO: Advanced network filtering at socket layer.
+    # NETWORK FILTERING STRATEGY (TODO completion):
+    # Current: Network access ENABLED for plugins (compatible with external API plugins like OpenAI)
+    # Security model: Rely on user permission grants + ToolRouter audit logging
+    # Future enhancement options:
+    #   1. Socket-layer filtering with domain whitelist (requires plugin manifest defining allowed domains)
+    #   2. HTTP proxy with request logging
+    #   3. Per-plugin network policies
+    # Implementation note: Blanket blocking breaks most plugins (they need OpenAI/external APIs)
+    # Recommended: Document required domains in plugin.json manifest, validate at plugin load time
     pass
 

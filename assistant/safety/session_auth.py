@@ -235,6 +235,11 @@ class SessionAuth:
             self._permit = SessionPermit()  # Reset to default (denied)
             self._manager.revoke_session(self.SESSION_ID)
         
+        # Log security event
+        if was_allowed:
+            audit = get_security_logger()
+            audit.log_auth_revoke(reason)
+        
         if was_allowed and self._on_revoke:
             self._on_revoke()
 

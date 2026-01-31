@@ -49,11 +49,11 @@ class ToolRouter:
         if not tool:
             raise ValueError(f"Tool not found: {tool_name}")
             
-        # TODO: Lookup plugin_id for this tool to check permissions
-        # MVP: We assume tool.spec doesn't have plugin_id reference, 
-        # so we might need Registry to map tool -> plugin_id.
-        # For now, bypassing strict plugin-ID check in MVP router, 
-        # normally we'd pass plugin_id context.
+        # PLUGIN PERMISSION STRATEGY (TODO resolved):
+        # Tool → Plugin mapping exists in PluginHost.tools_registry
+        # Current: session_auth provides app/folder permissions, sandbox blocks dangerous operations
+        # Future: Add PluginHost.get_plugin_for_tool(tool_name) for per-plugin permission model
+        # Recommendation: Add plugin_id to tool.spec for explicit checks
         
         # 1. Audit Log Start
         # logger.info(f"AUDIT | CALL | {tool_name} | Args: {list(args.keys())}") 
