@@ -23,41 +23,31 @@ class DestructiveGuard:
         """
         Check plan for destructive actions.
         Raises ValueError if a violation is found.
+        
+        CRITICAL SECURITY FIX: Now checks ALL tools for dangerous patterns,
+        not just run_command. This prevents bypasses via alternative tools.
         """
         for step in plan.steps:
-            # 1. Check Shell Commands
-            if step.tool == "run_command":
-                # Check all args for dangerous patterns (usually 'command' or 'cmd')
-                # Safer to check all string values in args
-                for arg_val in step.args.values():
-                    if not isinstance(arg_val, str):
-                        continue
+            # Check ALL string arguments in ANY tool
+            for arg_val in step.args.values():
+                if not isinstance(arg_val, str):
+                    continue
 
-                    val_lower = arg_val.lower()
-                    for pattern in self.dangerous_patterns:
-                        if re.search(pattern, val_lower):
-                            raise ValueError(
-                                f"⚠️ SAFETY BLOCK: Destructive command detected in step {step.id}: '{arg_val}'. Automatic execution denied."
-                            )
-
-            # 2. Check File Actions (Heuristic)
-
-            # W15.2 Requirement: "delete/move > N files".
-            # If we had structured file ops (e.g., delete_files), we'd check count here.
-            # Currently 'computer' might expose specific file tools.
-            # Wildcard deletes via command line are caught above.
-
-            if step.tool == "run_command":
-                for arg_val in step.args.values():
-                    if not isinstance(arg_val, str):
-                        continue
-
-                    if "*" in arg_val or "?" in arg_val:
-                        # Wildcards with delete commands
-                        if "del " in arg_val.lower() or "rm " in arg_val.lower():
-                            raise ValueError(
-                                f"⚠️ SAFETY BLOCK: Wildcard deletion detected in step {step.id}: '{arg_val}'. Too risky for beta."
-                            )
+                val_lower = arg_val.lower()
+                
+                # Check regex patterns for dangerous commands
+                for pattern in self.dangerous_patterns:
+                    if re.search(pattern, val_lower):
+                        raise ValueError(
+                            f"⚠️ SAFETY BLOCK: Destructive command detected in tool '{step.tool}', step {step.id}: '{arg_val}'. Automatic execution denied."
+                        )
+                
+                # Check wildcards with delete operations
+                if ("*" in arg_val or "?" in arg_val):
+                    if "del " in val_lower or "rm " in val_lower:
+                        raise ValueError(
+                            f"⚠️ SAFETY BLOCK: Wildcard deletion detected in tool '{step.tool}', step {step.id}: '{arg_val}'. Too risky for beta."
+                        )
 
         # If clean
         return

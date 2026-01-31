@@ -65,8 +65,8 @@ class InputRateLimiter:
         Raises:
             RateLimitExceededError: If rate limit exceeded
         """
-        if source == "agent":
-            return
+        # CRITICAL SECURITY FIX: Removed agent bypass - agents MUST be rate-limited
+        # A runaway agent is the PRIMARY security threat
 
         if self._paused:
             raise RateLimitExceededError(f"Input paused: {self._pause_reason}")
@@ -99,8 +99,8 @@ class InputRateLimiter:
         Raises:
             RateLimitExceededError: If rate limit exceeded
         """
-        if source == "agent":
-            return
+        # CRITICAL SECURITY FIX: Removed agent bypass - agents MUST be rate-limited
+        # A runaway agent is the PRIMARY security threat
 
         if self._paused:
             raise RateLimitExceededError(f"Input paused: {self._pause_reason}")
@@ -162,16 +162,21 @@ class RequestRateLimiter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests = deque()
+        # CRITICAL SECURITY FIX: Add thread lock for race condition prevention
+        import threading
+        self._lock = threading.Lock()
 
     def is_allowed(self) -> bool:
         """Check if request is allowed under the rate limit."""
-        now = time.time()
-        # Remove old requests
-        while self.requests and self.requests[0] < now - self.window_seconds:
-            self.requests.popleft()
+        # CRITICAL SECURITY FIX: Atomic check-then-act with thread lock
+        with self._lock:
+            now = time.time()
+            # Remove old requests
+            while self.requests and self.requests[0] < now - self.window_seconds:
+                self.requests.popleft()
 
-        if len(self.requests) >= self.max_requests:
-            return False
+            if len(self.requests) >= self.max_requests:
+                return False
 
-        self.requests.append(now)
-        return True
+            self.requests.append(now)
+            return True

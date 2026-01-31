@@ -6,8 +6,11 @@ Expose peer info and delegation endpoints.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+# CRITICAL SECURITY FIX: Add authentication
+from assistant.auth import require_api_key
 
 logger = logging.getLogger("TeamAPI")
 router = APIRouter(prefix="/team", tags=["Team"])
@@ -24,7 +27,8 @@ class DelegateRequest(BaseModel):
     target_peer_id: str | None = None
 
 
-@router.get("/peers")
+# CRITICAL SECURITY: Authentication required to view network topology
+@router.get("/peers", dependencies=[Depends(require_api_key)])
 async def list_peers():
     # Helper to access state?
     # For now, we rely on main.py to mount this and init discovery.
@@ -38,7 +42,8 @@ async def list_peers():
     return {"peers": [p.dict() for p in state.team_discovery.get_peers()]}
 
 
-@router.post("/delegate")
+# CRITICAL SECURITY: Authentication required to receive delegated tasks (RCE risk)
+@router.post("/delegate", dependencies=[Depends(require_api_key)])
 async def receive_delegation(req: DelegateRequest):
     """
     Receive a task delegated from another agent.
@@ -61,7 +66,8 @@ async def receive_delegation(req: DelegateRequest):
     return {"status": "accepted", "message": "Task received and queued."}
 
 
-@router.post("/send_task")
+# CRITICAL SECURITY: Authentication required to send tasks to peers
+@router.post("/send_task", dependencies=[Depends(require_api_key)])
 async def send_task(peer_id: str, task: str):
     """
     Send a task to a peer.

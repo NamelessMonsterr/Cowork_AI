@@ -263,6 +263,25 @@ class WindowsComputer:
                 subprocess.Popen(path)
                 return True
 
+            # CRITICAL SECURITY FIX: os.startfile allowlist to prevent arbitrary execution
+            # os.startfile can open URLs, files, scripts - only allow known safe applications
+            ALLOWED_APPS = {
+                "notepad", "notepad.exe",
+                "calc", "calc.exe", "calculator",
+                "chrome", "chrome.exe",
+                "firefox", "firefox.exe",
+                "msedge", "msedge.exe", "edge",
+                "code", "code.exe",  # VS Code
+                "explorer", "explorer.exe",
+            }
+            
+            app_lower = app_name.lower()
+            # Check if it's in allowlist or is an absolute path to .exe
+            if app_lower not in ALLOWED_APPS and not (app_lower.endswith(".exe") and os.path.isabs(app_name)):
+                raise SecurityError(
+                    f"Application '{app_name}' not in allowlist. For security, only approved apps can be launched via os.startfile."
+                )
+            
             # 2. Try os.startfile (Windows Shell Execute - good for registered apps like 'chrome')
             # This handles protocol handlers and App Paths
             logger.info(f"Trying os.startfile for: {app_name}")

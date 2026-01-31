@@ -222,9 +222,10 @@ class AppState:
         self.websocket_clients: list[WebSocket] = []
 
         # P2 FIX: Thread safety locks for concurrent access
-        self._ws_lock = asyncio.Lock()
-        self._plans_lock = asyncio.Lock()
-        self._logs_lock = asyncio.Lock()
+        # NOTE: These are created in startup() because asyncio.Lock needs event loop
+        self._ws_lock = None
+        self._plans_lock = None
+        self._logs_lock = None
 
         # Plan Preview Storage (Task B) - stores (plan, created_at)
         self.pending_plans: dict[str, tuple[ExecutionPlan, float]] = {}
@@ -260,6 +261,13 @@ state = AppState()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing Flash Assistant (Production Architecture)...")
+    
+    # P2 FIX: Initialize asyncio locks (must be done inside async context)
+    state._ws_lock = asyncio.Lock()
+    state._plans_lock = asyncio.Lock()
+    state._logs_lock = asyncio.Lock()
+    logger.info("[Startup] Async locks initialized")
+    
     logger.info("[Startup] Running pre-flight checks...")
 
     # P8 FIX: Disk space check
@@ -750,8 +758,8 @@ async def get_capabilities():
 
 @app.get("/permission/status")
 async def get_permission_status():
-    status = state.session_auth.status()
-    return status.dict()
+    status_dict = state.session_auth.get_status_dict()
+    return status_dict
 
 
 @app.post("/permission/revoke")

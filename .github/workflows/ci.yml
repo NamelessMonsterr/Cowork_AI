@@ -6,16 +6,21 @@ on:
   pull_request:
     branches: [main, master]
 
+# CRITICAL SECURITY FIX: Default read-only permissions (principle of least privilege)
+permissions:
+  contents: read
+
 jobs:
   # Job 1: Python Tests with Pytest (Essential)
   pytest:
     name: 🧪 Pytest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # SECURITY: Pinned to commit SHA to prevent supply chain attacks
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f390daa6b # v5.0.0
         with:
           python-version: "3.11"
 
@@ -28,6 +33,12 @@ jobs:
       - name: Run Tests
         run: |
           pytest tests/ -v --cov=assistant --cov-report=xml --cov-report=term-missing
+
+      # CRITICAL SECURITY FIX: Add dependency vulnerability scanning
+      - name: Scan Dependencies for Vulnerabilities
+        run: |
+          pip install pip-audit
+          pip-audit --desc
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v3

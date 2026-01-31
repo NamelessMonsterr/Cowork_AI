@@ -5,10 +5,12 @@ Manages application configuration and dynamic reloading.
 
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from assistant.config.settings import VoiceSettings, get_settings
+# CRITICAL SECURITY FIX: Add authentication
+from assistant.auth import require_api_key
 
 logger = logging.getLogger("SettingsAPI")
 
@@ -19,13 +21,15 @@ class SettingsUpdate(BaseModel):
     voice: VoiceSettings | None = None
 
 
-@router.get("")
+# CRITICAL SECURITY: Authentication required for reading sensitive config
+@router.get("", dependencies=[Depends(require_api_key)])
 async def get_current_settings():
     """Get current application settings."""
     return get_settings()
 
 
-@router.put("")
+# CRITICAL SECURITY: Authentication required for modifying config
+@router.put("", dependencies=[Depends(require_api_key)])
 async def update_settings(update: SettingsUpdate, request: Request):
     """
     Update settings and reload affected components.
