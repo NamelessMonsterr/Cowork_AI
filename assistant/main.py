@@ -24,18 +24,30 @@ ensure_windows_os()
 
 # --- Security Configuration ---
 import secrets
-# P0-2: Dev/Debug endpoint control (disabled by default for security)
+# P0-2: Dev/Debug endpoint control (SECURITY HARDENED: default false)
 FLASH_DEV_ENDPOINTS_ENABLED = os.getenv("FLASH_DEV_ENDPOINTS_ENABLED", "false").lower() == "true"
-# P0-3: Session secret (must be set in production)
+# P0-3: Session secret (REQUIRED for production)
 FLASH_SESSION_SECRET = os.getenv("FLASH_SESSION_SECRET")
 IS_PRODUCTION = os.getenv("ENV", "").lower() == "production"
 
+# SECURITY HARDENING: No fallback for missing secrets
 if not FLASH_SESSION_SECRET:
     if IS_PRODUCTION:
-        logger.critical("CRITICAL: FLASH_SESSION_SECRET must be set in production!")
+        logger = logging.getLogger(__name__)
+        logger.critical(
+            "🚨 CRITICAL SECURITY ERROR: FLASH_SESSION_SECRET is not set!\n"
+            "Production deployments MUST set a secure session secret.\n"
+            "Generate one with: openssl rand -hex 32\n"
+            "Terminating to prevent insecure deployment."
+        )
         sys.exit(1)
-    # Auto-generate for dev with warning
+    # Development fallback with security warning
     FLASH_SESSION_SECRET = "dev-only-insecure-key-" + secrets.token_hex(16)
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "⚠️  SECURITY WARNING: Using auto-generated session secret in development mode.\n"
+        "This is NOT suitable for production. Set FLASH_SESSION_SECRET in your environment."
+    )
 # --- P9 FIX: Consolidated Imports & Logging ---
 from assistant.utils.health_check import run_pre_flight_checks
 from assistant.utils.secrets_filter import SecretsRedactionFilter
@@ -1442,227 +1454,11 @@ async def websocket_heartbeat_loop(websocket: WebSocket):
         # Connection is dead, main loop will handle cleanup
         pass
 
-# =========================== BYPASS ENDPOINT (DEMO) ===========================
-# This endpoint bypasses PlanGuard and goes directly to computer action
-# USE ONLY FOR DEMO/DEBUGGING - NOT PRODUCTION
-
-@app.post("/just_do_it")
-async def just_do_it(req: TaskRequest):
-    """
-    Direct execution with expanded command support.
-    Bypasses PlanGuard for demo mode.
-    """
-    text_lower = req.task.lower().strip()
-    logger.info(f"🔥 Command received: '{req.task}'")
-    
-    # Ensure session
-    if not state.session_auth.check():
-        state.session_auth.grant(mode="session", apps={"*"}, folders={"*"})
-    
-    result = None
-    action = None
-    details = {}
-    
-    try:
-        # Pattern 1: OPEN APP
-        if any(text_lower.startswith(p) for p in ["open ", "launch ", "start "]):
-            app = text_lower
-            for prefix in ["open ", "launch ", "start "]:
-                if app.startswith(prefix):
-                    app = app[len(prefix):]
-                    break
-            
-            # Aliases (maps user-friendly names to actual executables)
-            aliases = {
-                "calc": "calculator",
-                "calculator": "calc.exe",
-                "paint": "mspaint",
-                "notepad": "notepad",
-                "pad": "notepad",
-                "editor": "notepad",
-                "word": "winword",
-                "excel": "excel",
-                "powerpoint": "powerpnt",
-                "chrome": "chrome",
-                "browser": "chrome",
-                "edge": "msedge",
-                "firefox": "firefox",
-                "terminal": "cmd",
-                "cmd": "cmd",
-                "command prompt": "cmd",
-                "powershell": "powershell",
-                "explorer": "explorer",
-                "vscode": "code",
-                "code": "code",
-                "spotify": "spotify",
-                "discord": "discord",
-                "slack": "slack",
-                "teams": "teams"
-            }
-            app = aliases.get(app, app)
-            
-            action = "launch_app"
-            success = state.computer.launch_app(app)
-            details = {"app": app}
-            result = {"success": success, "app": app}
-        
-        # Pattern 2: TYPE TEXT
-        elif any(text_lower.startswith(p) for p in ["type ", "write ", "enter "]):
-            # Get original case text (preserve what user said)
-            text_to_type = req.task
-            for prefix in ["type ", "write ", "enter "]:
-                if text_lower.startswith(prefix):
-                    text_to_type = req.task[len(prefix):]
-                    break
-            
-            action = "type_text"
-            state.computer.type_text(text_to_type)
-            details = {"text": text_to_type[:50]}  # Truncate for logs
-            result = {"success": True, "typed": text_to_type}
-        
-        # Pattern 3: TAKE SCREENSHOT
-        elif any(word in text_lower for word in ["screenshot", "capture", "snap"]):
-            action = "screenshot"
-            path = state.computer.take_screenshot()
-            details = {"path": path}
-            result = {"success": True, "path": path}
-        
-        # Pattern 4: PRESS KEY / HOTKEY
-        elif any(text_lower.startswith(p) for p in ["press ", "hit ", "push "]):
-            key = text_lower.replace("press ", "").replace("hit ", "").replace("push ", "").strip()
-            
-            action = "press_key"
-            state.computer.press_keys(key)
-            details = {"key": key}
-            result = {"success": True, "key_pressed": key}
-        
-        # Pattern 5: CLICK (center of screen for now)
-        elif "click" in text_lower:
-            import pyautogui
-            x, y = pyautogui.position()  # Click where mouse is
-            
-            action = "click"
-            state.computer.mouse_click(int(x), int(y))
-            details = {"x": int(x), "y": int(y)}
-            result = {"success": True, "position": [int(x), int(y)]}
-        
-        # Pattern 6: WAIT / SLEEP
-        elif any(text_lower.startswith(p) for p in ["wait ", "sleep ", "pause "]):
-            import asyncio
-            seconds = 2  # Default
-            # Try to extract number
-            words = text_lower.split()
-            for word in words:
-                if word.isdigit():
-                    seconds = int(word)
-                    break
-            
-            action = "wait"
-            await asyncio.sleep(seconds)
-            details = {"seconds": seconds}
-            result = {"success": True, "waited": seconds}
-        
-        # Pattern 7: CLOSE / KILL APP
-        elif any(text_lower.startswith(p) for p in ["close ", "kill ", "quit ", "exit "]):
-            app = text_lower
-            for prefix in ["close ", "kill ", "quit ", "exit "]:
-                if app.startswith(prefix):
-                    app = app[len(prefix):]
-                    break
-            
-            action = "close_app"
-            # Use taskkill on Windows
-            import subprocess
-            success = False
-            try:
-                subprocess.run(f"taskkill /f /im {app}.exe", shell=True, check=False)
-                success = True
-            except:
-                pass
-            details = {"app": app}
-            result = {"success": success, "app": app}
-        
-        # Pattern 8: MINIMIZE / MAXIMIZE
-        elif "minimize" in text_lower:
-            action = "minimize"
-            import pyautogui
-            pyautogui.keyDown('win')
-            pyautogui.keyDown('down')
-            pyautogui.keyUp('down')
-            pyautogui.keyUp('win')
-            result = {"success": True, "action": "minimize"}
-            details = {}
-            
-        elif "maximize" in text_lower:
-            action = "maximize"
-            import pyautogui
-            pyautogui.keyDown('win')
-            pyautogui.keyDown('up')
-            pyautogui.keyUp('up')
-            pyautogui.keyUp('win')
-            result = {"success": True, "action": "maximize"}
-            details = {}
-        
-        # Pattern 9: VOLUME CONTROL
-        elif "volume" in text_lower or "mute" in text_lower:
-            action = "volume"
-            import pyautogui
-            if "up" in text_lower or "louder" in text_lower:
-                pyautogui.press('volumeup')
-                details = {"direction": "up"}
-            elif "down" in text_lower or "quieter" in text_lower:
-                pyautogui.press('volumedown')
-                details = {"direction": "down"}
-            else:
-                pyautogui.press('volumemute')
-                details = {"direction": "mute"}
-            result = {"success": True, "volume_action": details["direction"]}
-        
-        # DEFAULT: Unknown command
-        else:
-            return {
-                "success": False,
-                "error": f"Unknown command: '{req.task}'. Try: open [app], type [text], screenshot, press [key]",
-                "action": "unknown",
-                "supported": [
-                    "open [app name]",
-                    "type [text]", 
-                    "screenshot",
-                    "press [key]",
-                    "click",
-                    "close [app]",
-                    "wait [seconds]"
-                ]
-            }
-        
-        # Broadcast to any connected UIs (if websocket available)
-        try:
-            await state.broadcast("action_executed", {
-                "action": action,
-                "details": details,
-                "success": result.get("success", False)
-            })
-        except Exception:
-            pass  # No websocket clients connected, that's fine
-        
-        return {
-            "status": "executed" if result.get("success") else "failed",
-            "action": action,
-            "command": req.task,
-            "result": result,
-            "success": result.get("success", False)
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Execution failed for '{req.task}': {e}")
-        return {
-            "status": "error",
-            "action": action or "unknown",
-            "command": req.task,
-            "error": str(e),
-            "success": False
-        }
-
+# =============================================================================
+# BYPASS ENDPOINT REMOVED - SECURITY HARDENING
+# The /just_do_it endpoint has been permanently removed to eliminate 
+# unauthenticated command execution vulnerability identified in security audit.
+# All commands must now go through proper PlanGuard validation.
 # =============================================================================
 
 @app.websocket("/ws")

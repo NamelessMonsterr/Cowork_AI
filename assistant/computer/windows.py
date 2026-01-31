@@ -277,7 +277,7 @@ class WindowsComputer:
         try:
             # SECURITY FIX: Use list args instead of shell=True
             # Prevents shell metacharacter injection
-            subprocess.Popen(['powershell.exe', '-Command', command])
+            subprocess.Popen(['powershell.exe', '-Command', command], shell=False)
             return True
         except Exception as e:
             logger.error(f"Command failed: {e}")
