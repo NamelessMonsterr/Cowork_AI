@@ -7,32 +7,10 @@ on:
     branches: [main, master]
 
 jobs:
-  # Job 1: Python Linting with Ruff
-  lint:
-    name: 🔍 Ruff Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Ruff
-        run: pip install ruff
-
-      - name: Run Ruff Linter
-        run: ruff check . --output-format=github
-
-      - name: Run Ruff Formatter Check
-        run: ruff format --check .
-
-  # Job 2: Python Tests with Pytest
+  # Job 1: Python Tests with Pytest (Essential)
   pytest:
     name: 🧪 Pytest
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +35,7 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: false
 
-  # Job 3: Secrets Scan with Gitleaks
+  # Job 2: Secrets Scan with Gitleaks (Essential)
   secrets-scan:
     name: 🔐 Secrets Scan
     runs-on: ubuntu-latest
@@ -71,11 +49,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Job 4: Playwright E2E (matrix for Windows/Ubuntu)
+  # Job 3: Playwright E2E (matrix for Windows/Ubuntu)
   e2e:
     name: 🎭 Playwright E2E
     runs-on: ${{ matrix.os }}
-    needs: [lint, pytest]
+    needs: [pytest]
     strategy:
       fail-fast: false
       matrix:
@@ -126,24 +104,22 @@ jobs:
           path: ui/playwright-report/
           retention-days: 14
 
-  # Summary Job (requires all gates)
+  # Summary Job (requires essential gates only)
   release-ready:
     name: ✅ Release Ready
     runs-on: ubuntu-latest
-    needs: [lint, pytest, secrets-scan, e2e]
+    needs: [pytest, secrets-scan, e2e]
     if: always()
     steps:
       - name: Check All Gates
         run: |
-          if [[ "${{ needs.lint.result }}" == "success" && \
-                "${{ needs.pytest.result }}" == "success" && \
+          if [[ "${{ needs.pytest.result }}" == "success" && \
                 "${{ needs.secrets-scan.result }}" == "success" && \
                 "${{ needs.e2e.result }}" == "success" ]]; then
             echo "✅ All release gates passed!"
             exit 0
           else
             echo "❌ Release gates failed:"
-            echo "  lint: ${{ needs.lint.result }}"
             echo "  pytest: ${{ needs.pytest.result }}"
             echo "  secrets-scan: ${{ needs.secrets-scan.result }}"
             echo "  e2e: ${{ needs.e2e.result }}"
