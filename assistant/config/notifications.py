@@ -7,7 +7,7 @@ Provides:
 - Event hooks
 """
 
-from typing import Optional, Callable, Dict
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -67,9 +67,7 @@ class NotificationManager:
 
     def __init__(self):
         self._toaster = ToastNotifier() if HAS_TOAST else None
-        self._callbacks: Dict[NotificationType, list] = {
-            t: [] for t in NotificationType
-        }
+        self._callbacks: dict[NotificationType, list] = {t: [] for t in NotificationType}
         self._enabled = True
 
     @property
@@ -149,7 +147,7 @@ class NotificationManager:
 
 
 # Global instance
-_notification_manager: Optional[NotificationManager] = None
+_notification_manager: NotificationManager | None = None
 
 
 def get_notifications() -> NotificationManager:

@@ -8,11 +8,11 @@ Flow:
 4. Playback Macro & Verify Execution.
 """
 
-import sys
-import os
-import time
-import logging
 import asyncio
+import logging
+import os
+import sys
+import time
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -33,9 +33,9 @@ async def main():
         state.computer.set_session_verifier(state.session_auth.ensure)
 
     # Manual Init of Components (simulating lifespan)
-    from assistant.recorder.input import InputRecorder
     from assistant.recorder.context import ContextTracker
     from assistant.recorder.converter import SmartConverter
+    from assistant.recorder.input import InputRecorder
     from assistant.recorder.storage import MacroStorage
 
     state.macro_storage = MacroStorage()
@@ -67,9 +67,7 @@ async def main():
 
     # Event 1: Click (100, 100)
     # We must use _add_event which checks state
-    rec._add_event(
-        "click", {"x": 100, "y": 100, "button": "Button.left", "sensitive": False}
-    )
+    rec._add_event("click", {"x": 100, "y": 100, "button": "Button.left", "sensitive": False})
 
     # Event 2: Type "test"
     rec._add_event("type_text", {"text": "test"})

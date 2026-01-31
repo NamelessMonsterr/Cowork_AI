@@ -3,8 +3,8 @@ System Health Utilities
 P8 FIX: Pre-flight checks for production readiness.
 """
 
-import shutil
 import logging
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,6 @@ def run_pre_flight_checks() -> None:
 
     # Verify directories
     if not verify_critical_paths():
-        raise RuntimeError(
-            "CRITICAL: Cannot write to required directories. "
-            "Check permissions and disk space."
-        )
+        raise RuntimeError("CRITICAL: Cannot write to required directories. Check permissions and disk space.")
 
     logger.info("[HealthCheck] All pre-flight checks passed ✓")

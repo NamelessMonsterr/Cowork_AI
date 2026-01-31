@@ -3,11 +3,9 @@ P1.2 - Startup Validation.
 Pre-flight checks and fail-fast error handling.
 """
 
-import os
-import sys
-import socket
 import logging
-from typing import List
+import os
+import socket
 from dataclasses import dataclass
 
 logger = logging.getLogger("Startup")
@@ -27,8 +25,8 @@ class StartupValidator:
     """Pre-flight checks before backend starts."""
 
     def __init__(self):
-        self.errors: List[StartupError] = []
-        self.warnings: List[StartupError] = []
+        self.errors: list[StartupError] = []
+        self.warnings: list[StartupError] = []
 
     def validate_all(self) -> bool:
         """Run all validations. Returns True if startup can proceed."""
@@ -47,14 +45,6 @@ class StartupValidator:
 
     def _check_python_version(self):
         """Ensure Python 3.11+"""
-        if sys.version_info < (3, 11):
-            self.errors.append(
-                StartupError(
-                    component="Python",
-                    error=f"Python {sys.version_info.major}.{sys.version_info.minor} is too old",
-                    hint="Install Python 3.11 or higher",
-                )
-            )
 
     def _check_appdata(self):
         """Ensure APPDATA is accessible on Windows."""
@@ -137,13 +127,7 @@ class StartupValidator:
     def get_diagnostics(self) -> dict:
         """Return diagnostic info for UI display."""
         return {
-            "errors": [
-                {"component": e.component, "error": e.error, "hint": e.hint}
-                for e in self.errors
-            ],
-            "warnings": [
-                {"component": w.component, "error": w.error, "hint": w.hint}
-                for w in self.warnings
-            ],
+            "errors": [{"component": e.component, "error": e.error, "hint": e.hint} for e in self.errors],
+            "warnings": [{"component": w.component, "error": w.error, "hint": w.hint} for w in self.warnings],
             "can_start": len(self.errors) == 0,
         }

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 UI/UX Pro Max Search - BM25 search engine for UI/UX style guides
 Usage: python search.py "<query>" [--domain <domain>] [--stack <stack>] [--max-results 3]
@@ -15,7 +14,8 @@ Persistence (Master + Overrides pattern):
 """
 
 import argparse
-from core import CSV_CONFIG, AVAILABLE_STACKS, MAX_RESULTS, search, search_stack
+
+from core import AVAILABLE_STACKS, CSV_CONFIG, MAX_RESULTS, search, search_stack
 from design_system import generate_design_system
 
 
@@ -31,9 +31,7 @@ def format_output(result):
     else:
         output.append("## UI Pro Max Search Results")
         output.append(f"**Domain:** {result['domain']} | **Query:** {result['query']}")
-    output.append(
-        f"**Source:** {result['file']} | **Found:** {result['count']} results\n"
-    )
+    output.append(f"**Source:** {result['file']} | **Found:** {result['count']} results\n")
 
     for i, row in enumerate(result["results"], 1):
         output.append(f"### Result {i}")
@@ -50,9 +48,7 @@ def format_output(result):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="UI Pro Max Search")
     parser.add_argument("query", help="Search query")
-    parser.add_argument(
-        "--domain", "-d", choices=list(CSV_CONFIG.keys()), help="Search domain"
-    )
+    parser.add_argument("--domain", "-d", choices=list(CSV_CONFIG.keys()), help="Search domain")
     parser.add_argument(
         "--stack",
         "-s",
@@ -124,28 +120,16 @@ if __name__ == "__main__":
 
         # Print persistence confirmation
         if args.persist:
-            project_slug = (
-                args.project_name.lower().replace(" ", "-")
-                if args.project_name
-                else "default"
-            )
+            project_slug = args.project_name.lower().replace(" ", "-") if args.project_name else "default"
             print("\n" + "=" * 60)
             print(f"✅ Design system persisted to design-system/{project_slug}/")
-            print(
-                f"   📄 design-system/{project_slug}/MASTER.md (Global Source of Truth)"
-            )
+            print(f"   📄 design-system/{project_slug}/MASTER.md (Global Source of Truth)")
             if args.page:
                 page_filename = args.page.lower().replace(" ", "-")
-                print(
-                    f"   📄 design-system/{project_slug}/pages/{page_filename}.md (Page Overrides)"
-                )
+                print(f"   📄 design-system/{project_slug}/pages/{page_filename}.md (Page Overrides)")
             print("")
-            print(
-                f"📖 Usage: When building a page, check design-system/{project_slug}/pages/[page].md first."
-            )
-            print(
-                "   If exists, its rules override MASTER.md. Otherwise, use MASTER.md."
-            )
+            print(f"📖 Usage: When building a page, check design-system/{project_slug}/pages/[page].md first.")
+            print("   If exists, its rules override MASTER.md. Otherwise, use MASTER.md.")
             print("=" * 60)
     # Stack search
     elif args.stack:

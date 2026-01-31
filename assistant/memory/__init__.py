@@ -6,16 +6,15 @@ Provides:
 - ContextAwareness: Active app and clipboard tracking
 """
 
-from .task_memory import (
-    TaskMemory,
-    TaskRecord,
-    ActionPattern,
-)
-
 from .context import (
-    ContextAwareness,
     AppContext,
     ClipboardContent,
+    ContextAwareness,
+)
+from .task_memory import (
+    ActionPattern,
+    TaskMemory,
+    TaskRecord,
 )
 
 __all__ = [

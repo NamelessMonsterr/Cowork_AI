@@ -1,14 +1,13 @@
 import time
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
 class SessionPermit:
     allowed: bool = False
     mode: str = "session"  # "session" or "once"
-    granted_apps: List[str] = field(default_factory=list)
-    granted_folders: List[str] = field(default_factory=list)
+    granted_apps: list[str] = field(default_factory=list)
+    granted_folders: list[str] = field(default_factory=list)
     issued_at: float = 0
     expires_at: float = 0
 
@@ -65,8 +64,7 @@ class SessionAuth:
             time_remaining=self.time_remaining(),
             granted_apps=self.permit.granted_apps,
             granted_folders=self.permit.granted_folders,
-            allow_network=self.permit.mode == "session"
-            and False,  # logic to store network param needed?
+            allow_network=self.permit.mode == "session" and False,  # logic to store network param needed?
             mode=self.permit.mode,
         )
 
@@ -76,9 +74,7 @@ class SessionAuth:
             return False
         if "*" in self.permit.granted_apps:
             return True
-        return any(
-            app_name.lower() in allowed.lower() for allowed in self.permit.granted_apps
-        )
+        return any(app_name.lower() in allowed.lower() for allowed in self.permit.granted_apps)
 
     def is_folder_allowed(self, path: str) -> bool:
         """Check if folder path is allowed."""
@@ -87,16 +83,11 @@ class SessionAuth:
         if "*" in self.permit.granted_folders:
             return True
         # Simple check (expand this for real path matching)
-        return any(
-            path.lower().startswith(allowed.lower())
-            for allowed in self.permit.granted_folders
-        )
+        return any(path.lower().startswith(allowed.lower()) for allowed in self.permit.granted_folders)
 
     def is_network_allowed(self) -> bool:
         """Check if network is allowed."""
-        return (
-            self.check()
-        )  # Simplified, assumes implied if session active or add field to Permit
+        return self.check()  # Simplified, assumes implied if session active or add field to Permit
 
 
 @dataclass
@@ -104,8 +95,8 @@ class SessionStatus:
     allowed: bool
     time_remaining: int
     mode: str
-    granted_apps: List[str] = field(default_factory=list)
-    granted_folders: List[str] = field(default_factory=list)
+    granted_apps: list[str] = field(default_factory=list)
+    granted_folders: list[str] = field(default_factory=list)
     allow_network: bool = False
 
     def dict(self):

@@ -10,20 +10,19 @@ Tests all hardening improvements:
 6. Detailed violation messages
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add project root to path
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from assistant.safety.plan_guard import (
     PlanGuard,
     PlanValidationError,
-    normalize_app_name,
     load_trusted_apps,
+    normalize_app_name,
 )
 from assistant.session_auth import SessionAuth
 from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
@@ -110,11 +109,7 @@ class TestPlanGuardHardening:
         plan = ExecutionPlan(
             id="test-3",
             task="Type hello",
-            steps=[
-                ActionStep(
-                    id="1", tool="type_text", args={"text": "hello"}, description="Type"
-                )
-            ],
+            steps=[ActionStep(id="1", tool="type_text", args={"text": "hello"}, description="Type")],
         )
 
         plan_guard.validate(plan)
@@ -124,11 +119,7 @@ class TestPlanGuardHardening:
         plan = ExecutionPlan(
             id="test-4",
             task="Click",
-            steps=[
-                ActionStep(
-                    id="1", tool="click", args={"x": 100, "y": 200}, description="Click"
-                )
-            ],
+            steps=[ActionStep(id="1", tool="click", args={"x": 100, "y": 200}, description="Click")],
         )
 
         plan_guard.validate(plan)
@@ -152,9 +143,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
 
-        assert any(
-            "not in trusted list" in v.lower() for v in exc_info.value.violations
-        )
+        assert any("not in trusted list" in v.lower() for v in exc_info.value.violations)
         assert len(exc_info.value.violations) > 0
 
     def test_dangerous_command_shell(self, plan_guard):
@@ -183,11 +172,7 @@ class TestPlanGuardHardening:
         plan = ExecutionPlan(
             id="test-7",
             task="Unknown action",
-            steps=[
-                ActionStep(
-                    id="1", tool="unknown_tool_xyz", args={}, description="Unknown"
-                )
-            ],
+            steps=[ActionStep(id="1", tool="unknown_tool_xyz", args={}, description="Unknown")],
         )
 
         with pytest.raises(PlanValidationError) as exc_info:
@@ -226,11 +211,7 @@ class TestPlanGuardHardening:
         plan = ExecutionPlan(
             id="test-9",
             task="Get clipboard",
-            steps=[
-                ActionStep(
-                    id="1", tool="clipboard_get", args={}, description="Clipboard"
-                )
-            ],
+            steps=[ActionStep(id="1", tool="clipboard_get", args={}, description="Clipboard")],
         )
 
         with pytest.raises(PlanValidationError) as exc_info:
@@ -276,9 +257,7 @@ class TestPlanGuardHardening:
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
 
-        assert any(
-            "not in trusted list" in v.lower() for v in exc_info.value.violations
-        )
+        assert any("not in trusted list" in v.lower() for v in exc_info.value.violations)
 
     # Task 6: Detailed violation messages
     def test_violation_messages_detailed(self, plan_guard):
@@ -321,16 +300,11 @@ class TestPlanGuardHardening:
         plan = ExecutionPlan(
             id="ip-2",
             task="Localhost",
-            steps=[
-                ActionStep(id="1", tool="open_url", args={"url": "http://127.0.0.1"})
-            ],
+            steps=[ActionStep(id="1", tool="open_url", args={"url": "http://127.0.0.1"})],
         )
         with pytest.raises(PlanValidationError) as exc_info:
             plan_guard.validate(plan)
-        assert any(
-            "localhost" in v.lower() or "ip addresses" in v.lower()
-            for v in exc_info.value.violations
-        )
+        assert any("localhost" in v.lower() or "ip addresses" in v.lower() for v in exc_info.value.violations)
 
 
 if __name__ == "__main__":

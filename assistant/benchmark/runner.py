@@ -2,17 +2,18 @@
 Benchmark Runner - Orchestrates suite execution (W11.2).
 """
 
-import os
-import glob
-import yaml
-import logging
 import asyncio
-from typing import List, Dict, Any
+import glob
+import logging
+import os
 from dataclasses import dataclass
+from typing import Any
 
-from assistant.benchmark.mode import benchmark_mode
+import yaml
+
 from assistant.benchmark.harness import TaskHarness  # Pending W11.3
 from assistant.benchmark.metrics import MetricsCollector
+from assistant.benchmark.mode import benchmark_mode
 
 logger = logging.getLogger("BenchmarkRunner")
 
@@ -22,12 +23,12 @@ class BenchmarkTask:
     id: str
     name: str
     category: str
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 class BenchmarkRunner:
     def __init__(self):
-        self.tasks: List[BenchmarkTask] = []
+        self.tasks: list[BenchmarkTask] = []
         self.metrics = MetricsCollector()
 
     def load_suite(self, suite_path: str):
@@ -40,7 +41,7 @@ class BenchmarkRunner:
         count = 0
         for f in files:
             try:
-                with open(f, "r") as stream:
+                with open(f) as stream:
                     # YAML can have multiple docs separator ---
                     docs = yaml.safe_load_all(stream)
                     for doc in docs:
@@ -65,9 +66,7 @@ class BenchmarkRunner:
 
         self.load_suite(suite_path)
 
-        logger.info(
-            f"🚀 Starting Benchmark Suite: {len(self.tasks)} Tasks x {repeat} Iterations"
-        )
+        logger.info(f"🚀 Starting Benchmark Suite: {len(self.tasks)} Tasks x {repeat} Iterations")
 
         for i in range(repeat):
             logger.info(f"--- Iteration {i + 1}/{repeat} ---")

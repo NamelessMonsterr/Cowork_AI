@@ -7,17 +7,17 @@ Implements tiered checking:
 3. Vision (Template, Slow, ~0.8 confidence)
 """
 
-import time
+import logging
 import os
 import subprocess
-import logging
-from typing import List, Dict, Any, Tuple
+import time
+from typing import Any
 
 from assistant.ui_contracts.schemas import (
+    UISelector,
+    VerificationResult,
     VerifySpec,
     VerifyType,
-    VerificationResult,
-    UISelector,
 )
 
 # Import Strategy interface for type hinting
@@ -35,7 +35,7 @@ class Verifier:
     def __init__(
         self,
         computer: "WindowsComputer" = None,
-        strategies: List[Strategy] = None,
+        strategies: list[Strategy] = None,
         default_confidence: float = 0.7,
     ):
         self._computer = computer
@@ -50,7 +50,7 @@ class Verifier:
         self._user32 = ctypes.windll.user32
         self.logger = logging.getLogger("Verifier")
 
-    def capture_state(self) -> Dict[str, Any]:
+    def capture_state(self) -> dict[str, Any]:
         """Capture current system state (screenshot + active window)."""
         state = {"timestamp": time.time()}
 
@@ -131,7 +131,7 @@ class Verifier:
                 error=str(e),
             )
 
-    def _check_condition_tiered(self, spec: VerifySpec) -> Tuple[bool, Any]:
+    def _check_condition_tiered(self, spec: VerifySpec) -> tuple[bool, Any]:
         """
         Check verification condition using multiple strategies (Tiered).
         Returns: (success, details/confidence)
@@ -154,7 +154,7 @@ class Verifier:
 
         return False, "Unknown verification type"
 
-    def _check_visual_tiered(self, target: str, vtype: VerifyType) -> Tuple[bool, Dict]:
+    def _check_visual_tiered(self, target: str, vtype: VerifyType) -> tuple[bool, dict]:
         """
         Try strategies in order:
         1. UIA (Exact match)
@@ -187,7 +187,7 @@ class Verifier:
         # Fallback to legacy OCR check (slow, expensive)
         return self._check_ocr_legacy(target)
 
-    def _check_ocr_legacy(self, text: str) -> Tuple[bool, Dict]:
+    def _check_ocr_legacy(self, text: str) -> tuple[bool, dict]:
         """Legacy OCR check using computer screenshot."""
         if not self._computer:
             return False, {"error": "no_computer"}
@@ -202,21 +202,19 @@ class Verifier:
 
     # --- OS Checks ---
 
-    def _check_process(self, name: str) -> Tuple[bool, str]:
+    def _check_process(self, name: str) -> tuple[bool, str]:
         """Check if process is running using safe subprocess call."""
         try:
             # SECURITY FIX: Use list args instead of shell=True to prevent injection
             # BEFORE: cmd = f'tasklist /FI "IMAGENAME eq {name}"', shell=True
             # AFTER: Safe list arguments
-            output = subprocess.check_output(
-                ["tasklist", "/FI", f"IMAGENAME eq {name}", "/NH"], text=True
-            )
+            output = subprocess.check_output(["tasklist", "/FI", f"IMAGENAME eq {name}", "/NH"], text=True)
             return name.lower() in output.lower(), output[:50]
         except Exception as e:
             self.logger.debug(f"Process check failed for {name}: {e}")
             return False, f"Process check failed: {str(e)[:30]}"
 
-    def _check_window_title(self, text: str) -> Tuple[bool, str]:
+    def _check_window_title(self, text: str) -> tuple[bool, str]:
         hwnd = self._user32.GetForegroundWindow()
         if not hwnd:
             return False, "No active window"
@@ -226,6 +224,6 @@ class Verifier:
         title = buff.value
         return text.lower() in title.lower(), title
 
-    def _check_file(self, path: str) -> Tuple[bool, str]:
+    def _check_file(self, path: str) -> tuple[bool, str]:
         exists = os.path.exists(os.path.expandvars(path))
         return exists, "Found" if exists else "Not found"

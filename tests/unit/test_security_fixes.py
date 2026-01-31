@@ -1,6 +1,8 @@
-import pytest
-from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
 import time
+
+import pytest
+
+from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
 
 
 def test_rate_limiter_agent_bypass():

@@ -11,11 +11,11 @@ Supports:
     - Python: pytest, unittest
 """
 
+import json
 import subprocess
 import sys
-import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Fix Windows console encoding
 try:
@@ -62,9 +62,7 @@ def detect_test_framework(project_path: Path) -> dict:
             pass
 
     # Python project
-    if (project_path / "pyproject.toml").exists() or (
-        project_path / "requirements.txt"
-    ).exists():
+    if (project_path / "pyproject.toml").exists() or (project_path / "requirements.txt").exists():
         result["type"] = "python"
         result["framework"] = "pytest"
         result["cmd"] = ["python", "-m", "pytest", "-v"]
@@ -173,11 +171,7 @@ def main():
         sys.exit(0)
 
     # Choose command
-    cmd = (
-        test_info["coverage_cmd"]
-        if with_coverage and test_info["coverage_cmd"]
-        else test_info["cmd"]
-    )
+    cmd = test_info["coverage_cmd"] if with_coverage and test_info["coverage_cmd"] else test_info["cmd"]
 
     print(f"Running: {' '.join(cmd)}")
     print("-" * 60)
@@ -206,9 +200,7 @@ def main():
             print(f"Error: {result['error'][:200]}")
 
     if result["tests_run"] > 0:
-        print(
-            f"Tests: {result['tests_run']} total, {result['tests_passed']} passed, {result['tests_failed']} failed"
-        )
+        print(f"Tests: {result['tests_run']} total, {result['tests_passed']} passed, {result['tests_failed']} failed")
 
     output = {
         "script": "test_runner",

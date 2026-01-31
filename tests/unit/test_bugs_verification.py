@@ -1,8 +1,7 @@
-from assistant.safety.session_auth import SessionAuth
-from assistant.ui_contracts.schemas import ActionStep, ConfigDict
-
 # Check if import works (Bug 3)
 from assistant.computer import Computer
+from assistant.safety.session_auth import SessionAuth
+from assistant.ui_contracts.schemas import ActionStep, ConfigDict
 
 
 def test_bug_1_session_auth_check_exists():
@@ -19,9 +18,7 @@ def test_bug_1_session_auth_check_exists():
 def test_bug_2_pydantic_config():
     """Verify Schemas use ConfigDict."""
     # Inner Config class should be gone or ignored in favor of model_config
-    assert isinstance(ActionStep.model_config, dict) or isinstance(
-        ActionStep.model_config, ConfigDict
-    )
+    assert isinstance(ActionStep.model_config, dict) or isinstance(ActionStep.model_config, ConfigDict)
     # use_enum_values should be set
     assert ActionStep.model_config.get("use_enum_values") is True
 

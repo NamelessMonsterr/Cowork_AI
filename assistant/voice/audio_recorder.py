@@ -8,9 +8,10 @@ Features:
 """
 
 import logging
-import numpy as np
 from enum import Enum
-from typing import Optional, Tuple, Dict, Any
+from typing import Any
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class AudioRecorder:
         """Deprecated: dependencies checked at module level."""
         pass
 
-    def check_availability(self) -> Tuple[bool, Optional[str]]:
+    def check_availability(self) -> tuple[bool, str | None]:
         """
         Check if microphone is available.
         Returns: (available, error_code)
@@ -73,9 +74,7 @@ class AudioRecorder:
             logger.error(f"[AudioRecorder] Availability check failed: {e}")
             return False, AudioError.UNKNOWN.value
 
-    def record(
-        self, duration: int, samplerate: int = 16000
-    ) -> Tuple[Optional[np.ndarray], Optional[Dict[str, Any]]]:
+    def record(self, duration: int, samplerate: int = 16000) -> tuple[np.ndarray | None, dict[str, Any] | None]:
         """
         Record audio for specified duration.
 

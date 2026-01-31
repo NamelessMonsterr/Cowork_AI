@@ -3,9 +3,9 @@ P2.3 - Database Migrations.
 Schema versioning for learning.db, sync.db, etc.
 """
 
-import os
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +28,7 @@ def get_current_version() -> int:
         return 0
 
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
         return data.get("version", 0)
     except Exception:

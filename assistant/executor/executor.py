@@ -17,27 +17,29 @@ The executor ensures reliability through:
 - Environment safety checks
 """
 
-import time
 import logging
-from typing import List, Optional, Callable
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Optional
 
+from assistant.safety.budget import ActionBudget, BudgetExceededError
+from assistant.safety.environment import EnvironmentMonitor, EnvironmentState
+from assistant.safety.session_auth import PermissionDeniedError, SessionAuth
 from assistant.ui_contracts.schemas import (
     ActionStep,
     StepResult,
     UISelector,
 )
-from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
-from assistant.safety.budget import ActionBudget, BudgetExceededError
-from assistant.safety.environment import EnvironmentMonitor, EnvironmentState
-from .strategies.base import Strategy
+
 from .cache import SelectorCache
+from .strategies.base import Strategy
 from .verify import Verifier
 
 # W20.3 Learning Integration (Optional)
 try:
-    from assistant.learning.ranker import StrategyRanker
     from assistant.learning.collector import LearningCollector
+    from assistant.learning.ranker import StrategyRanker
 
     HAS_LEARNING = True
 except ImportError:
@@ -47,7 +49,6 @@ except ImportError:
 
 from assistant.safety.focus_guard import FocusGuard
 from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
-
 
 logger = logging.getLogger(__name__)
 
@@ -93,18 +94,18 @@ class ReliableExecutor:
 
     def __init__(
         self,
-        strategies: List[Strategy],
+        strategies: list[Strategy],
         verifier: Verifier,
         session_auth: SessionAuth,
         budget: ActionBudget,
-        environment: Optional[EnvironmentMonitor] = None,
-        cache: Optional[SelectorCache] = None,
-        config: Optional[ExecutorConfig] = None,
-        on_takeover_required: Optional[Callable[[str], None]] = None,
-        on_step_complete: Optional[Callable[[StepResult], None]] = None,
+        environment: EnvironmentMonitor | None = None,
+        cache: SelectorCache | None = None,
+        config: ExecutorConfig | None = None,
+        on_takeover_required: Callable[[str], None] | None = None,
+        on_step_complete: Callable[[StepResult], None] | None = None,
         # V24 Safety
-        focus_guard: Optional[FocusGuard] = None,
-        rate_limiter: Optional[InputRateLimiter] = None,
+        focus_guard: FocusGuard | None = None,
+        rate_limiter: InputRateLimiter | None = None,
         # W20.3 Learning
         ranker: Optional["StrategyRanker"] = None,
         collector: Optional["LearningCollector"] = None,
@@ -257,9 +258,7 @@ class ReliableExecutor:
                     if win:
                         current_title = win.title
 
-                cache_key = self._cache.generate_key(
-                    step.tool, step.args, current_title
-                )
+                cache_key = self._cache.generate_key(step.tool, step.args, current_title)
                 cached = self._cache.get(cache_key)
                 if cached:
                     step.selector = cached
@@ -284,9 +283,7 @@ class ReliableExecutor:
                 strategy_order = self._ranker.get_strategy_order(app_name)
                 # Reorder self._strategies to match
                 name_to_strat = {s.name: s for s in self._strategies}
-                ordered_strategies = [
-                    name_to_strat[n] for n in strategy_order if n in name_to_strat
-                ]
+                ordered_strategies = [name_to_strat[n] for n in strategy_order if n in name_to_strat]
                 # Add any strategies not in the order (safety)
                 for s in self._strategies:
                     if s not in ordered_strategies:
@@ -316,22 +313,14 @@ class ReliableExecutor:
                                 verification = self._verifier.verify(step.verify)
 
                                 if not verification.success:
-                                    last_error = (
-                                        f"Verification failed: {verification.error}"
-                                    )
+                                    last_error = f"Verification failed: {verification.error}"
                                     continue  # Try next retry/strategy
 
                             # Success!
-                            self._budget.record_action(
-                                success=True, was_retry=attempt > 0
-                            )
+                            self._budget.record_action(success=True, was_retry=attempt > 0)
 
                             # Cache selector
-                            if (
-                                selector_to_cache
-                                and self._config.use_selector_cache
-                                and cache_key
-                            ):
+                            if selector_to_cache and self._config.use_selector_cache and cache_key:
                                 self._cache.set(cache_key, selector_to_cache)
 
                             # Capture after screenshot
@@ -371,9 +360,7 @@ class ReliableExecutor:
 
                     except Exception as e:
                         last_error = str(e)
-                        logger.exception(
-                            f"Strategy {strategy.name} failed on attempt {attempt + 1}"
-                        )
+                        logger.exception(f"Strategy {strategy.name} failed on attempt {attempt + 1}")
 
             # All strategies failed
             self._budget.record_action(success=False)
@@ -382,9 +369,7 @@ class ReliableExecutor:
             screenshot_path = ""
             if hasattr(self, "_computer") and self._computer:
                 try:
-                    screenshot_path = self._computer.capture_error_snapshot(
-                        f"{step.tool}_{last_error[:50]}"
-                    )
+                    screenshot_path = self._computer.capture_error_snapshot(f"{step.tool}_{last_error[:50]}")
                 except:
                     pass
 
@@ -441,10 +426,10 @@ class ReliableExecutor:
         step: ActionStep,
         start_time: float,
         error: str,
-        strategy_used: Optional[str] = None,
-        screenshot_before: Optional[str] = None,
+        strategy_used: str | None = None,
+        screenshot_before: str | None = None,
         requires_takeover: bool = False,
-        takeover_reason: Optional[str] = None,
+        takeover_reason: str | None = None,
     ) -> StepResult:
         """Create a failed StepResult."""
         result = StepResult(
@@ -465,7 +450,7 @@ class ReliableExecutor:
 
         return result
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """
         Pre-find an element using available strategies.
 

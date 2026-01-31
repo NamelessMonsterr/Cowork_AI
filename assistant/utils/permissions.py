@@ -7,7 +7,6 @@ Provides:
 - Sandboxing preparation
 """
 
-from typing import List, Set, Optional, Dict
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -54,8 +53,8 @@ class PluginManifest:
     version: str
     description: str
     author: str
-    permissions: List[Permission] = field(default_factory=list)
-    optional_permissions: List[Permission] = field(default_factory=list)
+    permissions: list[Permission] = field(default_factory=list)
+    optional_permissions: list[Permission] = field(default_factory=list)
 
     def requires(self, permission: Permission) -> bool:
         return permission in self.permissions
@@ -69,10 +68,10 @@ class PermissionGrant:
     """Record of granted permissions."""
 
     plugin_name: str
-    granted: Set[Permission] = field(default_factory=set)
-    denied: Set[Permission] = field(default_factory=set)
+    granted: set[Permission] = field(default_factory=set)
+    denied: set[Permission] = field(default_factory=set)
     granted_at: float = 0.0
-    expires_at: Optional[float] = None
+    expires_at: float | None = None
 
 
 class PermissionManager:
@@ -86,8 +85,8 @@ class PermissionManager:
     """
 
     def __init__(self):
-        self._grants: Dict[str, PermissionGrant] = {}
-        self._default_grants: Set[Permission] = {
+        self._grants: dict[str, PermissionGrant] = {}
+        self._default_grants: set[Permission] = {
             Permission.UI_SCREENSHOT,
             Permission.UI_CLICK,
             Permission.UI_TYPE,
@@ -120,11 +119,11 @@ class PermissionManager:
             self._grants[plugin_name].granted.discard(permission)
             self._grants[plugin_name].denied.add(permission)
 
-    def get_grant(self, plugin_name: str) -> Optional[PermissionGrant]:
+    def get_grant(self, plugin_name: str) -> PermissionGrant | None:
         """Get permission grant for a plugin."""
         return self._grants.get(plugin_name)
 
-    def list_plugins(self) -> List[str]:
+    def list_plugins(self) -> list[str]:
         """List registered plugins."""
         return list(self._grants.keys())
 

@@ -4,7 +4,7 @@ Ingests execution data, ensures privacy (Redaction), and feeds the Feature Store
 """
 
 import logging
-from typing import Optional
+
 from assistant.learning.store import LearningStore
 
 logger = logging.getLogger("LearningCollector")
@@ -26,7 +26,7 @@ class LearningCollector:
         self.store = store
         self.enabled = True  # Can be toggled by user
 
-    def is_sensitive_context(self, window_title: Optional[str]) -> bool:
+    def is_sensitive_context(self, window_title: str | None) -> bool:
         if not window_title:
             return False
         title_lower = window_title.lower()

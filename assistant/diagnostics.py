@@ -3,12 +3,12 @@ P3.3 - Diagnostics Export.
 Collect logs, settings, and system info for bug reports.
 """
 
-import os
-import sys
 import json
-import zipfile
-import platform
 import logging
+import os
+import platform
+import sys
+import zipfile
 from datetime import datetime
 from pathlib import Path
 

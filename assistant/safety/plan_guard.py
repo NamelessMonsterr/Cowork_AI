@@ -12,14 +12,14 @@ Validates plans before execution to catch:
 
 import json
 import logging
-from logging.handlers import RotatingFileHandler
-from typing import Optional, Set
 from dataclasses import dataclass
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from .session_auth import SessionAuth
-from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
 from assistant.safety.destructive_guard import DestructiveGuard
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
+
+from .session_auth import SessionAuth
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ def _setup_audit_logger():
             maxBytes=10 * 1024 * 1024,  # 10MB
             backupCount=5,
         )
-        formatter = logging.Formatter(
-            "%(message)s"
-        )  # JSON lines don't need extra formatting
+        formatter = logging.Formatter("%(message)s")  # JSON lines don't need extra formatting
         handler.setFormatter(formatter)
         audit_logger.addHandler(handler)
 
@@ -69,12 +67,10 @@ class PlanGuardConfig:
     max_steps: int = 50  # P4 FIX: Hard limit to prevent DoS via large plans
     max_high_risk_steps: int = 0  # By default, block all high-risk
     max_retries_total: int = 20
-    require_verification: bool = (
-        True  # Each step must have verify OR marked unverifiable
-    )
-    allowed_tools: Optional[Set[str]] = None  # None = allow all known tools
-    blocked_domains: Set[str] = None
-    trusted_domains: Set[str] = None  # P0-1: Allowlist for open_url
+    require_verification: bool = True  # Each step must have verify OR marked unverifiable
+    allowed_tools: set[str] | None = None  # None = allow all known tools
+    blocked_domains: set[str] = None
+    trusted_domains: set[str] = None  # P0-1: Allowlist for open_url
 
     def __post_init__(self):
         if self.blocked_domains is None:
@@ -191,7 +187,7 @@ def load_trusted_apps() -> tuple[set, dict]:
     try:
         config_path = Path(__file__).parent.parent / "config" / "trusted_apps.json"
         if config_path.exists():
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 data = json.load(f)
             trusted = set(data.get("trusted_apps", []))
             aliases = data.get("app_aliases", {})
@@ -211,12 +207,10 @@ def load_trusted_domains() -> set:
     try:
         config_path = Path(__file__).parent.parent / "config" / "trusted_domains.json"
         if config_path.exists():
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 data = json.load(f)
             domains = set(data.get("trusted_domains", []))
-            logger.info(
-                f"[PlanGuard] Loaded {len(domains)} trusted domains from config"
-            )
+            logger.info(f"[PlanGuard] Loaded {len(domains)} trusted domains from config")
             return domains
     except Exception as e:
         logger.warning(f"[PlanGuard] Failed to load domains: {e}, using defaults")
@@ -232,13 +226,11 @@ def load_restricted_shell_config() -> dict:
     try:
         config_path = Path(__file__).parent.parent / "config" / "restricted_shell.json"
         if config_path.exists():
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
             cmd_count = len(config.get("allowed_cmd", []))
             ps_count = len(config.get("allowed_powershell", []))
-            logger.info(
-                f"[PlanGuard] Loaded RestrictedShell config: {cmd_count} cmd, {ps_count} powershell"
-            )
+            logger.info(f"[PlanGuard] Loaded RestrictedShell config: {cmd_count} cmd, {ps_count} powershell")
             return config
     except Exception as e:
         logger.warning(f"[PlanGuard] Failed to load restricted shell config: {e}")
@@ -281,7 +273,7 @@ class PlanGuard:
     def __init__(
         self,
         session_auth: SessionAuth,
-        config: Optional[PlanGuardConfig] = None,
+        config: PlanGuardConfig | None = None,
     ):
         """
         Initialize PlanGuard.
@@ -326,9 +318,7 @@ class PlanGuard:
 
         # 1. Check step count
         if len(plan.steps) > self._config.max_steps:
-            violations.append(
-                f"Plan has {len(plan.steps)} steps, max allowed is {self._config.max_steps}"
-            )
+            violations.append(f"Plan has {len(plan.steps)} steps, max allowed is {self._config.max_steps}")
 
         # 2. Count risk levels and check tools
         high_risk_count = 0
@@ -341,9 +331,7 @@ class PlanGuard:
             if step.tool not in ALL_KNOWN_TOOLS:
                 # Special case: plugin tools
                 if step.tool.startswith("plugin:"):
-                    violations.append(
-                        f"Step {step_num}: Plugin tools require explicit permission"
-                    )
+                    violations.append(f"Step {step_num}: Plugin tools require explicit permission")
                 else:
                     violations.append(
                         f"Step {step_num}: Tool '{step.tool}' is not recognized. "
@@ -353,9 +341,7 @@ class PlanGuard:
 
             # Block dangerous tools
             if step.tool in BLOCKED_TOOLS:
-                violations.append(
-                    f"Step {step_num}: Tool '{step.tool}' is blocked for safety"
-                )
+                violations.append(f"Step {step_num}: Tool '{step.tool}' is blocked for safety")
                 continue
 
             # Allow safe tools with minimal checks
@@ -371,9 +357,7 @@ class PlanGuard:
             if step.tool == "open_app":
                 app_raw = step.args.get("app_name", "") or step.args.get("name", "")
                 if not app_raw:
-                    violations.append(
-                        f"Step {step_num}: open_app missing app_name argument"
-                    )
+                    violations.append(f"Step {step_num}: open_app missing app_name argument")
                     continue
 
                 # Normalize: handle paths, case, whitespace
@@ -409,8 +393,8 @@ class PlanGuard:
                     continue
 
                 try:
-                    from urllib.parse import urlparse
                     import ipaddress
+                    from urllib.parse import urlparse
 
                     parsed = urlparse(url)
                     domain = parsed.netloc
@@ -431,9 +415,7 @@ class PlanGuard:
                         "0.0.0.0",
                         "::",
                     ]:
-                        violations.append(
-                            f"Step {step_num}: Localhost addresses are not allowed for security"
-                        )
+                        violations.append(f"Step {step_num}: Localhost addresses are not allowed for security")
                         logger.warning(f"[PlanGuard] Blocked localhost URL: {url}")
                         continue
 
@@ -452,9 +434,7 @@ class PlanGuard:
                             continue
 
                         # Block all IPs for SSRF prevention
-                        violations.append(
-                            f"Step {step_num}: IP addresses are not allowed for security (IP: {host})"
-                        )
+                        violations.append(f"Step {step_num}: IP addresses are not allowed for security (IP: {host})")
                         logger.warning(f"[PlanGuard] Blocked IP URL: {url}")
                         continue
                     except ValueError:
@@ -467,9 +447,7 @@ class PlanGuard:
                     for trusted in self.trusted_domains:
                         trusted_lower = trusted.lower()
                         # Exact match OR subdomain match
-                        if domain_lower == trusted_lower or domain_lower.endswith(
-                            "." + trusted_lower
-                        ):
+                        if domain_lower == trusted_lower or domain_lower.endswith("." + trusted_lower):
                             allowed = True
                             break
 
@@ -491,9 +469,7 @@ class PlanGuard:
                 run_as_admin = step.args.get("run_as_admin", False)
 
                 if not command:
-                    violations.append(
-                        f"Step {step_num}: restricted_shell missing command argument"
-                    )
+                    violations.append(f"Step {step_num}: restricted_shell missing command argument")
                     continue
 
                 # Validate using RestrictedShellTool
@@ -508,8 +484,7 @@ class PlanGuard:
                     # Check if enabled
                     if not self.restricted_shell_config.get("enabled", False):
                         violations.append(
-                            f"Step {step_num}: RestrictedShell is disabled. "
-                            f"Enable in config/restricted_shell.json"
+                            f"Step {step_num}: RestrictedShell is disabled. Enable in config/restricted_shell.json"
                         )
                         continue
 
@@ -521,9 +496,7 @@ class PlanGuard:
                     violations.append(f"Step {step_num}: {str(e)}")
                 except Exception as e:
                     logger.error(f"[PlanGuard] RestrictedShell validation error: {e}")
-                    violations.append(
-                        f"Step {step_num}: Shell validation failed: {str(e)}"
-                    )
+                    violations.append(f"Step {step_num}: Shell validation failed: {str(e)}")
 
                 total_retries += step.retries
                 continue
@@ -532,9 +505,7 @@ class PlanGuard:
             if step.tool in ("save_file", "open_file"):
                 path = step.args.get("path", "")
                 if not self._session.is_folder_allowed(path):
-                    violations.append(
-                        f"Step {step_num}: Path '{path}' is not in allowed folders"
-                    )
+                    violations.append(f"Step {step_num}: Path '{path}' is not in allowed folders")
 
             # Increment high risk count
             if step.risk_level == "high":
@@ -556,9 +527,7 @@ class PlanGuard:
 
         # 5. Check network requirement
         if plan.requires_network and not self._session.is_network_allowed():
-            violations.append(
-                "Plan requires network access but session does not permit it"
-            )
+            violations.append("Plan requires network access but session does not permit it")
 
         # 6. Check admin requirement
         if plan.requires_admin:
@@ -574,9 +543,7 @@ class PlanGuard:
                     "timestamp": time.time(),
                     "plan_id": plan.id,
                     "task": plan.task.replace("\n", "\\n").replace("\r", ""),
-                    "violations": [
-                        v.replace("\n", "\\n").replace("\r", "") for v in violations
-                    ],
+                    "violations": [v.replace("\n", "\\n").replace("\r", "") for v in violations],
                     "step_count": len(plan.steps),
                     "tools_used": [step.tool for step in plan.steps],
                 }
@@ -584,9 +551,7 @@ class PlanGuard:
                 # P3 FIX: Use rotating file handler instead of direct write
                 _audit_logger.info(json.dumps(audit_entry))
 
-                logger.info(
-                    f"[PlanGuard] Logged {len(violations)} violations to safety_audit.jsonl"
-                )
+                logger.info(f"[PlanGuard] Logged {len(violations)} violations to safety_audit.jsonl")
             except Exception as e:
                 logger.error(f"[PlanGuard] Failed to write audit log: {e}")
 
@@ -595,9 +560,7 @@ class PlanGuard:
                 violations,
             )
 
-    def _check_dangerous_keypress(
-        self, step: "ActionStep", step_num: int, violations: list[str]
-    ) -> None:
+    def _check_dangerous_keypress(self, step: "ActionStep", step_num: int, violations: list[str]) -> None:
         """Check keypress for dangerous key combinations."""
         keys = step.args.get("keys", [])
         if isinstance(keys, str):
@@ -616,9 +579,7 @@ class PlanGuard:
             if combo.issubset(set(keys_lower)):
                 violations.append(f"Step {step_num}: Blocked dangerous keypress {name}")
 
-    def _check_high_risk_step(
-        self, step: "ActionStep", step_num: int, violations: list[str]
-    ) -> None:
+    def _check_high_risk_step(self, step: "ActionStep", step_num: int, violations: list[str]) -> None:
         """Check high-risk step for dangerous patterns (legacy, mostly replaced by allowlists)."""
         if step.tool == "keypress":
             self._check_dangerous_keypress(step, step_num, violations)

@@ -3,13 +3,13 @@ Screen Capture Module using DXCam (Primary) and MSS (Fallback).
 Supports multi-monitor, ROI, and dynamic FPS control (W7.1).
 """
 
-import threading
-import logging
-import io
 import base64
-from typing import Optional
-from PIL import Image
+import io
+import logging
 import platform
+import threading
+
+from PIL import Image
 
 # dxcam import guarded
 HAS_DXCAM = False
@@ -54,7 +54,7 @@ class ScreenCapture:
             self._interval = 1.0 / self._target_fps
             logger.debug(f"Target FPS set to {self._target_fps}")
 
-    def _capture_with_dx(self, region: Optional[tuple] = None):
+    def _capture_with_dx(self, region: tuple | None = None):
         # dxcam capture call (fast) - returns a numpy image
         if not self._dx_cam:
             raise RuntimeError("DXCam not available")
@@ -73,7 +73,7 @@ class ScreenCapture:
 
         return Image.fromarray(img)
 
-    def _capture_with_mss(self, region: Optional[tuple] = None):
+    def _capture_with_mss(self, region: tuple | None = None):
         with self._lock:  # MSS is not always thread safe depending on OS
             # monitor[0] is all, monitor[1] is primary.
             # logic: map monitor_idx 0 -> monitor 1 (primary)
@@ -101,7 +101,7 @@ class ScreenCapture:
             img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
             return img
 
-    def capture(self, region: Optional[tuple] = None) -> Image.Image:
+    def capture(self, region: tuple | None = None) -> Image.Image:
         """Capture screen content as PIL Image."""
         # Try DX first, fallback to MSS.
         if self._dx_cam:
@@ -114,7 +114,7 @@ class ScreenCapture:
                 pass
         return self._capture_with_mss(region)
 
-    def capture_base64(self, region: Optional[tuple] = None) -> str:
+    def capture_base64(self, region: tuple | None = None) -> str:
         """Capture and return as base64 string."""
         img = self.capture(region)
         if not img:

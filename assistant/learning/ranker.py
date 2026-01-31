@@ -4,7 +4,7 @@ Uses learned app profiles to bias execution strategy order.
 """
 
 import logging
-from typing import List, Optional
+
 from assistant.learning.store import LearningStore
 
 logger = logging.getLogger("StrategyRanker")
@@ -18,7 +18,7 @@ class StrategyRanker:
         self.store = store
         self.enabled = True
 
-    def get_strategy_order(self, app_name: Optional[str]) -> List[str]:
+    def get_strategy_order(self, app_name: str | None) -> list[str]:
         """
         Get the optimal strategy order for a given app.
         Returns strategies sorted by learned success rate.
@@ -49,7 +49,5 @@ class StrategyRanker:
             ranked.remove("Coords")
             ranked.append("Coords")
 
-        logger.debug(
-            f"[Ranker] {app_name}: {ranked} (UIA={rates['UIA']:.2f}, Vision={rates['Vision']:.2f})"
-        )
+        logger.debug(f"[Ranker] {app_name}: {ranked} (UIA={rates['UIA']:.2f}, Vision={rates['Vision']:.2f})")
         return ranked

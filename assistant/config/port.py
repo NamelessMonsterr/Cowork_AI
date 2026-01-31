@@ -3,11 +3,10 @@ P2.2 - Port Management.
 Dynamic port discovery and lock file for Electron communication.
 """
 
-import os
 import json
-import socket
 import logging
-from typing import Optional
+import os
+import socket
 from pathlib import Path
 
 from assistant.config.paths import get_appdata_dir
@@ -61,14 +60,14 @@ def write_port_file(port: int, pid: int = None):
     logger.info(f"Port file written: {port_file} (port={port})")
 
 
-def read_port_file() -> Optional[dict]:
+def read_port_file() -> dict | None:
     """Read port info from file."""
     port_file = get_port_file_path()
     if not port_file.exists():
         return None
 
     try:
-        with open(port_file, "r") as f:
+        with open(port_file) as f:
             return json.load(f)
     except Exception as e:
         logger.warning(f"Failed to read port file: {e}")
@@ -83,7 +82,7 @@ def clear_port_file():
         logger.info("Port file cleared.")
 
 
-def get_backend_url() -> Optional[str]:
+def get_backend_url() -> str | None:
     """Get the backend URL from port file (for UI/clients)."""
     data = read_port_file()
     if data:

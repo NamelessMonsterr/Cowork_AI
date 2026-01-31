@@ -7,13 +7,14 @@ Provides:
 - Delayed execution
 """
 
-import time
+import heapq
 import threading
-from typing import Optional, Callable, List, Dict, Any
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import heapq
+from typing import Any
 
 
 class ScheduleType(str, Enum):
@@ -37,7 +38,7 @@ class ScheduledTask:
     interval_sec: float = 0
     enabled: bool = True
     run_count: int = 0
-    last_run: Optional[float] = None
+    last_run: float | None = None
 
     def __lt__(self, other):
         return self.next_run < other.next_run
@@ -54,10 +55,10 @@ class Scheduler:
     """
 
     def __init__(self):
-        self._tasks: Dict[str, ScheduledTask] = {}
-        self._queue: List[ScheduledTask] = []
+        self._tasks: dict[str, ScheduledTask] = {}
+        self._queue: list[ScheduledTask] = []
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._task_counter = 0
 
@@ -65,9 +66,7 @@ class Scheduler:
         self._task_counter += 1
         return f"task_{self._task_counter}"
 
-    def schedule_once(
-        self, callback: Callable, delay_sec: float, name: str = ""
-    ) -> str:
+    def schedule_once(self, callback: Callable, delay_sec: float, name: str = "") -> str:
         """Schedule a one-time task."""
         task_id = self._generate_id()
         task = ScheduledTask(
@@ -162,7 +161,7 @@ class Scheduler:
 
             time.sleep(0.1)
 
-    def get_tasks(self) -> List[Dict[str, Any]]:
+    def get_tasks(self) -> list[dict[str, Any]]:
         """Get list of scheduled tasks."""
         with self._lock:
             return [
@@ -203,7 +202,7 @@ class DelayedExecutor:
 
 
 # Global scheduler
-_scheduler: Optional[Scheduler] = None
+_scheduler: Scheduler | None = None
 
 
 def get_scheduler() -> Scheduler:

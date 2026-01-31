@@ -26,9 +26,7 @@ def test_apis():
     r = requests.get(f"{API_URL}/safety/trusted_domains")
     if r.status_code == 200:
         domains = r.json()
-        print(
-            f"✅ Trusted domains loaded: {len(domains.get('trusted_domains', []))} domains"
-        )
+        print(f"✅ Trusted domains loaded: {len(domains.get('trusted_domains', []))} domains")
         print(f"   github.com in list: {'github.com' in str(domains)}")
     else:
         print(f"❌ Failed to load trusted domains: {r.status_code}")

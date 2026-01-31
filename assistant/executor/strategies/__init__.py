@@ -9,10 +9,10 @@ Priority Order:
 3. Coords (Fallback)
 """
 
+from .coords import CoordsStrategy
 from .system import SystemStrategy
 from .uia import UIAStrategy
 from .vision import VisionStrategy
-from .coords import CoordsStrategy
 
 try:
     from .ocr import OCRStrategy

@@ -7,14 +7,14 @@ Verifies strategies are tried in correct priority order:
 - Coords (priority 40) - fallback
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from assistant.executor.strategies.coords import CoordsStrategy
 from assistant.executor.strategies.uia import UIAStrategy
 from assistant.executor.strategies.vision import VisionStrategy
-from assistant.executor.strategies.coords import CoordsStrategy
 
 
 def test_strategy_priority():

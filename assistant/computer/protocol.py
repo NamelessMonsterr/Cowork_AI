@@ -1,7 +1,7 @@
 """Computer protocol definition for Windows control."""
 
-from typing import Protocol, List, Literal, Dict, Optional
 from dataclasses import dataclass
+from typing import Literal, Protocol
 
 
 @dataclass
@@ -59,7 +59,7 @@ class Computer(Protocol):
         """Move mouse to coordinates."""
         ...
 
-    def drag(self, path: List[Dict[str, int]]) -> None:
+    def drag(self, path: list[dict[str, int]]) -> None:
         """Drag along a path of points."""
         ...
 
@@ -68,7 +68,7 @@ class Computer(Protocol):
         """Type text."""
         ...
 
-    def keypress(self, keys: List[str]) -> None:
+    def keypress(self, keys: list[str]) -> None:
         """Press key combination."""
         ...
 
@@ -78,11 +78,11 @@ class Computer(Protocol):
         ...
 
     # Windows-specific (optional for other platforms)
-    def get_active_window(self) -> Optional[WindowInfo]:
+    def get_active_window(self) -> WindowInfo | None:
         """Get information about the currently active window."""
         ...
 
-    def get_window_by_title(self, title: str) -> Optional[WindowInfo]:
+    def get_window_by_title(self, title: str) -> WindowInfo | None:
         """Find window by title (partial match)."""
         ...
 

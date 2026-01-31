@@ -2,15 +2,16 @@
 W13 Verification - Plugin Installer Demo.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
 
-import json
-import zipfile
 import io
+import json
 import logging
+import zipfile
+
 from assistant.plugins.installer import PluginInstaller
 
 logging.basicConfig(level=logging.INFO)
@@ -70,14 +71,10 @@ def test_install():
 
     # 3. Test Untrusted Publisher (Should warn but install in MVP)
     logger.info("Test 3: Untrusted Publisher")
-    zip_bytes_untrusted = create_dummy_plugin_zip(
-        id="evil.plugin", publisher="EvilCorp"
-    )
+    zip_bytes_untrusted = create_dummy_plugin_zip(id="evil.plugin", publisher="EvilCorp")
     try:
         pid, status = installer.install_zip(zip_bytes_untrusted)
-        logger.info(
-            f"✅ Untrusted install processed (Policy: Allow+Log). Result: {status}"
-        )
+        logger.info(f"✅ Untrusted install processed (Policy: Allow+Log). Result: {status}")
     except Exception as e:
         logger.info(f"ℹ️ Untrusted install blocked (Policy: Strict). Error: {e}")
 

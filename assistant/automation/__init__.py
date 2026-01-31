@@ -8,10 +8,10 @@ Provides:
 """
 
 from .scheduler import (
-    ScheduleType,
+    DelayedExecutor,
     ScheduledTask,
     Scheduler,
-    DelayedExecutor,
+    ScheduleType,
     get_scheduler,
 )
 

@@ -3,10 +3,10 @@ W19.3 Local Sync Store.
 SQLite database for tracking snapshots and conflicts.
 """
 
-import sqlite3
-import os
 import logging
-from typing import Optional
+import os
+import sqlite3
+
 from .snapshot import Snapshot
 
 logger = logging.getLogger("SyncStore")
@@ -46,7 +46,7 @@ class LocalSyncStore:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute(
-            """INSERT OR REPLACE INTO snapshots 
+            """INSERT OR REPLACE INTO snapshots
                      (snapshot_id, user_id, device_id, revision, created_at, encrypted_payload, is_applied)
                      VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
@@ -62,7 +62,7 @@ class LocalSyncStore:
         conn.commit()
         conn.close()
 
-    def get_latest_snapshot(self) -> Optional[Snapshot]:
+    def get_latest_snapshot(self) -> Snapshot | None:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()

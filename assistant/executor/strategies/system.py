@@ -10,9 +10,9 @@ Priority: 5 (highest - checked before UI strategies)
 
 import logging
 import webbrowser
-from typing import Optional
 
 from assistant.ui_contracts.schemas import ActionStep, UISelector
+
 from .base import Strategy, StrategyResult
 
 logger = logging.getLogger(__name__)
@@ -72,9 +72,7 @@ class SystemStrategy(Strategy):
             StrategyResult indicating success/failure
         """
         if not self._computer:
-            return StrategyResult(
-                success=False, error="SystemStrategy: No computer instance configured"
-            )
+            return StrategyResult(success=False, error="SystemStrategy: No computer instance configured")
 
         try:
             tool = step.tool
@@ -83,9 +81,7 @@ class SystemStrategy(Strategy):
             if tool == "open_app":
                 app_name = args.get("app_name") or args.get("name")
                 if not app_name:
-                    return StrategyResult(
-                        success=False, error="open_app: Missing 'app_name' argument"
-                    )
+                    return StrategyResult(success=False, error="open_app: Missing 'app_name' argument")
 
                 logger.info(f"[SystemStrategy] Opening app: {app_name}")
                 success = self._computer.launch_app(app_name)
@@ -96,16 +92,12 @@ class SystemStrategy(Strategy):
                         details={"action": "open_app", "app_name": app_name},
                     )
                 else:
-                    return StrategyResult(
-                        success=False, error=f"Failed to launch app: {app_name}"
-                    )
+                    return StrategyResult(success=False, error=f"Failed to launch app: {app_name}")
 
             elif tool in ["run_shell", "shell"]:
                 command = args.get("command") or args.get("cmd")
                 if not command:
-                    return StrategyResult(
-                        success=False, error="run_shell: Missing 'command' argument"
-                    )
+                    return StrategyResult(success=False, error="run_shell: Missing 'command' argument")
 
                 logger.info(f"[SystemStrategy] Running shell: {command}")
                 success = self._computer.run_shell(command)
@@ -116,22 +108,16 @@ class SystemStrategy(Strategy):
                         details={"action": "run_shell", "command": command},
                     )
                 else:
-                    return StrategyResult(
-                        success=False, error=f"Shell command failed: {command}"
-                    )
+                    return StrategyResult(success=False, error=f"Shell command failed: {command}")
 
             elif tool == "open_url":
                 url = args.get("url") or args.get("link")
                 if not url:
-                    return StrategyResult(
-                        success=False, error="open_url: Missing 'url' argument"
-                    )
+                    return StrategyResult(success=False, error="open_url: Missing 'url' argument")
 
                 logger.info(f"[SystemStrategy] Opening URL: {url}")
                 webbrowser.open(url)
-                return StrategyResult(
-                    success=True, output=f"Opened {url}", action_type="open_url"
-                )
+                return StrategyResult(success=True, output=f"Opened {url}", action_type="open_url")
 
             elif tool == "restricted_shell":
                 # Execute safe shell command via RestrictedShellTool
@@ -143,13 +129,9 @@ class SystemStrategy(Strategy):
                     run_as_admin = args.get("run_as_admin", False)
 
                     tool_instance = RestrictedShellTool()
-                    result = tool_instance.execute(
-                        engine, command, run_as_admin, supervised=True
-                    )
+                    result = tool_instance.execute(engine, command, run_as_admin, supervised=True)
 
-                    logger.info(
-                        f"[SystemStrategy] Shell: {command[:50]}... exit={result.exit_code}"
-                    )
+                    logger.info(f"[SystemStrategy] Shell: {command[:50]}... exit={result.exit_code}")
 
                     output = result.stdout if result.stdout else result.stderr
                     if result.redacted:
@@ -170,15 +152,13 @@ class SystemStrategy(Strategy):
                     )
 
             else:
-                return StrategyResult(
-                    success=False, error=f"Unknown system tool: {tool}"
-                )
+                return StrategyResult(success=False, error=f"Unknown system tool: {tool}")
 
         except Exception as e:
             logger.exception(f"[SystemStrategy] Error executing {tool}")
             return StrategyResult(success=False, error=str(e))
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """System strategy doesn't find UI elements."""
         return None
 

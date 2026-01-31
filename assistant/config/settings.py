@@ -5,7 +5,7 @@ Single validated configuration for the entire application.
 
 import json
 import logging
-from typing import Optional, List
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("Settings")
@@ -58,20 +58,16 @@ class LearningSettings(BaseModel):
 class VoiceSettings(BaseModel):
     """Voice input configuration."""
 
-    mode: str = Field(
-        default="push_to_talk", pattern="^(push_to_talk|wake_word|always_on)$"
-    )
+    mode: str = Field(default="push_to_talk", pattern="^(push_to_talk|wake_word|always_on)$")
     wake_word: str = "flash"
     push_to_talk_key: str = "ctrl+space"
     # STT Engine Settings
-    engine_preference: str = Field(
-        default="auto", pattern="^(auto|faster-whisper|openai|mock)$"
-    )
-    openai_api_key: Optional[str] = None  # If set, enables OpenAI Whisper API fallback
+    engine_preference: str = Field(default="auto", pattern="^(auto|faster-whisper|openai|mock)$")
+    openai_api_key: str | None = None  # If set, enables OpenAI Whisper API fallback
     prefer_local_stt: bool = True  # Try local FasterWhisper first, API second
     mock_stt: bool = False  # Force mock mode (dev only)
     # Recording Settings
-    mic_device: Optional[str] = None  # Specific mic device ID, None = system default
+    mic_device: str | None = None  # Specific mic device ID, None = system default
     record_seconds: int = Field(default=5, ge=2, le=30)  # Recording duration
 
 
@@ -81,7 +77,7 @@ class ServerSettings(BaseModel):
     host: str = "127.0.0.1"  # Production: localhost only
     port: int = Field(default=8765, ge=1024, le=65535)
     cors_enabled: bool = True  # Enabled for Beta/Dev
-    cors_origins: List[str] = [
+    cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3002",
@@ -114,7 +110,7 @@ class AppSettings(BaseModel):
         try:
             path = _get_settings_path()
             if path.exists():
-                with open(path, "r") as f:
+                with open(path) as f:
                     data = json.load(f)
                 return cls(**data)
         except Exception as e:
@@ -131,7 +127,7 @@ class AppSettings(BaseModel):
 
 
 # Global singleton
-_settings: Optional[AppSettings] = None
+_settings: AppSettings | None = None
 
 
 def get_settings() -> AppSettings:

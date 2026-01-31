@@ -2,17 +2,18 @@
 W12 Verification - Plugin System Demo.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
 import asyncio
 import logging
-from assistant.plugins.registry import ToolRegistry, PluginLoader
+
 from assistant.plugins.permissions import PermissionManager
-from assistant.plugins.secrets import PluginSecrets
+from assistant.plugins.registry import PluginLoader, ToolRegistry
 from assistant.plugins.router import ToolRouter
 from assistant.plugins.sdk import ToolContext
+from assistant.plugins.secrets import PluginSecrets
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -27,9 +28,7 @@ async def main():
     loader = PluginLoader(registry)
 
     # Mock builtins path for this test
-    loader.search_paths = [
-        os.path.join(os.getcwd(), "assistant", "plugins", "builtins")
-    ]
+    loader.search_paths = [os.path.join(os.getcwd(), "assistant", "plugins", "builtins")]
 
     # 2. Load Plugins
     logger.info("Loading plugins...")

@@ -9,13 +9,11 @@ Features:
 """
 
 import logging
+import os
 import re
 import time
-import os
-from typing import Optional
 from dataclasses import dataclass
 from functools import wraps
-
 
 # ==================== Privacy Sanitizer ====================
 
@@ -76,7 +74,7 @@ class LogConfig:
     """Logging configuration."""
 
     level: int = logging.INFO
-    log_file: Optional[str] = None
+    log_file: str | None = None
     console: bool = True
     sanitize: bool = True
     redact_paths: bool = True
@@ -88,7 +86,7 @@ class CoworkLogger:
     Structured logger with privacy sanitization.
     """
 
-    def __init__(self, name: str = "cowork", config: Optional[LogConfig] = None):
+    def __init__(self, name: str = "cowork", config: LogConfig | None = None):
         self._config = config or LogConfig()
         self._sanitizer = PrivacySanitizer(redact_paths=self._config.redact_paths)
 
@@ -156,7 +154,7 @@ class CoworkLogger:
 class Timer:
     """Context manager for timing operations."""
 
-    def __init__(self, name: str, logger: Optional[CoworkLogger] = None):
+    def __init__(self, name: str, logger: CoworkLogger | None = None):
         self.name = name
         self.logger = logger
         self.start_time = 0.0
@@ -172,7 +170,7 @@ class Timer:
             self.logger.timing(self.name, self.elapsed_ms)
 
 
-def timed(logger: Optional[CoworkLogger] = None):
+def timed(logger: CoworkLogger | None = None):
     """Decorator for timing function execution."""
 
     def decorator(func):
@@ -192,7 +190,7 @@ def timed(logger: Optional[CoworkLogger] = None):
 
 # ==================== Global Logger Instance ====================
 
-_global_logger: Optional[CoworkLogger] = None
+_global_logger: CoworkLogger | None = None
 
 
 def get_logger() -> CoworkLogger:

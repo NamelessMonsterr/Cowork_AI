@@ -2,9 +2,10 @@
 W14 Verification - Sandbox & Plugin Host.
 """
 
-import sys
-import os
 import logging
+import os
+import sys
+
 from fastapi.testclient import TestClient
 
 # Setup
@@ -13,8 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("W14_Demo")
 
 # Pre-install a dummy plugin
-from test_phases.demo_w13_install import create_dummy_plugin_zip
 from assistant.plugins.installer import PluginInstaller
+from test_phases.demo_w13_install import create_dummy_plugin_zip
 
 
 def setup_plugin():
@@ -95,9 +96,7 @@ def test_sandbox_architecture():
 
             time.sleep(2)
             os.kill(pid, 0)
-            logger.warning(
-                "⚠️ Plugin Host PID still alive (might be zombie or slow shutdown)"
-            )
+            logger.warning("⚠️ Plugin Host PID still alive (might be zombie or slow shutdown)")
         except OSError:
             logger.info("✅ Plugin Host Process Terminated Successfully")
 

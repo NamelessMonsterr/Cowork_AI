@@ -7,31 +7,29 @@ Provides:
 - Plugin permission system
 """
 
+from .capture import (
+    HAS_DXCAM,
+    HAS_MSS,
+    CaptureConfig,
+    ScreenCapture,
+    get_capture,
+)
 from .logging import (
     CoworkLogger,
     LogConfig,
     PrivacySanitizer,
     Timer,
-    timed,
-    get_logger,
     configure_logging,
+    get_logger,
+    timed,
 )
-
-from .capture import (
-    ScreenCapture,
-    CaptureConfig,
-    get_capture,
-    HAS_DXCAM,
-    HAS_MSS,
-)
-
 from .permissions import (
     Permission,
-    PluginManifest,
     PermissionGrant,
     PermissionManager,
-    requires,
+    PluginManifest,
     optional,
+    requires,
 )
 
 __all__ = [

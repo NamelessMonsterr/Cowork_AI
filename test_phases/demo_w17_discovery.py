@@ -2,10 +2,10 @@
 W17 Verification - Peer Discovery.
 """
 
-import sys
-import os
-import time
 import logging
+import os
+import sys
+import time
 
 sys.path.append(os.getcwd())
 

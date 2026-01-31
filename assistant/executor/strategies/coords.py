@@ -15,14 +15,13 @@ Cons:
 - Can't verify element presence
 """
 
-from typing import Optional
 import time
 
 import pyautogui
 
-from .base import Strategy, StrategyResult
 from assistant.ui_contracts.schemas import ActionStep, UISelector
 
+from .base import Strategy, StrategyResult
 
 # Configure pyautogui
 pyautogui.FAILSAFE = True
@@ -143,11 +142,9 @@ class CoordsStrategy(Strategy):
                 error="PyAutoGUI failsafe triggered (mouse moved to corner)",
             )
         except Exception as e:
-            return StrategyResult(
-                success=False, error=f"Coords execution failed: {str(e)}"
-            )
+            return StrategyResult(success=False, error=f"Coords execution failed: {str(e)}")
 
-    def _get_coordinates(self, step: ActionStep) -> tuple[Optional[int], Optional[int]]:
+    def _get_coordinates(self, step: ActionStep) -> tuple[int | None, int | None]:
         """Extract coordinates from step args or selector."""
         args = step.args
 
@@ -220,7 +217,7 @@ class CoordsStrategy(Strategy):
         mapped = [key_map.get(k.lower(), k.lower()) for k in keys]
         pyautogui.hotkey(*mapped)
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """
         Coords strategy can't really "find" elements.
         Returns the selector from args if available.

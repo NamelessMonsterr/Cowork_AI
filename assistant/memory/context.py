@@ -7,15 +7,15 @@ Provides:
 - System state awareness
 """
 
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
 import ctypes
 import time
+from dataclasses import dataclass
+from typing import Any
 
 try:
+    import win32clipboard
     import win32gui
     import win32process
-    import win32clipboard
 
     HAS_WIN32 = True
 except ImportError:
@@ -38,7 +38,7 @@ class AppContext:
 class ClipboardContent:
     """Clipboard content."""
 
-    text: Optional[str]
+    text: str | None
     has_image: bool
     has_files: bool
     timestamp: float
@@ -58,11 +58,11 @@ class ContextAwareness:
     EDITOR_PROCESSES = {"notepad", "code", "sublime_text", "notepad++", "vim", "nvim"}
 
     def __init__(self):
-        self._last_app: Optional[AppContext] = None
-        self._last_clipboard: Optional[ClipboardContent] = None
-        self._app_history: List[AppContext] = []
+        self._last_app: AppContext | None = None
+        self._last_clipboard: ClipboardContent | None = None
+        self._app_history: list[AppContext] = []
 
-    def get_active_app(self) -> Optional[AppContext]:
+    def get_active_app(self) -> AppContext | None:
         """Get current active application context."""
         try:
             hwnd = ctypes.windll.user32.GetForegroundWindow()
@@ -107,7 +107,7 @@ class ContextAwareness:
         except Exception:
             return "unknown"
 
-    def get_clipboard(self) -> Optional[ClipboardContent]:
+    def get_clipboard(self) -> ClipboardContent | None:
         """Get current clipboard content."""
         if not HAS_WIN32:
             return None
@@ -149,7 +149,7 @@ class ContextAwareness:
         except Exception:
             return self._last_clipboard
 
-    def get_recent_apps(self, limit: int = 5) -> List[AppContext]:
+    def get_recent_apps(self, limit: int = 5) -> list[AppContext]:
         """Get recently active applications."""
         seen = set()
         unique = []
@@ -171,7 +171,7 @@ class ContextAwareness:
         app = self.get_active_app()
         return app.is_editor if app else False
 
-    def get_context_summary(self) -> Dict[str, Any]:
+    def get_context_summary(self) -> dict[str, Any]:
         """Get summary of current context."""
         app = self.get_active_app()
         clipboard = self.get_clipboard()

@@ -3,8 +3,9 @@ Security regression tests to ensure vulnerabilities don't return.
 Tests cover all P0 and P1 security issues from the audit.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from assistant.utils.input_validator import (
     InputValidator,
@@ -72,15 +73,11 @@ class TestInputValidation:
         allowed = [r"C:\Users\Public"]
 
         # Valid path
-        valid, msg = InputValidator.validate_file_path(
-            r"C:\Users\Public\test.txt", allowed
-        )
+        valid, msg = InputValidator.validate_file_path(r"C:\Users\Public\test.txt", allowed)
         assert valid == True
 
         # Directory traversal attempt
-        valid, msg = InputValidator.validate_file_path(
-            r"C:\Users\Public\..\..\..\Windows\System32", allowed
-        )
+        valid, msg = InputValidator.validate_file_path(r"C:\Users\Public\..\..\..\Windows\System32", allowed)
         assert valid == False
         assert "outside allowed" in msg.lower()
 
@@ -92,16 +89,12 @@ class TestInputValidation:
     def test_wildcard_permissions_rejected(self):
         """Verify wildcard (*) permissions are rejected."""
         # Wildcard apps should fail
-        valid, msg = validate_session_permission_request(
-            apps=["*"], folders=[r"C:\Users\Public"]
-        )
+        valid, msg = validate_session_permission_request(apps=["*"], folders=[r"C:\Users\Public"])
         assert valid == False
         assert "wildcard" in msg.lower()
 
         # Wildcard folders should fail
-        valid, msg = validate_session_permission_request(
-            apps=["notepad"], folders=["*"]
-        )
+        valid, msg = validate_session_permission_request(apps=["notepad"], folders=["*"])
         assert valid == False
         assert "wildcard" in msg.lower()
 

@@ -9,15 +9,13 @@ Scopes:
 - filesystem:<path>
 """
 
-from typing import List, Set
-
 
 class PermissionManager:
     def __init__(self):
         # Map plugin_id -> set of granted scopes
-        self.grants: Dict[str, Set[str]] = {}
+        self.grants: Dict[str, set[str]] = {}
 
-    def grant(self, plugin_id: str, scopes: List[str]):
+    def grant(self, plugin_id: str, scopes: list[str]):
         if plugin_id not in self.grants:
             self.grants[plugin_id] = set()
         self.grants[plugin_id].update(scopes)

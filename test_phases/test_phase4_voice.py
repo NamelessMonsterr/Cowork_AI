@@ -8,21 +8,21 @@ Tests:
 4. API endpoints availability
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.voice import (
-    WhisperSTT,
-    STTState,
+    HAS_EDGE_TTS,
+    HAS_WHISPER,
     EdgeTTS,
+    STTState,
     TTSState,
+    VoiceConfig,
     VoiceController,
     VoiceState,
-    VoiceConfig,
-    HAS_WHISPER,
-    HAS_EDGE_TTS,
+    WhisperSTT,
 )
 
 
@@ -37,9 +37,7 @@ def test_stt_module():
 
     # Test 2: Availability check
     print("2. Testing availability...")
-    print(
-        f"   Whisper available: {'✅ Yes' if HAS_WHISPER else '⚠️ No (not installed)'}"
-    )
+    print(f"   Whisper available: {'✅ Yes' if HAS_WHISPER else '⚠️ No (not installed)'}")
 
     # Test 3: Interrupt keywords
     print("3. Testing interrupt keywords...")
@@ -64,9 +62,7 @@ def test_tts_module():
 
     # Test 2: Availability check
     print("2. Testing availability...")
-    print(
-        f"   edge-tts available: {'✅ Yes' if HAS_EDGE_TTS else '⚠️ No (not installed)'}"
-    )
+    print(f"   edge-tts available: {'✅ Yes' if HAS_EDGE_TTS else '⚠️ No (not installed)'}")
 
     # Test 3: Voice options
     print("3. Testing voice options...")
@@ -115,9 +111,7 @@ def test_voice_controller():
 
     # Test 4: Availability
     print("4. Testing availability...")
-    print(
-        f"   Controller available: {'✅ Yes' if controller.is_available else '⚠️ Partial (deps missing)'}"
-    )
+    print(f"   Controller available: {'✅ Yes' if controller.is_available else '⚠️ Partial (deps missing)'}")
 
     print("\n✅ Voice Controller: PASSED")
     return True

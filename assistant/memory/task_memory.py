@@ -9,9 +9,9 @@ Provides:
 
 import json
 import os
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -26,8 +26,8 @@ class TaskRecord:
     duration_sec: float
     started_at: str
     completed_at: str
-    error: Optional[str] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -35,7 +35,7 @@ class ActionPattern:
     """Learned action pattern."""
 
     trigger: str  # What triggers this pattern
-    actions: List[Dict[str, Any]]  # Sequence of actions
+    actions: list[dict[str, Any]]  # Sequence of actions
     success_rate: float
     use_count: int
 
@@ -50,7 +50,7 @@ class TaskMemory:
     - Provide context for future tasks
     """
 
-    def __init__(self, storage_path: Optional[str] = None):
+    def __init__(self, storage_path: str | None = None):
         self._storage_path = Path(storage_path or self._default_path())
         self._storage_path.mkdir(parents=True, exist_ok=True)
 
@@ -58,9 +58,9 @@ class TaskMemory:
         self._patterns_file = self._storage_path / "patterns.json"
         self._context_file = self._storage_path / "context.json"
 
-        self._history: List[TaskRecord] = []
-        self._patterns: Dict[str, ActionPattern] = {}
-        self._context: Dict[str, Any] = {}
+        self._history: list[TaskRecord] = []
+        self._patterns: dict[str, ActionPattern] = {}
+        self._context: dict[str, Any] = {}
 
         self._load()
 
@@ -71,7 +71,7 @@ class TaskMemory:
         """Load from storage."""
         if self._history_file.exists():
             try:
-                with open(self._history_file, "r") as f:
+                with open(self._history_file) as f:
                     data = json.load(f)
                 self._history = [TaskRecord(**r) for r in data]
             except Exception:
@@ -79,7 +79,7 @@ class TaskMemory:
 
         if self._patterns_file.exists():
             try:
-                with open(self._patterns_file, "r") as f:
+                with open(self._patterns_file) as f:
                     data = json.load(f)
                 self._patterns = {k: ActionPattern(**v) for k, v in data.items()}
             except Exception:
@@ -87,7 +87,7 @@ class TaskMemory:
 
         if self._context_file.exists():
             try:
-                with open(self._context_file, "r") as f:
+                with open(self._context_file) as f:
                     self._context = json.load(f)
             except Exception:
                 self._context = {}
@@ -110,7 +110,7 @@ class TaskMemory:
         self._history = self._history[-100:]
         self._save()
 
-    def get_history(self, limit: int = 10) -> List[TaskRecord]:
+    def get_history(self, limit: int = 10) -> list[TaskRecord]:
         """Get recent task history."""
         return self._history[-limit:]
 
@@ -135,7 +135,7 @@ class TaskMemory:
         self._context = {}
         self._save()
 
-    def learn_pattern(self, trigger: str, actions: List[Dict], success: bool):
+    def learn_pattern(self, trigger: str, actions: list[dict], success: bool):
         """Learn from action pattern."""
         if trigger in self._patterns:
             pattern = self._patterns[trigger]
@@ -153,11 +153,11 @@ class TaskMemory:
             )
         self._save()
 
-    def get_pattern(self, trigger: str) -> Optional[ActionPattern]:
+    def get_pattern(self, trigger: str) -> ActionPattern | None:
         """Get learned pattern for trigger."""
         return self._patterns.get(trigger)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get memory statistics."""
         return {
             "total_tasks": len(self._history),

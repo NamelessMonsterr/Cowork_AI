@@ -8,21 +8,21 @@ Responsibilities:
 4. Capture precise latency and success/fail metrics.
 """
 
+import logging
 import time
 import uuid
-import logging
-from typing import Dict, Any
+from typing import Any
 
+from assistant.agent.planner import Planner
 from assistant.computer.windows import WindowsComputer
 from assistant.executor.executor import ReliableExecutor
+from assistant.executor.strategies import CoordsStrategy, UIAStrategy, VisionStrategy
 from assistant.executor.verify import Verifier
-from assistant.executor.strategies import UIAStrategy, VisionStrategy, CoordsStrategy
 from assistant.recovery.manager import RecoveryManager
-from assistant.safety.plan_guard import PlanGuard, ExecutionPlan, PlanGuardConfig
 from assistant.safety.budget import ActionBudget, BudgetConfig
 from assistant.safety.environment import EnvironmentMonitor
+from assistant.safety.plan_guard import ExecutionPlan, PlanGuard, PlanGuardConfig
 from assistant.session_auth import SessionAuth
-from assistant.agent.planner import Planner
 from assistant.ui_contracts.schemas import ActionStep
 
 logger = logging.getLogger("BenchmarkHarness")
@@ -41,9 +41,7 @@ class TaskHarness:
         # Note: BenchmarkRunner enfores Mode + Session at start.
 
         self.environment = EnvironmentMonitor(on_unsafe=self._on_unsafe)
-        self.budget = ActionBudget(
-            config=BudgetConfig(max_actions_per_task=50)
-        )  # Strict budget for benchmarks
+        self.budget = ActionBudget(config=BudgetConfig(max_actions_per_task=50))  # Strict budget for benchmarks
 
         # Import SystemStrategy from production module (same as main.py)
         from assistant.executor.strategies.system import SystemStrategy
@@ -65,9 +63,7 @@ class TaskHarness:
         )
 
         self.planner = Planner(self.computer)
-        self.plan_guard = PlanGuard(
-            self.session_auth, config=PlanGuardConfig(require_verification=False)
-        )
+        self.plan_guard = PlanGuard(self.session_auth, config=PlanGuardConfig(require_verification=False))
 
         self.recovery_manager = RecoveryManager(
             planner=self.planner,
@@ -81,7 +77,7 @@ class TaskHarness:
         # In benchmark, we abort immediately
         raise RuntimeError(f"Unsafe Environment: {reason}")
 
-    async def execute(self, task_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, task_config: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a benchmark task.
         Returns: {success: bool, steps_total: int, steps_completed: int, error: str, duration: float}
@@ -150,11 +146,7 @@ class TaskHarness:
                 args = s.copy()
 
                 # Attach verification to the LAST step if not present
-                if (
-                    i == len(raw_steps) - 1
-                    and verify_spec
-                    and not step_kwargs.get("verify")
-                ):
+                if i == len(raw_steps) - 1 and verify_spec and not step_kwargs.get("verify"):
                     step_kwargs["verify"] = verify_spec
 
                 step = ActionStep(id=step_id, tool=tool, args=args, **step_kwargs)
@@ -183,9 +175,7 @@ class TaskHarness:
 
                 if not result.success:
                     # Try Recovery
-                    logger.warning(
-                        f"Step {step.id} Failed. Attempting Benchmark Recovery..."
-                    )
+                    logger.warning(f"Step {step.id} Failed. Attempting Benchmark Recovery...")
 
                     recent_steps = plan.steps[:i]
                     recovered = await self.recovery_manager.handle_failure(
@@ -198,13 +188,9 @@ class TaskHarness:
                     if recovered:
                         retry_res = self.executor.execute(step)
                         if not retry_res.success:
-                            raise RuntimeError(
-                                f"Step {step.id} failed after recovery: {retry_res.error}"
-                            )
+                            raise RuntimeError(f"Step {step.id} failed after recovery: {retry_res.error}")
                     else:
-                        raise RuntimeError(
-                            f"Step {step.id} failed and not recovered: {result.error}"
-                        )
+                        raise RuntimeError(f"Step {step.id} failed and not recovered: {result.error}")
 
                 steps_completed += 1
 
@@ -221,9 +207,7 @@ class TaskHarness:
             return {
                 "success": False,
                 "steps_total": len(raw_steps) if "raw_steps" in locals() else 0,
-                "steps_completed": steps_completed
-                if "steps_completed" in locals()
-                else 0,
+                "steps_completed": steps_completed if "steps_completed" in locals() else 0,
                 "duration": time.time() - start_time,
                 "error": str(e),
             }

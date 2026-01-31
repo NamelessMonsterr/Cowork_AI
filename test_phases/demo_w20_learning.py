@@ -2,12 +2,12 @@
 W20 Verification - Learning.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
-from assistant.learning.store import LearningStore
 from assistant.learning.collector import LearningCollector
+from assistant.learning.store import LearningStore
 
 DB_PATH = os.path.join(os.getcwd(), "test_learn.db")
 
@@ -23,9 +23,7 @@ def test_learning():
 
     # 1. Safe Learning
     print("Ingesting Safe Notepad Event (Success)...")
-    collector.ingest_execution_step(
-        "notepad.exe", "Untitled - Notepad", "UIA", True, 50
-    )
+    collector.ingest_execution_step("notepad.exe", "Untitled - Notepad", "UIA", True, 50)
 
     profile = store.get_app_profile("notepad.exe")
     if profile and profile["uia_success_rate"] > 0:
@@ -45,14 +43,10 @@ def test_learning():
 
     # 3. Rate Update (Failure)
     print("Ingesting Notepad Failure...")
-    collector.ingest_execution_step(
-        "notepad.exe", "Untitled - Notepad", "UIA", False, 500
-    )
+    collector.ingest_execution_step("notepad.exe", "Untitled - Notepad", "UIA", False, 500)
 
     profile_v2 = store.get_app_profile("notepad.exe")
-    print(
-        f"✅ Updated UIA Rate: {profile_v2['uia_success_rate']:.2f} (Should be lower)"
-    )
+    print(f"✅ Updated UIA Rate: {profile_v2['uia_success_rate']:.2f} (Should be lower)")
 
     if profile_v2["uia_success_rate"] < profile["uia_success_rate"]:
         print("✅ Learning Curve: Rate adjusted down.")

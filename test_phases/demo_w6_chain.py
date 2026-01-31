@@ -7,20 +7,20 @@ Verifies:
 3. Safety Triggers (UAC Simulation)
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from assistant.session_auth import SessionAuth
 from assistant.computer.windows import WindowsComputer
-from assistant.safety.environment import EnvironmentMonitor
-from assistant.safety.budget import ActionBudget
 from assistant.executor.executor import ReliableExecutor
+from assistant.executor.strategies import CoordsStrategy, UIAStrategy
 from assistant.executor.verify import Verifier
-from assistant.executor.strategies import UIAStrategy, CoordsStrategy
+from assistant.safety.budget import ActionBudget
+from assistant.safety.environment import EnvironmentMonitor
+from assistant.session_auth import SessionAuth
 from assistant.ui_contracts.schemas import ActionStep
 
 # Setup Logging
@@ -99,15 +99,11 @@ def main():
     original_check = environment.check_state
     environment._is_secure_desktop = lambda: True
 
-    step_unsafe = ActionStep(
-        id="3", tool="click", args={"x": 500, "y": 500}, description="Unsafe Click"
-    )
+    step_unsafe = ActionStep(id="3", tool="click", args={"x": 500, "y": 500}, description="Unsafe Click")
 
     result = executor.execute(step_unsafe)
     if not result.success and result.requires_takeover:
-        logger.info(
-            "✅ Safety Trigger WORKED! Execution blocked due to Secure Desktop."
-        )
+        logger.info("✅ Safety Trigger WORKED! Execution blocked due to Secure Desktop.")
     else:
         logger.error(f"❌ Safety Trigger FAILED. Result: {result}")
 

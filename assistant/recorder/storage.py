@@ -8,12 +8,11 @@ Structure:
     - preview.png (Optional)
 """
 
-import os
 import json
 import logging
-from typing import List, Optional, Dict
-from datetime import datetime
+import os
 import uuid
+from datetime import datetime
 
 from assistant.ui_contracts.schemas import ExecutionPlan
 
@@ -26,7 +25,7 @@ class MacroStorage:
     def __init__(self):
         os.makedirs(MACRO_DIR, exist_ok=True)
 
-    def save_macro(self, plan: ExecutionPlan, metadata: Dict) -> str:
+    def save_macro(self, plan: ExecutionPlan, metadata: dict) -> str:
         """Save a new macro."""
         macro_id = plan.id or str(uuid.uuid4())
         folder = os.path.join(MACRO_DIR, macro_id)
@@ -52,7 +51,7 @@ class MacroStorage:
         logger.info(f"Saved macro {macro_id} to {folder}")
         return macro_id
 
-    def list_macros(self) -> List[Dict]:
+    def list_macros(self) -> list[dict]:
         """List all saved macros."""
         macros = []
         if not os.path.exists(MACRO_DIR):
@@ -62,21 +61,21 @@ class MacroStorage:
             meta_path = os.path.join(MACRO_DIR, name, "metadata.json")
             if os.path.exists(meta_path):
                 try:
-                    with open(meta_path, "r") as f:
+                    with open(meta_path) as f:
                         meta = json.load(f)
                         macros.append(meta)
                 except Exception:
                     continue
         return sorted(macros, key=lambda x: x.get("saved_at", ""), reverse=True)
 
-    def load_plan(self, macro_id: str) -> Optional[ExecutionPlan]:
+    def load_plan(self, macro_id: str) -> ExecutionPlan | None:
         """Load execution plan for a macro."""
         path = os.path.join(MACRO_DIR, macro_id, "plan.json")
         if not os.path.exists(path):
             return None
 
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 data = json.load(f)
                 return ExecutionPlan(**data)
         except Exception as e:

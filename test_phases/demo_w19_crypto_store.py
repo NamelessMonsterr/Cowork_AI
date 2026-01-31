@@ -2,14 +2,14 @@
 W19 Verification - Crypto & Store.
 """
 
-import sys
 import os
+import sys
 import uuid
 
 sys.path.append(os.getcwd())
-from assistant.cloud.snapshot import Snapshot
 from assistant.cloud.crypto import SyncCrypto
 from assistant.cloud.local_store import LocalSyncStore
+from assistant.cloud.snapshot import Snapshot
 
 DB_PATH = os.path.join(os.getcwd(), "test_sync.db")
 

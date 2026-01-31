@@ -7,11 +7,11 @@ Provides:
 - Config file persistence
 """
 
-import os
 import json
-from typing import Optional, Any, Dict
-from dataclasses import dataclass, field, asdict
+import os
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -82,7 +82,7 @@ class ConfigManager:
     - Type-safe access
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         self._config_path = Path(config_path) if config_path else self._default_path()
         self._config = AppConfig()
         self._load()
@@ -99,7 +99,7 @@ class ConfigManager:
         # Load from file
         if self._config_path.exists():
             try:
-                with open(self._config_path, "r") as f:
+                with open(self._config_path) as f:
                     data = json.load(f)
                 self._apply_dict(data)
             except Exception:
@@ -108,7 +108,7 @@ class ConfigManager:
         # Override from environment
         self._load_env()
 
-    def _apply_dict(self, data: Dict[str, Any]):
+    def _apply_dict(self, data: dict[str, Any]):
         """Apply dictionary to config."""
         if "ui" in data:
             for k, v in data["ui"].items():
@@ -191,7 +191,7 @@ class ConfigManager:
 
 
 # Global config instance
-_config_manager: Optional[ConfigManager] = None
+_config_manager: ConfigManager | None = None
 
 
 def get_config() -> ConfigManager:

@@ -4,11 +4,11 @@ Manages application configuration and dynamic reloading.
 """
 
 import logging
-from typing import Optional
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from assistant.config.settings import get_settings, VoiceSettings
+from assistant.config.settings import VoiceSettings, get_settings
 
 logger = logging.getLogger("SettingsAPI")
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 class SettingsUpdate(BaseModel):
-    voice: Optional[VoiceSettings] = None
+    voice: VoiceSettings | None = None
 
 
 @router.get("")
@@ -46,13 +46,9 @@ async def update_settings(update: SettingsUpdate, request: Request):
             logger.info("Reloading STT Engine...")
             try:
                 # Re-create STT instance with new settings
-                mock_mode = settings.voice.mock_stt or (
-                    settings.voice.engine_preference == "mock"
-                )
+                mock_mode = settings.voice.mock_stt or (settings.voice.engine_preference == "mock")
 
-                new_stt = STT(
-                    prefer_mock=mock_mode, openai_api_key=settings.voice.openai_api_key
-                )
+                new_stt = STT(prefer_mock=mock_mode, openai_api_key=settings.voice.openai_api_key)
 
                 # PIPELINE FIX: Update global state directly (now wired to app.state.state)
                 state = request.app.state.state

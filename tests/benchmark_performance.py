@@ -1,8 +1,8 @@
 """Performance benchmarks for Flash Assistant critical paths."""
 
+import asyncio
 import sys
 import time
-import asyncio
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -38,7 +38,7 @@ def benchmark_import_time():
 async def benchmark_validation():
     """Benchmark plan validation performance."""
     from assistant.safety.plan_guard import PlanGuard
-    from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
+    from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 
     guard = PlanGuard()
 

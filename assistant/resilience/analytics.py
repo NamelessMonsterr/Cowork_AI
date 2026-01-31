@@ -8,10 +8,10 @@ Provides:
 """
 
 import time
-from typing import Dict, Any, List, Optional
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import defaultdict
+from typing import Any
 
 
 @dataclass
@@ -21,7 +21,7 @@ class Metric:
     name: str
     value: float
     timestamp: float
-    tags: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
 
 
 class MetricsCollector:
@@ -30,8 +30,8 @@ class MetricsCollector:
     """
 
     def __init__(self, max_points: int = 1000):
-        self._metrics: Dict[str, List[Metric]] = defaultdict(list)
-        self._counters: Dict[str, int] = defaultdict(int)
+        self._metrics: dict[str, list[Metric]] = defaultdict(list)
+        self._counters: dict[str, int] = defaultdict(int)
         self._max_points = max_points
 
     def record(self, name: str, value: float, **tags):
@@ -74,7 +74,7 @@ class MetricsCollector:
             return 0.0
         return min(m.value for m in values)
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of all metrics."""
         return {
             "counters": dict(self._counters),
@@ -101,8 +101,8 @@ class UsageReport:
     failed_tasks: int
     total_actions: int
     avg_task_duration_sec: float
-    most_used_actions: List[str]
-    error_summary: Dict[str, int]
+    most_used_actions: list[str]
+    error_summary: dict[str, int]
 
 
 class Analytics:
@@ -113,9 +113,9 @@ class Analytics:
     def __init__(self):
         self._metrics = MetricsCollector()
         self._session_start = time.time()
-        self._tasks: List[Dict] = []
-        self._actions: List[str] = []
-        self._errors: List[str] = []
+        self._tasks: list[dict] = []
+        self._actions: list[str] = []
+        self._errors: list[str] = []
 
     def track_task(self, task_id: str, success: bool, duration: float):
         """Track task completion."""
@@ -161,9 +161,7 @@ class Analytics:
         action_counts = defaultdict(int)
         for action in self._actions:
             action_counts[action] += 1
-        most_used = sorted(
-            action_counts.keys(), key=lambda x: action_counts[x], reverse=True
-        )[:5]
+        most_used = sorted(action_counts.keys(), key=lambda x: action_counts[x], reverse=True)[:5]
 
         # Error summary
         error_counts = defaultdict(int)
@@ -182,13 +180,13 @@ class Analytics:
             error_summary=dict(error_counts),
         )
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get raw metrics."""
         return self._metrics.get_summary()
 
 
 # Global analytics instance
-_analytics: Optional[Analytics] = None
+_analytics: Analytics | None = None
 
 
 def get_analytics() -> Analytics:

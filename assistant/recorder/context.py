@@ -10,12 +10,13 @@ This "Anchor" allows the Replay engine to find the correct target
 even if the window moves or changes size.
 """
 
-from dataclasses import dataclass, asdict
 import time
+from dataclasses import asdict, dataclass
 
 try:
     import psutil
-    from assistant.computer.windows import WindowsComputer, WindowInfo
+
+    from assistant.computer.windows import WindowInfo, WindowsComputer
 except ImportError:
     pass
 

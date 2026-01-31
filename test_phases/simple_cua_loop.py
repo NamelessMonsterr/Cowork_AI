@@ -1,12 +1,9 @@
-from computers import Computer
-from computers import LocalPlaywrightComputer
-from utils import create_response, check_blocklisted_url
+from computers import Computer, LocalPlaywrightComputer
+from utils import check_blocklisted_url, create_response
 
 
 def acknowledge_safety_check_callback(message: str) -> bool:
-    response = input(
-        f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): "
-    ).lower()
+    response = input(f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): ").lower()
     return response.strip() == "y"
 
 

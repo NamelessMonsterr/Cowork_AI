@@ -1,6 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from datetime import datetime
 import logging
+from datetime import datetime
+
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,7 @@ async def voice_stream(
     stt_engine = state.stt
     if not stt_engine:
         logger.error("STT engine not initialized in state")
-        await websocket.send_json(
-            {"type": "error", "message": "STT engine not available"}
-        )
+        await websocket.send_json({"type": "error", "message": "STT engine not available"})
         await websocket.close()
         return
 

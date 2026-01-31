@@ -9,17 +9,16 @@ Logic:
 """
 
 import logging
-from typing import List, Optional
 
-from assistant.recorder.input import InputEvent
+from assistant.executor.strategies import UIAStrategy
 from assistant.recorder.context import ContextAnchor
+from assistant.recorder.input import InputEvent
 from assistant.ui_contracts.schemas import (
     ActionStep,
     UISelector,
     VerifySpec,
     VerifyType,
 )
-from assistant.executor.strategies import UIAStrategy
 
 logger = logging.getLogger("SmartConverter")
 
@@ -29,9 +28,7 @@ class SmartConverter:
         self.computer = computer
         self.uia_strategy = UIAStrategy()
 
-    def convert(
-        self, events: List[InputEvent], anchors: List[ContextAnchor]
-    ) -> List[ActionStep]:
+    def convert(self, events: list[InputEvent], anchors: list[ContextAnchor]) -> list[ActionStep]:
         """Convert events to ActionSteps."""
         steps = []
 
@@ -47,16 +44,14 @@ class SmartConverter:
 
         return steps
 
-    def _group_events(self, events: List[InputEvent]) -> List[InputEvent]:
+    def _group_events(self, events: list[InputEvent]) -> list[InputEvent]:
         """Compress consecutive related events."""
         # Note: Recorder already debounces text.
         # Here we could merge fast clicks (double click) logic if needed.
         # For now, pass through as recorder is already smart.
         return events
 
-    def _event_to_step(
-        self, event: InputEvent, anchor: Optional[ContextAnchor], step_id: str
-    ) -> Optional[ActionStep]:
+    def _event_to_step(self, event: InputEvent, anchor: ContextAnchor | None, step_id: str) -> ActionStep | None:
         # --- Type Text ---
         if event.type == "type_text":
             text = event.data.get("text", "")
@@ -150,7 +145,7 @@ class SmartConverter:
 
         return None
 
-    def _is_sensitive(self, anchor: Optional[ContextAnchor]) -> bool:
+    def _is_sensitive(self, anchor: ContextAnchor | None) -> bool:
         if not anchor:
             return False
         title = anchor.window_title.lower()

@@ -4,6 +4,7 @@ Intercepts high-risk actions before they reach the executor.
 """
 
 import re
+
 from assistant.ui_contracts.schemas import ExecutionPlan
 
 

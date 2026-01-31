@@ -8,20 +8,20 @@ Tests:
 4. Analytics
 """
 
-import sys
 import os
+import sys
 import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.resilience import (
-    RetryConfig,
-    retry,
+    Analytics,
     CircuitBreaker,
     CircuitState,
     ErrorClassifier,
     ErrorSeverity,
-    Analytics,
+    RetryConfig,
+    retry,
 )
 
 

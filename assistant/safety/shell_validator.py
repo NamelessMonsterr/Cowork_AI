@@ -9,9 +9,8 @@ Security Features:
 - Output redaction for sensitive data
 """
 
-import unicodedata
 import logging
-from typing import List
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,7 @@ class RestrictedShellValidator:
         "%SystemRoot%",  # Environment variable expansion
     ]
 
-    def __init__(self, allowed_cmd: List[str], allowed_powershell: List[str]):
+    def __init__(self, allowed_cmd: list[str], allowed_powershell: list[str]):
         """
         Initialize validator with allowlists.
 
@@ -99,9 +98,7 @@ class RestrictedShellValidator:
         # Step 2: Check for dangerous patterns
         for pattern in self.DANGEROUS_PATTERNS:
             if pattern in normalized:
-                raise SecurityError(
-                    f"Dangerous pattern not allowed: '{pattern}' in command"
-                )
+                raise SecurityError(f"Dangerous pattern not allowed: '{pattern}' in command")
 
         # Step 3: Extract first token
         tokens = normalized.strip().split()
@@ -130,10 +127,7 @@ class RestrictedShellValidator:
             allowed_display = ", ".join(list(self.allowed_cmd)[:10])
             if len(self.allowed_cmd) > 10:
                 allowed_display += f" (+ {len(self.allowed_cmd) - 10} more)"
-            raise SecurityError(
-                f"Command '{first_token}' not in CMD allowlist. "
-                f"Allowed: {allowed_display}"
-            )
+            raise SecurityError(f"Command '{first_token}' not in CMD allowlist. Allowed: {allowed_display}")
 
     def _validate_powershell(self, first_token: str, command: str) -> None:
         """Validate PowerShell command with flag blocking."""
@@ -155,10 +149,7 @@ class RestrictedShellValidator:
             allowed_display = ", ".join(list(self.allowed_powershell)[:10])
             if len(self.allowed_powershell) > 10:
                 allowed_display += f" (+ {len(self.allowed_powershell) - 10} more)"
-            raise SecurityError(
-                f"Cmdlet '{first_token}' not in PowerShell allowlist. "
-                f"Allowed: {allowed_display}"
-            )
+            raise SecurityError(f"Cmdlet '{first_token}' not in PowerShell allowlist. Allowed: {allowed_display}")
 
     @staticmethod
     def normalize_unicode(text: str) -> str:

@@ -20,11 +20,10 @@ Priority Order:
     P6: Performance (lighthouse - requires URL)
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
-from typing import List, Optional
 
 
 # ANSI colors for terminal output
@@ -98,9 +97,7 @@ def check_script_exists(script_path: Path) -> bool:
     return script_path.exists() and script_path.is_file()
 
 
-def run_script(
-    name: str, script_path: Path, project_path: str, url: Optional[str] = None
-) -> dict:
+def run_script(name: str, script_path: Path, project_path: str, url: str | None = None) -> dict:
     """
     Run a validation script and capture results
 
@@ -115,10 +112,7 @@ def run_script(
 
     # Build command
     cmd = ["python", str(script_path), project_path]
-    if url and (
-        "lighthouse" in script_path.name.lower()
-        or "playwright" in script_path.name.lower()
-    ):
+    if url and ("lighthouse" in script_path.name.lower() or "playwright" in script_path.name.lower()):
         cmd.append(url)
 
     # Run script
@@ -168,7 +162,7 @@ def run_script(
         }
 
 
-def print_summary(results: List[dict]):
+def print_summary(results: list[dict]):
     """Print final summary report"""
     print_header("📊 CHECKLIST SUMMARY")
 
@@ -214,9 +208,7 @@ Examples:
         """,
     )
     parser.add_argument("project", help="Project path to validate")
-    parser.add_argument(
-        "--url", help="URL for performance checks (lighthouse, playwright)"
-    )
+    parser.add_argument("--url", help="URL for performance checks (lighthouse, playwright)")
     parser.add_argument(
         "--skip-performance",
         action="store_true",
@@ -233,9 +225,7 @@ Examples:
 
     print_header("🚀 ANTIGRAVITY KIT - MASTER CHECKLIST")
     print(f"Project: {project_path}")
-    print(
-        f"URL: {args.url if args.url else 'Not provided (performance checks skipped)'}"
-    )
+    print(f"URL: {args.url if args.url else 'Not provided (performance checks skipped)'}")
 
     results = []
 

@@ -7,8 +7,8 @@ Enforces safety constraints for automated benchmarks:
 3. Disables risky features (Mic, uncontrolled recording).
 """
 
-import os
 import logging
+import os
 
 logger = logging.getLogger("BenchmarkMode")
 
@@ -18,7 +18,7 @@ class BenchmarkMode:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(BenchmarkMode, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance.enabled = False
             cls._instance.seed = None
         return cls._instance
@@ -28,9 +28,7 @@ class BenchmarkMode:
         # 1. Check Env Var
         env_flag = os.getenv("COWORK_BENCHMARK_MODE") == "1"
         if not env_flag:
-            logger.error(
-                "❌ BENCHMARK_MODE refused: COWORK_BENCHMARK_MODE=1 env var required."
-            )
+            logger.error("❌ BENCHMARK_MODE refused: COWORK_BENCHMARK_MODE=1 env var required.")
             raise PermissionError("Benchmark Mode requires COWORK_BENCHMARK_MODE=1")
 
         # 2. Check Session Auth (Mock or Real)

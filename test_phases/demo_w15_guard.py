@@ -2,13 +2,13 @@
 W15 Verification - Destructive Guardrails.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
 
-from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
 from assistant.safety.destructive_guard import DestructiveGuard
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 
 
 def test_destructive_guard():
@@ -19,11 +19,7 @@ def test_destructive_guard():
     safe_plan = ExecutionPlan(
         id="safe",
         task="list files",
-        steps=[
-            ActionStep(
-                id="1", tool="run_command", args={"command": "dir"}, description="list"
-            )
-        ],
+        steps=[ActionStep(id="1", tool="run_command", args={"command": "dir"}, description="list")],
     )
     try:
         guard.validate(safe_plan)

@@ -3,20 +3,19 @@ IPC Client (W14.2).
 Handles communication with the out-of-process Plugin Host.
 """
 
-import os
 import json
 import logging
+import os
+from typing import Any
+
 import aiohttp
-from typing import Dict, Any
 
 logger = logging.getLogger("IpcClient")
 
 
 class IpcClient:
     def __init__(self):
-        self.port_file = os.path.join(
-            os.getenv("APPDATA"), "CoworkAI", "plugin_host.json"
-        )
+        self.port_file = os.path.join(os.getenv("APPDATA"), "CoworkAI", "plugin_host.json")
         self.host_url = None
 
     def _refresh_config(self):
@@ -25,16 +24,14 @@ class IpcClient:
             return False
 
         try:
-            with open(self.port_file, "r") as f:
+            with open(self.port_file) as f:
                 data = json.load(f)
                 self.host_url = f"http://127.0.0.1:{data.get('port')}"
                 return True
         except:
             return False
 
-    async def call_tool(
-        self, tool_name: str, args: Dict[str, Any], ctx_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def call_tool(self, tool_name: str, args: dict[str, Any], ctx_dict: dict[str, Any]) -> dict[str, Any]:
         """Execute tool on host."""
         if not self.host_url:
             if not self._refresh_config():
@@ -57,7 +54,7 @@ class IpcClient:
                 # Fail for now
                 raise RuntimeError("Failed to connect to Plugin Host.")
 
-    async def get_tool_specs(self) -> Dict[str, Any]:
+    async def get_tool_specs(self) -> dict[str, Any]:
         """Fetch all tool specs from host."""
         if not self.host_url:
             self._refresh_config()
@@ -75,8 +72,9 @@ class IpcClient:
         return {}
 
 
+from typing import Any
+
 from assistant.plugins.sdk import Tool, ToolSpec
-from typing import Dict, Any
 
 
 class RemoteTool(Tool):
@@ -88,7 +86,7 @@ class RemoteTool(Tool):
     def spec(self) -> ToolSpec:
         return self._spec
 
-    async def run(self, args: Dict[str, Any], ctx: Any) -> Dict[str, Any]:
+    async def run(self, args: dict[str, Any], ctx: Any) -> dict[str, Any]:
         # Serialize context
         ctx_dict = {"session_id": ctx.session_id, "workspace_path": ctx.workspace_path}
         res = await self.client.call_tool(self._spec.name, args, ctx_dict)

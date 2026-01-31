@@ -10,7 +10,6 @@ Each strategy represents a different approach to executing UI actions:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 from assistant.ui_contracts.schemas import ActionStep, UISelector
 
@@ -28,8 +27,8 @@ class StrategyResult:
     """
 
     success: bool
-    selector: Optional[UISelector] = None
-    error: Optional[str] = None
+    selector: UISelector | None = None
+    error: str | None = None
     details: dict = None
 
     def __post_init__(self):
@@ -97,7 +96,7 @@ class Strategy(ABC):
         """
         pass
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """
         Find the target UI element without clicking.
 

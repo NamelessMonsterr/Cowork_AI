@@ -7,8 +7,9 @@ Responsibility:
 3. Launch Uvicorn Server.
 """
 
-import sys
 import os
+import sys
+
 import uvicorn
 
 # Add parent dir to path so 'assistant' package is found

@@ -1,10 +1,12 @@
 """Additional edge case tests for comprehensive coverage."""
 
-import pytest
 import asyncio
+
+import pytest
+
 from assistant.safety.plan_guard import PlanGuard, PlanValidationError
 from assistant.safety.session_auth import SessionAuth
-from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 
 
 class TestEdgeCases:
@@ -24,14 +26,9 @@ class TestEdgeCases:
         guard = PlanGuard()
 
         # Create plan with 100 steps (exceeds typical limit)
-        excessive_steps = [
-            ActionStep(step_id=str(i), tool="click", params={"x": 100, "y": 200})
-            for i in range(100)
-        ]
+        excessive_steps = [ActionStep(step_id=str(i), tool="click", params={"x": 100, "y": 200}) for i in range(100)]
 
-        plan = ExecutionPlan(
-            plan_id="excessive-001", description="Too many steps", steps=excessive_steps
-        )
+        plan = ExecutionPlan(plan_id="excessive-001", description="Too many steps", steps=excessive_steps)
 
         result = guard.pre_approve(plan)
         # Should either reject or flag as high risk
@@ -110,6 +107,7 @@ class TestEdgeCases:
     def test_config_file_missing(self):
         """Test behavior when configuration files are missing."""
         import os
+
         from assistant.safety.plan_guard import PlanGuard
 
         # Temporarily rename config file

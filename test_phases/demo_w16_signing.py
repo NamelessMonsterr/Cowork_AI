@@ -2,17 +2,17 @@
 W16 Verification - Signing & Packaging.
 """
 
-import sys
+import json
 import os
 import shutil
-import json
+import sys
 import zipfile
 
 # Add project root
 sys.path.append(os.getcwd())
 
-from assistant.plugins.signing import PluginSigner
 from assistant.plugins.builder import PluginBuilder
+from assistant.plugins.signing import PluginSigner
 
 
 def test_signing_flow():
@@ -53,12 +53,10 @@ def test_signing_flow():
     extracted_content = os.path.join(test_dir, "extracted", "content.zip")
     extracted_sig = os.path.join(test_dir, "extracted", "signature.hex")
 
-    with open(extracted_sig, "r") as f:
+    with open(extracted_sig) as f:
         sig_hex = f.read()
 
-    valid = PluginSigner.verify_file(
-        extracted_content, sig_hex, public_key_path=pub_path
-    )
+    valid = PluginSigner.verify_file(extracted_content, sig_hex, public_key_path=pub_path)
 
     if valid:
         print("✅ Validation PASSED.")
@@ -72,9 +70,7 @@ def test_signing_flow():
     with open(extracted_content, "ab") as f:
         f.write(b"TAMPERED")
 
-    valid_tamper = PluginSigner.verify_file(
-        extracted_content, sig_hex, public_key_path=pub_path
-    )
+    valid_tamper = PluginSigner.verify_file(extracted_content, sig_hex, public_key_path=pub_path)
 
     if not valid_tamper:
         print("✅ Tamper correctly detected (Validation Failed).")

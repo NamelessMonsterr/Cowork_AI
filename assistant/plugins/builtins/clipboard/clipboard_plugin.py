@@ -4,9 +4,11 @@ Clipboard Plugin - Reference Implementation (W12.7).
 Provides tools to read/write clipboard.
 """
 
-from typing import Dict, Any, List
+from typing import Any
+
 import pyperclip
-from assistant.plugins.sdk import Plugin, Tool, ToolSpec, ToolContext
+
+from assistant.plugins.sdk import Plugin, Tool, ToolContext, ToolSpec
 
 
 class ReadClipboardTool(Tool):
@@ -22,7 +24,7 @@ class ReadClipboardTool(Tool):
             )
         )
 
-    async def run(self, args: Dict[str, Any], ctx: ToolContext) -> Dict[str, Any]:
+    async def run(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         text = pyperclip.paste()
         return {"content": text}
 
@@ -43,12 +45,12 @@ class WriteClipboardTool(Tool):
             )
         )
 
-    async def run(self, args: Dict[str, Any], ctx: ToolContext) -> Dict[str, Any]:
+    async def run(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         text = args.get("text", "")
         pyperclip.copy(text)
         return {"status": "success", "length": len(text)}
 
 
 class ClipboardPlugin(Plugin):
-    def get_tools(self) -> List[Tool]:
+    def get_tools(self) -> list[Tool]:
         return [ReadClipboardTool(), WriteClipboardTool()]

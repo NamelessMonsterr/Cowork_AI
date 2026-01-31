@@ -3,13 +3,12 @@ P4.1 - Integration Tests.
 Tests that require full system setup.
 """
 
-import pytest
 import os
 
+import pytest
+
 # Skip integration tests if not on Windows
-pytestmark = pytest.mark.skipif(
-    os.name != "nt", reason="Integration tests require Windows"
-)
+pytestmark = pytest.mark.skipif(os.name != "nt", reason="Integration tests require Windows")
 
 
 class TestAPIEndpoints:

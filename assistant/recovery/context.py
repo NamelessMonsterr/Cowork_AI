@@ -3,9 +3,10 @@ Recovery Context - Snapshot for Repair Planner (W9.2).
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Any, Dict
-from assistant.ui_contracts.schemas import ActionStep, StepResult
+from typing import Any
+
 from assistant.recovery.classifier import FailureType
+from assistant.ui_contracts.schemas import ActionStep, StepResult
 
 
 @dataclass
@@ -18,10 +19,10 @@ class RecoveryContext:
     process_name: str
     failed_step: ActionStep
     step_result: StepResult
-    recent_steps: List[ActionStep]
+    recent_steps: list[ActionStep]
     # Detailed Context
-    screenshot_before_b64: Optional[str] = None
-    uia_tree: Optional[Dict[str, Any]] = None
+    screenshot_before_b64: str | None = None
+    uia_tree: dict[str, Any] | None = None
 
     def to_prompt_context(self) -> str:
         """Serialize relevant info for the Planner."""

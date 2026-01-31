@@ -14,8 +14,8 @@ When any condition is detected, execution is paused and takeover requested.
 import ctypes
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional, Callable
 from enum import Enum
 
 from .uac import is_secure_desktop
@@ -36,9 +36,9 @@ class EnvironmentState(str, Enum):
 class WindowContext:
     """Expected window context during execution."""
 
-    hwnd: Optional[int] = None
-    title: Optional[str] = None
-    process_name: Optional[str] = None
+    hwnd: int | None = None
+    title: str | None = None
+    process_name: str | None = None
 
 
 class EnvironmentMonitor:
@@ -68,7 +68,7 @@ class EnvironmentMonitor:
 
     def __init__(
         self,
-        on_unsafe: Optional[Callable[[EnvironmentState, str], None]] = None,
+        on_unsafe: Callable[[EnvironmentState, str], None] | None = None,
         check_interval_sec: float = 0.5,
     ):
         """
@@ -80,9 +80,9 @@ class EnvironmentMonitor:
         """
         self._on_unsafe = on_unsafe
         self._check_interval = check_interval_sec
-        self._expected_window: Optional[WindowContext] = None
+        self._expected_window: WindowContext | None = None
         self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
         self._last_state = EnvironmentState.NORMAL
         self._lock = threading.Lock()
 
@@ -97,9 +97,7 @@ class EnvironmentMonitor:
                 return
 
             self._monitoring = True
-            self._monitor_thread = threading.Thread(
-                target=self._monitor_loop, daemon=True
-            )
+            self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
             self._monitor_thread.start()
 
     def stop(self) -> None:
@@ -113,9 +111,9 @@ class EnvironmentMonitor:
 
     def set_expected_window(
         self,
-        hwnd: Optional[int] = None,
-        title: Optional[str] = None,
-        process_name: Optional[str] = None,
+        hwnd: int | None = None,
+        title: str | None = None,
+        process_name: str | None = None,
     ) -> None:
         """
         Set the expected active window during execution.

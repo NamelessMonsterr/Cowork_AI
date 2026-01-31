@@ -2,10 +2,10 @@
 Security audit logger for tracking sensitive operations and potential threats.
 """
 
-import logging
 import json
-from typing import Optional, Dict, Any
+import logging
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,9 @@ class SecurityAuditLogger:
         self,
         event_type: str,
         success: bool,
-        details: Optional[Dict[str, Any]] = None,
-        user_id: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        details: dict[str, Any] | None = None,
+        user_id: str | None = None,
+        ip_address: str | None = None,
     ) -> None:
         """
         Log a security event.
@@ -91,9 +91,7 @@ class SecurityAuditLogger:
             details={"resource_type": resource_type, "resource_name": resource_name},
         )
 
-    def log_command_executed(
-        self, command_type: str, target: str, success: bool
-    ) -> None:
+    def log_command_executed(self, command_type: str, target: str, success: bool) -> None:
         """Log command execution."""
         self.log_event(
             self.EVENT_COMMAND_EXECUTED,
@@ -129,7 +127,7 @@ class SecurityAuditLogger:
 
 
 # Global instance
-_audit_logger: Optional[SecurityAuditLogger] = None
+_audit_logger: SecurityAuditLogger | None = None
 
 
 def get_security_logger() -> SecurityAuditLogger:

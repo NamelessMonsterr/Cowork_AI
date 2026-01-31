@@ -8,14 +8,14 @@ Features:
 - Debouncing: Type text aggregation.
 """
 
-import time
-import threading
 import logging
-from typing import Callable, Optional, List
+import threading
+import time
+from collections.abc import Callable
 from enum import Enum
 
 try:
-    from pynput import mouse, keyboard
+    from pynput import keyboard, mouse
 
     HAS_PYNPUT = True
 except ImportError:
@@ -43,11 +43,11 @@ class InputEvent:
 class InputRecorder:
     def __init__(
         self,
-        on_event: Optional[Callable[[InputEvent], None]] = None,
-        check_privacy_func: Optional[Callable[[], bool]] = None,
+        on_event: Callable[[InputEvent], None] | None = None,
+        check_privacy_func: Callable[[], bool] | None = None,
     ):
         self._state = RecorderState.STOPPED
-        self._events: List[InputEvent] = []
+        self._events: list[InputEvent] = []
         self._start_time = 0
         self._lock = threading.Lock()
 
@@ -57,9 +57,7 @@ class InputRecorder:
 
         # Privacy & Callbacks
         self._on_event = on_event
-        self._check_privacy = (
-            check_privacy_func  # Returns True if sensitive window active
-        )
+        self._check_privacy = check_privacy_func  # Returns True if sensitive window active
         self._is_sensitive = False
 
         # Debouncing
@@ -84,18 +82,14 @@ class InputRecorder:
             self._current_text = []
 
             # Start Listeners
-            self._mouse_listener = mouse.Listener(
-                on_click=self._on_click, on_scroll=self._on_scroll
-            )
-            self._key_listener = keyboard.Listener(
-                on_press=self._on_key_press, on_release=self._on_key_release
-            )
+            self._mouse_listener = mouse.Listener(on_click=self._on_click, on_scroll=self._on_scroll)
+            self._key_listener = keyboard.Listener(on_press=self._on_key_press, on_release=self._on_key_release)
 
             self._mouse_listener.start()
             self._key_listener.start()
             logger.info("Recorder started.")
 
-    def stop(self) -> List[InputEvent]:
+    def stop(self) -> list[InputEvent]:
         """Stop recording and return events."""
         with self._lock:
             if self._state == RecorderState.STOPPED:

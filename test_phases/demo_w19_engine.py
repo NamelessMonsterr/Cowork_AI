@@ -2,16 +2,16 @@
 W19 Verification - Sync Engine.
 """
 
-import sys
 import os
+import sys
 import uuid
 
 sys.path.append(os.getcwd())
-from assistant.cloud.local_store import LocalSyncStore
-from assistant.cloud.crypto import SyncCrypto
-from assistant.cloud.sync_engine import SyncEngine
-from assistant.cloud.auth import AuthUser
 import assistant.cloud.auth as auth_module
+from assistant.cloud.auth import AuthUser
+from assistant.cloud.crypto import SyncCrypto
+from assistant.cloud.local_store import LocalSyncStore
+from assistant.cloud.sync_engine import SyncEngine
 
 DB_PATH = os.path.join(os.getcwd(), "test_sync_engine.db")
 
@@ -23,9 +23,7 @@ def test_engine():
         os.remove(DB_PATH)
 
     # 1. Mock Auth
-    auth_module.current_user = AuthUser(
-        user_id="u_test", email="test@cowork.ai", token="t1"
-    )
+    auth_module.current_user = AuthUser(user_id="u_test", email="test@cowork.ai", token="t1")
 
     # 2. Init Engine
     store = LocalSyncStore(DB_PATH)

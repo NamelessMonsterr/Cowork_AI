@@ -22,12 +22,11 @@ Includes ALL checks:
     ✅ Mobile Audit (if applicable)
 """
 
-import sys
-import subprocess
 import argparse
-from pathlib import Path
-from typing import List, Optional
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 
 
 # ANSI colors
@@ -202,9 +201,7 @@ VERIFICATION_SUITE = [
 ]
 
 
-def run_script(
-    name: str, script_path: Path, project_path: str, url: Optional[str] = None
-) -> dict:
+def run_script(name: str, script_path: Path, project_path: str, url: str | None = None) -> dict:
     """Run validation script"""
     if not script_path.exists():
         print_warning(f"{name}: Script not found, skipping")
@@ -215,10 +212,7 @@ def run_script(
 
     # Build command
     cmd = ["python", str(script_path), project_path]
-    if url and (
-        "lighthouse" in script_path.name.lower()
-        or "playwright" in script_path.name.lower()
-    ):
+    if url and ("lighthouse" in script_path.name.lower() or "playwright" in script_path.name.lower()):
         cmd.append(url)
 
     # Run
@@ -272,7 +266,7 @@ def run_script(
         }
 
 
-def print_final_report(results: List[dict], start_time: datetime):
+def print_final_report(results: list[dict], start_time: datetime):
     """Print comprehensive final report"""
     total_duration = (datetime.now() - start_time).total_seconds()
 
@@ -327,9 +321,7 @@ def print_final_report(results: List[dict], start_time: datetime):
     # Final verdict
     if failed > 0:
         print_error(f"VERIFICATION FAILED - {failed} check(s) need attention")
-        print(
-            f"\n{Colors.YELLOW}💡 Tip: Fix critical (security, lint) issues first{Colors.ENDC}"
-        )
+        print(f"\n{Colors.YELLOW}💡 Tip: Fix critical (security, lint) issues first{Colors.ENDC}")
         return False
     else:
         print_success("✨ ALL CHECKS PASSED - Ready for deployment! ✨")
@@ -349,9 +341,7 @@ Examples:
     parser.add_argument("project", help="Project path to validate")
     parser.add_argument("--url", required=True, help="URL for performance & E2E checks")
     parser.add_argument("--no-e2e", action="store_true", help="Skip E2E tests")
-    parser.add_argument(
-        "--stop-on-fail", action="store_true", help="Stop on first failure"
-    )
+    parser.add_argument("--stop-on-fail", action="store_true", help="Stop on first failure")
 
     args = parser.parse_args()
 
@@ -391,12 +381,7 @@ Examples:
             results.append(result)
 
             # Stop on critical failure if flag set
-            if (
-                args.stop_on_fail
-                and required
-                and not result["passed"]
-                and not result.get("skipped")
-            ):
+            if args.stop_on_fail and required and not result["passed"] and not result.get("skipped"):
                 print_error(f"CRITICAL: {name} failed. Stopping verification.")
                 print_final_report(results, start_time)
                 sys.exit(1)

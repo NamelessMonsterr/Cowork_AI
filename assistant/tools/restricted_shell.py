@@ -19,14 +19,14 @@ Usage:
     print(result.stdout)
 """
 
-import subprocess
-import time
-import re
 import json
 import logging
-from pathlib import Path
+import re
+import subprocess
+import time
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class RestrictedShellTool:
     - Audit logging: Logs all executions to JSONL
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize tool with configuration.
 
@@ -73,14 +73,12 @@ class RestrictedShellTool:
             config = self._load_config()
         self.config = config
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load configuration from restricted_shell.json."""
         try:
-            config_path = (
-                Path(__file__).parent.parent / "config" / "restricted_shell.json"
-            )
+            config_path = Path(__file__).parent.parent / "config" / "restricted_shell.json"
             if config_path.exists():
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     config = json.load(f)
                     logger.info(
                         f"[RestrictedShell] Loaded config with {len(config.get('allowed_cmd', []))} cmd commands"
@@ -144,27 +142,19 @@ class RestrictedShellTool:
             result = self._execute_safe(engine, command, run_as_admin)
         except subprocess.TimeoutExpired:
             logger.error(f"[RestrictedShell] Command timeout: {command}")
-            raise SecurityError(
-                f"Command exceeded timeout of {self.config.get('timeout_seconds', 30)}s"
-            )
+            raise SecurityError(f"Command exceeded timeout of {self.config.get('timeout_seconds', 30)}s")
 
         execution_time = int((time.time() - start_time) * 1000)
 
         # Redact sensitive data
         stdout_redacted = self._redact_sensitive(result.stdout)
         stderr_redacted = self._redact_sensitive(result.stderr)
-        redacted = (stdout_redacted != result.stdout) or (
-            stderr_redacted != result.stderr
-        )
+        redacted = (stdout_redacted != result.stdout) or (stderr_redacted != result.stderr)
 
         # Audit log
-        self._audit_log(
-            engine, command, result.returncode, execution_time, run_as_admin
-        )
+        self._audit_log(engine, command, result.returncode, execution_time, run_as_admin)
 
-        logger.info(
-            f"[RestrictedShell] Executed {engine}: {command[:50]}... exit={result.returncode}"
-        )
+        logger.info(f"[RestrictedShell] Executed {engine}: {command[:50]}... exit={result.returncode}")
 
         return ShellResult(
             stdout=stdout_redacted,
@@ -176,9 +166,7 @@ class RestrictedShellTool:
             engine=engine,
         )
 
-    def _validate_command(
-        self, engine: str, command: str, run_as_admin: bool, supervised: bool
-    ):
+    def _validate_command(self, engine: str, command: str, run_as_admin: bool, supervised: bool):
         """
         Validate command against security policy.
 
@@ -198,9 +186,7 @@ class RestrictedShellTool:
 
         # Check engine validity
         if engine not in ["cmd", "powershell"]:
-            raise SecurityError(
-                f"Invalid engine: {engine}. Must be 'cmd' or 'powershell'"
-            )
+            raise SecurityError(f"Invalid engine: {engine}. Must be 'cmd' or 'powershell'")
 
         # SECURITY FIX: Use hardened validator with unicode normalization
         from assistant.safety.shell_validator import RestrictedShellValidator
@@ -219,9 +205,7 @@ class RestrictedShellTool:
             if pattern.lower() in command_lower:
                 raise SecurityError(f"Blocked pattern detected: '{pattern}'")
 
-    def _execute_safe(
-        self, engine: str, command: str, run_as_admin: bool
-    ) -> subprocess.CompletedProcess:
+    def _execute_safe(self, engine: str, command: str, run_as_admin: bool) -> subprocess.CompletedProcess:
         """
         Execute command safely with subprocess.
 
@@ -254,12 +238,8 @@ class RestrictedShellTool:
         # NEVER attempt to automate UAC clicks (critical security violation)
         # If UAC appears, system must pause and enter takeover mode
         if run_as_admin:
-            logger.warning(
-                "[RestrictedShell] Admin execution requested - requires supervised mode"
-            )
-            logger.warning(
-                "[RestrictedShell] UAC automation is NEVER attempted (security policy)"
-            )
+            logger.warning("[RestrictedShell] Admin execution requested - requires supervised mode")
+            logger.warning("[RestrictedShell] UAC automation is NEVER attempted (security policy)")
             # SECURITY POLICY: Admin elevation with supervised confirmation
             # 1. User must explicitly grant 'supervised' mode
             # 2. Command must pass RestrictedShellValidator checks
@@ -297,9 +277,7 @@ class RestrictedShellTool:
             try:
                 redacted = re.sub(pattern, "[REDACTED]", redacted, flags=re.IGNORECASE)
             except re.error:
-                logger.warning(
-                    f"[RestrictedShell] Invalid redaction pattern: {pattern}"
-                )
+                logger.warning(f"[RestrictedShell] Invalid redaction pattern: {pattern}")
 
         return redacted
 

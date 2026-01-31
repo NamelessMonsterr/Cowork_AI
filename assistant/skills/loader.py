@@ -3,10 +3,10 @@ W18.1 Skill Loader & Format.
 Handles loading of .cowork-skill packages (zipped skill definitions).
 """
 
-import os
-import yaml
 import logging
-from typing import List, Optional, Dict
+import os
+
+import yaml
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("SkillLoader")
@@ -17,11 +17,9 @@ class SkillManifest(BaseModel):
     name: str
     version: str = "0.0.1"
     description: str
-    author: Optional[str] = "Unknown"
-    rules: List[str] = Field(default_factory=list)
-    system_prompts: List[str] = Field(
-        default_factory=list, description="Content to append to system prompt"
-    )
+    author: str | None = "Unknown"
+    rules: list[str] = Field(default_factory=list)
+    system_prompts: list[str] = Field(default_factory=list, description="Content to append to system prompt")
 
 
 class Skill:
@@ -34,7 +32,7 @@ class Skill:
 class SkillLoader:
     def __init__(self, skills_dir: str):
         self.skills_dir = skills_dir
-        self.skills: Dict[str, Skill] = {}
+        self.skills: dict[str, Skill] = {}
 
     def load_all(self):
         """Load all skills from skills directory."""
@@ -54,7 +52,7 @@ class SkillLoader:
             return
 
         try:
-            with open(yaml_path, "r") as f:
+            with open(yaml_path) as f:
                 data = yaml.safe_load(f)
 
             # Load referenced prompt files
@@ -65,7 +63,7 @@ class SkillLoader:
                 for p_file in prompt_files:
                     p_path = os.path.join(directory, p_file)
                     if os.path.exists(p_path):
-                        with open(p_path, "r") as pf:
+                        with open(p_path) as pf:
                             prompts.append(pf.read())
 
             # Add inline prompts

@@ -11,9 +11,9 @@ Exit Codes:
     1 - Some tests failed
 """
 
+import os
 import subprocess
 import sys
-import os
 import time
 
 # Test scripts in execution order

@@ -8,23 +8,22 @@ Provides:
 - Usage analytics
 """
 
-from .errors import (
-    ErrorSeverity,
-    ErrorContext,
-    RetryConfig,
-    retry,
-    CircuitState,
-    CircuitBreaker,
-    ErrorClassifier,
-    ResilienceManager,
-)
-
 from .analytics import (
+    Analytics,
     Metric,
     MetricsCollector,
     UsageReport,
-    Analytics,
     get_analytics,
+)
+from .errors import (
+    CircuitBreaker,
+    CircuitState,
+    ErrorClassifier,
+    ErrorContext,
+    ErrorSeverity,
+    ResilienceManager,
+    RetryConfig,
+    retry,
 )
 
 __all__ = [

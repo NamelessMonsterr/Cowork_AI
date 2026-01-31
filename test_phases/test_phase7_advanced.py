@@ -6,17 +6,17 @@ Tests:
 2. Context Awareness (active app)
 """
 
-import sys
 import os
-import tempfile
 import shutil
+import sys
+import tempfile
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.memory import (
+    ContextAwareness,
     TaskMemory,
     TaskRecord,
-    ContextAwareness,
 )
 
 
@@ -58,9 +58,7 @@ def test_task_memory():
 
         # Test 4: Pattern learning
         print("4. Testing pattern learning...")
-        memory.learn_pattern(
-            "open browser", [{"action": "click", "target": "Chrome"}], True
-        )
+        memory.learn_pattern("open browser", [{"action": "click", "target": "Chrome"}], True)
         pattern = memory.get_pattern("open browser")
         assert pattern is not None
         assert pattern.success_rate == 1.0

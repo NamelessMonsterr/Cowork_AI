@@ -5,9 +5,9 @@ Caches resolved UISelectors based on action signature and window state.
 Part of W7 optimization suite.
 """
 
-import time
 import threading
-from typing import Optional
+import time
+
 from assistant.ui_contracts.schemas import UISelector
 
 
@@ -17,7 +17,7 @@ class SelectorCache:
         self._lock = threading.Lock()
         self.ttl = ttl_sec
 
-    def get(self, key: str) -> Optional[UISelector]:
+    def get(self, key: str) -> UISelector | None:
         """Retrieve cached selector if valid."""
         with self._lock:
             entry = self._cache.get(key)

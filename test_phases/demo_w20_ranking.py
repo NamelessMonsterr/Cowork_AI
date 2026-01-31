@@ -2,13 +2,13 @@
 W20.3 Verification - Strategy Ranking.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
-from assistant.learning.store import LearningStore
 from assistant.learning.collector import LearningCollector
 from assistant.learning.ranker import StrategyRanker
+from assistant.learning.store import LearningStore
 
 DB_PATH = os.path.join(os.getcwd(), "test_ranking.db")
 
@@ -26,24 +26,16 @@ def test_ranking():
     # 1. Feed Notepad events (UIA works best)
     print("Training: Notepad loves UIA...")
     for i in range(10):
-        collector.ingest_execution_step(
-            "notepad", "Untitled - Notepad", "UIA", True, 50
-        )
+        collector.ingest_execution_step("notepad", "Untitled - Notepad", "UIA", True, 50)
     for i in range(3):
-        collector.ingest_execution_step(
-            "notepad", "Untitled - Notepad", "Vision", False, 200
-        )
+        collector.ingest_execution_step("notepad", "Untitled - Notepad", "Vision", False, 200)
 
     # 2. Feed Chrome events (Vision works best)
     print("Training: Chrome loves Vision...")
     for i in range(10):
-        collector.ingest_execution_step(
-            "chrome", "Google - Google Chrome", "Vision", True, 100
-        )
+        collector.ingest_execution_step("chrome", "Google - Google Chrome", "Vision", True, 100)
     for i in range(5):
-        collector.ingest_execution_step(
-            "chrome", "Google - Google Chrome", "UIA", False, 300
-        )
+        collector.ingest_execution_step("chrome", "Google - Google Chrome", "UIA", False, 300)
 
     # 3. Query Ranker
     notepad_order = ranker.get_strategy_order("notepad")

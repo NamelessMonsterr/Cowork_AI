@@ -51,9 +51,7 @@ class TTS:
 
             # Save to a temp file
             # Using a unique name to avoid conflicts
-            temp_path = os.path.join(
-                tempfile.gettempdir(), f"cowork_speech_{os.getpid()}.mp3"
-            )
+            temp_path = os.path.join(tempfile.gettempdir(), f"cowork_speech_{os.getpid()}.mp3")
 
             await communicate.save(temp_path)
 

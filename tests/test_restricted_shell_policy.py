@@ -10,12 +10,12 @@ Validates:
 """
 
 import pytest
+
 from assistant.tools.restricted_shell import (
     RestrictedShellTool,
     SecurityError,
     ShellResult,
 )
-
 
 # Test Configuration
 ENABLED_CONFIG = {
@@ -72,9 +72,7 @@ class TestAllowedCommands:
     def test_powershell_get_process(self):
         """Get-Process should be allowed."""
         tool = RestrictedShellTool(ENABLED_CONFIG)
-        result = tool.execute(
-            "powershell", "Get-Process | Select-Object -First 5", run_as_admin=False
-        )
+        result = tool.execute("powershell", "Get-Process | Select-Object -First 5", run_as_admin=False)
 
         # Note: This will fail because we block pipes
         # This test documents current behavior
@@ -126,9 +124,7 @@ class TestBlockedCommands:
         tool = RestrictedShellTool(ENABLED_CONFIG)
 
         with pytest.raises(SecurityError, match="Blocked pattern"):
-            tool.execute(
-                "powershell", "Invoke-WebRequest http://evil.com", run_as_admin=False
-            )
+            tool.execute("powershell", "Invoke-WebRequest http://evil.com", run_as_admin=False)
 
     def test_registry_edit_blocked(self):
         """Registry edits should be blocked."""
@@ -233,9 +229,7 @@ class TestOutputRedaction:
         tool = RestrictedShellTool(ENABLED_CONFIG)
 
         # Simulate command that outputs API key
-        result = tool.execute(
-            "cmd", "echo sk-1234567890abcdef1234567890abcdef", run_as_admin=False
-        )
+        result = tool.execute("cmd", "echo sk-1234567890abcdef1234567890abcdef", run_as_admin=False)
 
         assert "[REDACTED]" in result.stdout
         assert "sk-1234" not in result.stdout

@@ -10,9 +10,9 @@ Handles scenarios where the agent needs human intervention:
 This is the "supervised mode" controller.
 """
 
-import time
 import threading
-from typing import Optional, Callable, List
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -61,8 +61,8 @@ class TakeoverSession:
 
     request: TakeoverRequest
     started_at: float
-    ended_at: Optional[float] = None
-    user_actions: List[dict] = field(default_factory=list)
+    ended_at: float | None = None
+    user_actions: list[dict] = field(default_factory=list)
     outcome: str = ""
 
     @property
@@ -97,9 +97,9 @@ class TakeoverManager:
 
     def __init__(
         self,
-        on_takeover_requested: Optional[Callable[[TakeoverRequest], None]] = None,
-        on_takeover_completed: Optional[Callable[[TakeoverSession], None]] = None,
-        on_timeout: Optional[Callable[[TakeoverRequest], None]] = None,
+        on_takeover_requested: Callable[[TakeoverRequest], None] | None = None,
+        on_takeover_completed: Callable[[TakeoverSession], None] | None = None,
+        on_timeout: Callable[[TakeoverRequest], None] | None = None,
         default_timeout_sec: float = 300.0,
     ):
         """
@@ -117,15 +117,15 @@ class TakeoverManager:
         self._default_timeout = default_timeout_sec
 
         self._state = TakeoverState.INACTIVE
-        self._current_request: Optional[TakeoverRequest] = None
-        self._current_session: Optional[TakeoverSession] = None
+        self._current_request: TakeoverRequest | None = None
+        self._current_session: TakeoverSession | None = None
         self._request_counter = 0
 
         self._lock = threading.Lock()
-        self._timeout_timer: Optional[threading.Timer] = None
+        self._timeout_timer: threading.Timer | None = None
 
         # History for learning
-        self._history: List[TakeoverSession] = []
+        self._history: list[TakeoverSession] = []
 
     @property
     def state(self) -> TakeoverState:
@@ -136,7 +136,7 @@ class TakeoverManager:
         return self._state in (TakeoverState.REQUESTED, TakeoverState.ACTIVE)
 
     @property
-    def current_request(self) -> Optional[TakeoverRequest]:
+    def current_request(self) -> TakeoverRequest | None:
         return self._current_request
 
     def request_takeover(
@@ -182,7 +182,7 @@ class TakeoverManager:
 
             return request
 
-    def start_takeover(self) -> Optional[TakeoverSession]:
+    def start_takeover(self) -> TakeoverSession | None:
         """
         User acknowledges and starts takeover.
 
@@ -221,9 +221,7 @@ class TakeoverManager:
                 action["timestamp"] = time.time()
                 self._current_session.user_actions.append(action)
 
-    def complete_takeover(
-        self, outcome: str = "completed"
-    ) -> Optional[TakeoverSession]:
+    def complete_takeover(self, outcome: str = "completed") -> TakeoverSession | None:
         """
         Complete the current takeover session.
 
@@ -273,7 +271,7 @@ class TakeoverManager:
             self._current_request = None
             self._current_session = None
 
-    def get_history(self, limit: int = 10) -> List[TakeoverSession]:
+    def get_history(self, limit: int = 10) -> list[TakeoverSession]:
         """Get recent takeover history."""
         return self._history[-limit:]
 
@@ -290,9 +288,7 @@ class TakeoverManager:
             }
             if self._current_request
             else None,
-            "session_duration": self._current_session.duration_sec
-            if self._current_session
-            else 0,
+            "session_duration": self._current_session.duration_sec if self._current_session else 0,
             "history_count": len(self._history),
         }
 
@@ -302,10 +298,7 @@ class TakeoverManager:
 
         def on_timeout():
             with self._lock:
-                if (
-                    self._state == TakeoverState.REQUESTED
-                    and self._current_request == request
-                ):
+                if self._state == TakeoverState.REQUESTED and self._current_request == request:
                     self._state = TakeoverState.TIMED_OUT
                     self._current_request = None
 

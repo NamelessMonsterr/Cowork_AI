@@ -3,16 +3,16 @@
 from .schemas import (
     # Core action types
     ActionStep,
-    ExecutionPlan,
-    VerifySpec,
-    UISelector,
-    # Results
-    ExecutionResult,
-    StepResult,
-    VerificationResult,
     # Events
     AgentEvent,
     EventType,
+    ExecutionPlan,
+    # Results
+    ExecutionResult,
+    StepResult,
+    UISelector,
+    VerificationResult,
+    VerifySpec,
 )
 
 __all__ = [

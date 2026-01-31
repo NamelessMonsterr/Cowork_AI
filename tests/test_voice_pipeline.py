@@ -7,10 +7,11 @@ D2: Preview → Approve → Executes
 D3: No permission → approve fails
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -117,9 +118,7 @@ class TestVoicePipeline:
         await mock_state.broadcast("execution_started", {"plan_id": "test-plan-456"})
 
         # Verify broadcast was called
-        mock_state.broadcast.assert_called_with(
-            "execution_started", {"plan_id": "test-plan-456"}
-        )
+        mock_state.broadcast.assert_called_with("execution_started", {"plan_id": "test-plan-456"})
 
     @pytest.mark.asyncio
     async def test_approve_without_permission_fails(self, mock_state):

@@ -3,7 +3,6 @@ Failure Classifier - Maps errors to Recovery Types (W9.2).
 """
 
 from enum import Enum
-from typing import Tuple
 
 
 class FailureType(Enum):
@@ -21,7 +20,7 @@ class FailureType(Enum):
 
 class FailureClassifier:
     @staticmethod
-    def classify(error_msg: str) -> Tuple[FailureType, bool]:
+    def classify(error_msg: str) -> tuple[FailureType, bool]:
         """
         Classify error message into Type and Recoverability.
         Returns: (FailureType, is_recoverable)
@@ -37,11 +36,7 @@ class FailureClassifier:
         if "permission" in msg:
             return FailureType.PERMISSION_REQUIRED, False
 
-        if (
-            "element not found" in msg
-            or "timeout waiting for element" in msg
-            or "selector" in msg
-        ):
+        if "element not found" in msg or "timeout waiting for element" in msg or "selector" in msg:
             return FailureType.ELEMENT_NOT_FOUND, True
 
         if "window" in msg and ("not found" in msg or "active" in msg):

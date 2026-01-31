@@ -9,10 +9,10 @@ Prevents the agent from running indefinitely by tracking:
 If any budget is exceeded, forces pause + takeover.
 """
 
-import time
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional, Callable
 
 
 class BudgetExceededError(Exception):
@@ -71,8 +71,8 @@ class ActionBudget:
 
     def __init__(
         self,
-        config: Optional[BudgetConfig] = None,
-        on_budget_exceeded: Optional[Callable[[str], None]] = None,
+        config: BudgetConfig | None = None,
+        on_budget_exceeded: Callable[[str], None] | None = None,
     ):
         """
         Initialize ActionBudget.
@@ -85,8 +85,8 @@ class ActionBudget:
         self._state = BudgetState()
         self._lock = threading.Lock()
         self._on_exceeded = on_budget_exceeded
-        self._runtime_timer: Optional[threading.Timer] = None
-        self._current_task: Optional[str] = None
+        self._runtime_timer: threading.Timer | None = None
+        self._current_task: str | None = None
 
     @property
     def state(self) -> BudgetState:
@@ -125,9 +125,7 @@ class ActionBudget:
             if self._runtime_timer:
                 self._runtime_timer.cancel()
 
-            self._runtime_timer = threading.Timer(
-                self._config.max_runtime_sec, self._on_runtime_exceeded
-            )
+            self._runtime_timer = threading.Timer(self._config.max_runtime_sec, self._on_runtime_exceeded)
             self._runtime_timer.daemon = True
             self._runtime_timer.start()
 
@@ -147,9 +145,7 @@ class ActionBudget:
                 "task": self._current_task,
                 "actions_executed": self._state.actions_executed,
                 "retries_attempted": self._state.retries_attempted,
-                "runtime_sec": time.time() - self._state.task_start_time
-                if self._state.task_start_time
-                else 0,
+                "runtime_sec": time.time() - self._state.task_start_time if self._state.task_start_time else 0,
                 "was_paused": self._state.is_paused,
                 "pause_reason": self._state.pause_reason,
             }
@@ -166,9 +162,7 @@ class ActionBudget:
         """
         with self._lock:
             if self._state.is_paused:
-                raise BudgetExceededError(
-                    f"Execution paused: {self._state.pause_reason}", "paused", 0, 0
-                )
+                raise BudgetExceededError(f"Execution paused: {self._state.pause_reason}", "paused", 0, 0)
 
             # Check actions
             if self._state.actions_executed >= self._config.max_actions_per_task:
@@ -187,10 +181,7 @@ class ActionBudget:
                 )
 
             # Check consecutive failures
-            if (
-                self._state.consecutive_failures
-                >= self._config.max_consecutive_failures
-            ):
+            if self._state.consecutive_failures >= self._config.max_consecutive_failures:
                 self._trigger_exceeded(
                     "consecutive_failures",
                     self._state.consecutive_failures,
@@ -201,9 +192,7 @@ class ActionBudget:
             if self._state.task_start_time > 0:
                 runtime = time.time() - self._state.task_start_time
                 if runtime >= self._config.max_runtime_sec:
-                    self._trigger_exceeded(
-                        "runtime", int(runtime), self._config.max_runtime_sec
-                    )
+                    self._trigger_exceeded("runtime", int(runtime), self._config.max_runtime_sec)
 
     def record_action(self, success: bool, was_retry: bool = False) -> None:
         """
@@ -251,26 +240,15 @@ class ActionBudget:
             Dictionary with remaining budget for each limit
         """
         with self._lock:
-            runtime = (
-                time.time() - self._state.task_start_time
-                if self._state.task_start_time
-                else 0
-            )
+            runtime = time.time() - self._state.task_start_time if self._state.task_start_time else 0
 
             return {
-                "actions_remaining": max(
-                    0, self._config.max_actions_per_task - self._state.actions_executed
-                ),
-                "retries_remaining": max(
-                    0, self._config.max_retries_per_task - self._state.retries_attempted
-                ),
-                "runtime_remaining_sec": max(
-                    0, self._config.max_runtime_sec - int(runtime)
-                ),
+                "actions_remaining": max(0, self._config.max_actions_per_task - self._state.actions_executed),
+                "retries_remaining": max(0, self._config.max_retries_per_task - self._state.retries_attempted),
+                "runtime_remaining_sec": max(0, self._config.max_runtime_sec - int(runtime)),
                 "failures_until_pause": max(
                     0,
-                    self._config.max_consecutive_failures
-                    - self._state.consecutive_failures,
+                    self._config.max_consecutive_failures - self._state.consecutive_failures,
                 ),
             }
 
@@ -281,22 +259,16 @@ class ActionBudget:
 
         if self._on_exceeded:
             # Call outside lock to prevent deadlock
-            threading.Thread(
-                target=self._on_exceeded, args=(self._state.pause_reason,), daemon=True
-            ).start()
+            threading.Thread(target=self._on_exceeded, args=(self._state.pause_reason,), daemon=True).start()
 
-        raise BudgetExceededError(
-            f"Budget exceeded: {budget_type}", budget_type, current, limit
-        )
+        raise BudgetExceededError(f"Budget exceeded: {budget_type}", budget_type, current, limit)
 
     def _on_runtime_exceeded(self) -> None:
         """Called when runtime timer expires."""
         with self._lock:
             if not self._state.is_paused:
                 self._state.is_paused = True
-                self._state.pause_reason = (
-                    f"Runtime exceeded ({self._config.max_runtime_sec}s)"
-                )
+                self._state.pause_reason = f"Runtime exceeded ({self._config.max_runtime_sec}s)"
 
         if self._on_exceeded:
             self._on_exceeded(self._state.pause_reason)

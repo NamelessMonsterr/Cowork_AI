@@ -59,12 +59,8 @@ def test_redaction():
 
     # Test 5: Mixed content
     print("Test 5: Mixed content")
-    logger.info(
-        "Connecting to API with key=sk-test123456789012345678901234567890 for user@example.com"
-    )
-    print(
-        "Expected: API key [REDACTED], email preserved or redacted depending on pattern"
-    )
+    logger.info("Connecting to API with key=sk-test123456789012345678901234567890 for user@example.com")
+    print("Expected: API key [REDACTED], email preserved or redacted depending on pattern")
     print()
 
     print("=== Redaction Test Complete ===")

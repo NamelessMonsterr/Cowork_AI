@@ -89,10 +89,10 @@ Analyzes code for compliance with:
 Total: 80+ checks across all design principles
 """
 
-import sys
+import json
 import os
 import re
-import json
+import sys
 from pathlib import Path
 
 
@@ -105,7 +105,7 @@ class UXAuditor:
 
     def audit_file(self, filepath: str) -> None:
         try:
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            with open(filepath, encoding="utf-8", errors="replace") as f:
                 content = f.read()
         except:
             return
@@ -114,46 +114,24 @@ class UXAuditor:
         filename = os.path.basename(filepath)
 
         # Pre-calculate common flags
-        has_long_text = bool(
-            re.search(
-                r"<p|<div.*class=.*text|article|<span.*text", content, re.IGNORECASE
-            )
-        )
-        has_form = bool(
-            re.search(
-                r"<form|<input|password|credit|card|payment", content, re.IGNORECASE
-            )
-        )
-        complex_elements = len(
-            re.findall(r"<input|<select|<textarea|<option", content, re.IGNORECASE)
-        )
+        has_long_text = bool(re.search(r"<p|<div.*class=.*text|article|<span.*text", content, re.IGNORECASE))
+        has_form = bool(re.search(r"<form|<input|password|credit|card|payment", content, re.IGNORECASE))
+        complex_elements = len(re.findall(r"<input|<select|<textarea|<option", content, re.IGNORECASE))
 
         # --- 1. PSYCHOLOGY LAWS ---
         # Hick's Law
-        nav_items = len(
-            re.findall(r"<NavLink|<Link|<a\s+href|nav-item", content, re.IGNORECASE)
-        )
+        nav_items = len(re.findall(r"<NavLink|<Link|<a\s+href|nav-item", content, re.IGNORECASE))
         if nav_items > 7:
-            self.issues.append(
-                f"[Hick's Law] {filename}: {nav_items} nav items (Max 7)"
-            )
+            self.issues.append(f"[Hick's Law] {filename}: {nav_items} nav items (Max 7)")
 
         # Fitts' Law
-        if re.search(r"height:\s*([0-3]\d)px", content) or re.search(
-            r"h-[1-9]\b|h-10\b", content
-        ):
+        if re.search(r"height:\s*([0-3]\d)px", content) or re.search(r"h-[1-9]\b|h-10\b", content):
             self.warnings.append(f"[Fitts' Law] {filename}: Small targets (< 44px)")
 
         # Miller's Law
-        form_fields = len(
-            re.findall(r"<input|<select|<textarea", content, re.IGNORECASE)
-        )
-        if form_fields > 7 and not re.search(
-            r"step|wizard|stage", content, re.IGNORECASE
-        ):
-            self.warnings.append(
-                f"[Miller's Law] {filename}: Complex form ({form_fields} fields)"
-            )
+        form_fields = len(re.findall(r"<input|<select|<textarea", content, re.IGNORECASE))
+        if form_fields > 7 and not re.search(r"step|wizard|stage", content, re.IGNORECASE):
+            self.warnings.append(f"[Miller's Law] {filename}: Complex form ({form_fields} fields)")
 
         # Von Restorff
         if "button" in content.lower() and not re.search(
@@ -166,9 +144,7 @@ class UXAuditor:
         # Serial Position Effect - Important items at beginning/end
         if nav_items > 3:
             # Check if last nav item is important (contact, login, etc.)
-            nav_content = re.findall(
-                r"<NavLink|<Link|<a\s+href[^>]*>([^<]+)</a>", content, re.IGNORECASE
-            )
+            nav_content = re.findall(r"<NavLink|<Link|<a\s+href[^>]*>([^<]+)</a>", content, re.IGNORECASE)
             if nav_content and len(nav_content) > 2:
                 last_item = nav_content[-1].lower() if nav_content else ""
                 if not any(
@@ -192,9 +168,7 @@ class UXAuditor:
         has_hero = bool(re.search(r"hero|<h1|banner", content, re.IGNORECASE))
         if has_hero:
             # Check for visual appeal elements
-            has_gradient = bool(
-                re.search(r"gradient|linear-gradient|radial-gradient", content)
-            )
+            has_gradient = bool(re.search(r"gradient|linear-gradient|radial-gradient", content))
             has_animation = bool(re.search(r"@keyframes|transition:|animate-", content))
             has_visual_interest = has_gradient or has_animation
 
@@ -234,12 +208,8 @@ class UXAuditor:
 
         # Security signals
         if has_form:
-            security_signals = re.findall(
-                r"ssl|secure|encrypt|lock|padlock|https", content, re.IGNORECASE
-            )
-            if len(security_signals) == 0 and not re.search(
-                r"checkout|payment", content, re.IGNORECASE
-            ):
+            security_signals = re.findall(r"ssl|secure|encrypt|lock|padlock|https", content, re.IGNORECASE)
+            if len(security_signals) == 0 and not re.search(r"checkout|payment", content, re.IGNORECASE):
                 self.warnings.append(
                     f"[Trust] {filename}: Form without security indicators. Add 'SSL Secure' or lock icon."
                 )
@@ -261,9 +231,7 @@ class UXAuditor:
         # Authority indicators
         has_footer = bool(re.search(r"footer|<footer", content, re.IGNORECASE))
         if has_footer:
-            authority = re.findall(
-                r"certif|award|media|press|featured|as seen in", content, re.IGNORECASE
-            )
+            authority = re.findall(r"certif|award|media|press|featured|as seen in", content, re.IGNORECASE)
             if len(authority) == 0:
                 self.warnings.append(
                     f"[Trust] {filename}: Footer lacks authority signals. Add certifications, awards, or media mentions."
@@ -293,9 +261,7 @@ class UXAuditor:
 
         # Familiar patterns
         if has_form:
-            has_standard_labels = bool(
-                re.search(r"<label|placeholder|aria-label", content, re.IGNORECASE)
-            )
+            has_standard_labels = bool(re.search(r"<label|placeholder|aria-label", content, re.IGNORECASE))
             if not has_standard_labels:
                 self.issues.append(
                     f"[Cognitive Load] {filename}: Form inputs without labels. Use <label> for accessibility and clarity."
@@ -305,9 +271,7 @@ class UXAuditor:
 
         # Smart defaults
         if has_form:
-            has_defaults = bool(
-                re.search(r'checked|selected|default|value=["\'].*["\']', content)
-            )
+            has_defaults = bool(re.search(r'checked|selected|default|value=["\'].*["\']', content))
             radio_inputs = len(re.findall(r'type=["\']radio', content, re.IGNORECASE))
             if radio_inputs > 0 and not has_defaults:
                 self.warnings.append(
@@ -316,18 +280,14 @@ class UXAuditor:
 
         # Anchoring (showing original price)
         if re.search(r"price|pricing|cost|\$\d+", content, re.IGNORECASE):
-            has_anchor = bool(
-                re.search(r"original|was|strike|del|save \d+%", content, re.IGNORECASE)
-            )
+            has_anchor = bool(re.search(r"original|was|strike|del|save \d+%", content, re.IGNORECASE))
             if not has_anchor:
                 self.warnings.append(
                     f"[Persuasion] {filename}: Prices without anchoring. Show original price to frame discount value."
                 )
 
         # Social proof live indicators
-        has_social = bool(
-            re.search(r"join|subscriber|member|user", content, re.IGNORECASE)
-        )
+        has_social = bool(re.search(r"join|subscriber|member|user", content, re.IGNORECASE))
         if has_social:
             has_count = bool(re.findall(r"\d+[+kmb]|\d+,\d+", content))
             if not has_count:
@@ -337,9 +297,7 @@ class UXAuditor:
 
         # Progress indicators
         if has_form:
-            has_progress = bool(
-                re.search(r"progress|step \d+|complete|%|bar", content, re.IGNORECASE)
-            )
+            has_progress = bool(re.search(r"progress|step \d+|complete|%|bar", content, re.IGNORECASE))
             if complex_elements > 5 and not has_progress:
                 self.warnings.append(
                     f"[Persuasion] {filename}: Long form without progress indicator. Add progress bar or 'Step X of Y'."
@@ -350,12 +308,8 @@ class UXAuditor:
         # 2.1 Font Pairing - Too many font families
         font_families = set()
         # Check for @font-face, Google Fonts, font-family declarations
-        font_faces = re.findall(
-            r'@font-face\s*\{[^}]*family:\s*["\']?([^;"\'\s}]+)', content, re.IGNORECASE
-        )
-        google_fonts = re.findall(
-            r'fonts\.googleapis\.com[^"\']*family=([^"&]+)', content, re.IGNORECASE
-        )
+        font_faces = re.findall(r'@font-face\s*\{[^}]*family:\s*["\']?([^;"\'\s}]+)', content, re.IGNORECASE)
+        google_fonts = re.findall(r'fonts\.googleapis\.com[^"\']*family=([^"&]+)', content, re.IGNORECASE)
         font_family_css = re.findall(r"font-family:\s*([^;]+)", content, re.IGNORECASE)
 
         for font in font_faces:
@@ -391,27 +345,21 @@ class UXAuditor:
             )
 
         # 2.2 Line Length - Character-based width
-        if has_long_text and not re.search(
-            r"max-w-(?:prose|[\[\\]?\d+ch[\]\\]?)|max-width:\s*\d+ch", content
-        ):
+        if has_long_text and not re.search(r"max-w-(?:prose|[\[\\]?\d+ch[\]\\]?)|max-width:\s*\d+ch", content):
             self.warnings.append(
                 f"[Typography] {filename}: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch]."
             )
 
         # 2.3 Line Height - Proper leading ratios
         # Check for text without proper line-height
-        text_elements = len(
-            re.findall(r"<p|<span|<div.*text|<h[1-6]", content, re.IGNORECASE)
-        )
+        text_elements = len(re.findall(r"<p|<span|<div.*text|<h[1-6]", content, re.IGNORECASE))
         if text_elements > 0 and not re.search(r"leading-|line-height:", content):
             self.warnings.append(
                 f"[Typography] {filename}: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3"
             )
 
         # Check for heading-specific line height issues
-        if re.search(
-            r"<h[1-6]|text-(?:xl|2xl|3xl|4xl|5xl|6xl)", content, re.IGNORECASE
-        ):
+        if re.search(r"<h[1-6]|text-(?:xl|2xl|3xl|4xl|5xl|6xl)", content, re.IGNORECASE):
             # Extract line-height values
             line_heights = re.findall(r"(?:leading-|line-height:\s*)([\d.]+)", content)
             for lh in line_heights:
@@ -429,9 +377,7 @@ class UXAuditor:
                 )
 
         # Large text (display/hero) should have negative tracking
-        if re.search(
-            r"text-(?:4xl|5xl|6xl|7xl|8xl|9xl)|font-size:\s*[3-9]\dpx", content
-        ):
+        if re.search(r"text-(?:4xl|5xl|6xl|7xl|8xl|9xl)|font-size:\s*[3-9]\dpx", content):
             if not re.search(r"tracking-tight|letter-spacing:\s*-[0-9]", content):
                 self.warnings.append(
                     f"[Typography] {filename}: Large display text without tracking-tight. Big text needs -1% to -4% spacing."
@@ -477,14 +423,10 @@ class UXAuditor:
         # Too many weight levels
         unique_weights = set(weight_values)
         if len(unique_weights) > 4:
-            self.warnings.append(
-                f"[Typography] {filename}: {len(unique_weights)} font weights. Limit to 3-4 per page."
-            )
+            self.warnings.append(f"[Typography] {filename}: {len(unique_weights)} font weights. Limit to 3-4 per page.")
 
         # 2.6 Responsive Typography - Fluid sizing with clamp()
-        has_font_sizes = bool(
-            re.search(r"font-size:|text-(?:xs|sm|base|lg|xl|2xl)", content)
-        )
+        has_font_sizes = bool(re.search(r"font-size:|text-(?:xs|sm|base|lg|xl|2xl)", content))
         if has_font_sizes and not re.search(r"clamp\(|responsive:", content):
             self.warnings.append(
                 f"[Typography] {filename}: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)"
@@ -557,18 +499,14 @@ class UXAuditor:
 
         # Glassmorphism Check
         if "backdrop-filter" in content or "blur(" in content:
-            if not re.search(
-                r"background:\s*rgba|bg-opacity|bg-[a-z0-9]+\/\d+", content
-            ):
+            if not re.search(r"background:\s*rgba|bg-opacity|bg-[a-z0-9]+\/\d+", content):
                 self.warnings.append(
                     f"[Visual] {filename}: Blur used without semi-transparent background (Glassmorphism fail)"
                 )
 
         # GPU Acceleration / Performance
         if re.search(r"@keyframes|transition:", content):
-            expensive_props = re.findall(
-                r"width|height|top|left|right|bottom|margin|padding", content
-            )
+            expensive_props = re.findall(r"width|height|top|left|right|bottom|margin|padding", content)
             if expensive_props:
                 self.warnings.append(
                     f"[Performance] {filename}: Animating expensive properties ({', '.join(set(expensive_props))}). Use transform/opacity where possible."
@@ -584,9 +522,7 @@ class UXAuditor:
         shadows = re.findall(r"box-shadow:\s*([^;]+)", content)
         for shadow in shadows:
             # Check if natural (Y > X) or multiple layers
-            if "," not in shadow and not re.search(
-                r"\d+px\s+[1-9]\d*px", shadow
-            ):  # Simple heuristic for Y-offset
+            if "," not in shadow and not re.search(r"\d+px\s+[1-9]\d*px", shadow):  # Simple heuristic for Y-offset
                 self.warnings.append(
                     f"[Visual] {filename}: Simple/Unnatural shadow detected. Consider multiple layers or Y > X offset for realism."
                 )
@@ -620,11 +556,7 @@ class UXAuditor:
 
         # --- 3.3 GRADIENT CHECKS ---
         # Check for gradient usage
-        has_gradient = bool(
-            re.search(
-                r"gradient|linear-gradient|radial-gradient|conic-gradient", content
-            )
-        )
+        has_gradient = bool(re.search(r"gradient|linear-gradient|radial-gradient|conic-gradient", content))
         if has_gradient:
             # Warn about mesh/aurora gradients (can be overused)
             gradient_count = len(re.findall(r"gradient", content, re.IGNORECASE))
@@ -671,11 +603,7 @@ class UXAuditor:
         # Check for image overlays (for readability)
         has_images = bool(re.search(r"<img|background-image:|bg-\[url", content))
         if has_images and has_long_text:
-            has_overlay = bool(
-                re.search(
-                    r"overlay|rgba\(0|gradient.*transparent|::after|::before", content
-                )
-            )
+            has_overlay = bool(re.search(r"overlay|rgba\(0|gradient.*transparent|::after|::before", content))
             if not has_overlay:
                 self.warnings.append(
                     f"[Visual] {filename}: Text over image without overlay. Add gradient overlay for readability."
@@ -793,25 +721,15 @@ class UXAuditor:
             self.warnings.append(
                 f"[Color] {filename}: Pure black (#000000) detected. Use #1a1a1a or darker grays for better dark mode."
             )
-        if re.search(r"background:\s*#ffffff|#fff\b", content) and re.search(
-            r"dark:\s*|dark:", content
-        ):
+        if re.search(r"background:\s*#ffffff|#fff\b", content) and re.search(r"dark:\s*|dark:", content):
             self.warnings.append(
                 f"[Color] {filename}: Pure white background in dark mode context. Use slight off-white (#f9fafb) for reduced eye strain."
             )
 
         # 4.5 WCAG Contrast Pattern Check
         # Look for potential low-contrast combinations
-        light_bg_light_text = bool(
-            re.search(
-                r"bg-(?:gray|slate|zinc)-50|bg-white.*text-(?:gray|slate)-[12]", content
-            )
-        )
-        dark_bg_dark_text = bool(
-            re.search(
-                r"bg-(?:gray|slate|zinct)-9|bg-black.*text-(?:gray|slate)-[89]", content
-            )
-        )
+        light_bg_light_text = bool(re.search(r"bg-(?:gray|slate|zinc)-50|bg-white.*text-(?:gray|slate)-[12]", content))
+        dark_bg_dark_text = bool(re.search(r"bg-(?:gray|slate|zinct)-9|bg-black.*text-(?:gray|slate)-[89]", content))
         if light_bg_light_text or dark_bg_dark_text:
             self.warnings.append(
                 f"[Color] {filename}: Possible low-contrast combination detected. Verify WCAG AA (4.5:1 for text)."
@@ -825,11 +743,7 @@ class UXAuditor:
                 content,
             )
         )
-        has_food_context = bool(
-            re.search(
-                r"restaurant|food|cooking|recipe|menu|dish|meal", content, re.IGNORECASE
-            )
-        )
+        has_food_context = bool(re.search(r"restaurant|food|cooking|recipe|menu|dish|meal", content, re.IGNORECASE))
         if has_blue and has_food_context:
             self.warnings.append(
                 f"[Color] {filename}: Blue color in food context. Blue suppresses appetite; consider warm colors (red, orange, yellow)."
@@ -837,9 +751,7 @@ class UXAuditor:
 
         # 4.7 HSL-Based Palette Detection
         # Check if using HSL for palette (recommended in color-system.md)
-        has_color_vars = bool(
-            re.search(r"--color-|color-|primary-|secondary-", content)
-        )
+        has_color_vars = bool(re.search(r"--color-|color-|primary-|secondary-", content))
         if has_color_vars and not re.search(r"hsl\(", content):
             self.warnings.append(
                 f"[Color] {filename}: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness)."
@@ -877,9 +789,7 @@ class UXAuditor:
 
         # 5.3 Micro-interaction Feedback Patterns
         # Check for interactive elements without hover/focus states
-        interactive_elements = len(
-            re.findall(r"<button|<a\s+href|onClick|@click", content)
-        )
+        interactive_elements = len(re.findall(r"<button|<a\s+href|onClick|@click", content))
         has_hover_focus = bool(re.search(r"hover:|focus:|:hover|:focus", content))
         if interactive_elements > 2 and not has_hover_focus:
             self.warnings.append(
@@ -888,12 +798,8 @@ class UXAuditor:
 
         # 5.4 Loading State Indicators
         # Check for loading patterns
-        has_async = bool(
-            re.search(r"async|await|fetch|axios|loading|isLoading", content)
-        )
-        has_loading_indicator = bool(
-            re.search(r"skeleton|spinner|progress|loading|<circle.*animate", content)
-        )
+        has_async = bool(re.search(r"async|await|fetch|axios|loading|isLoading", content))
+        has_loading_indicator = bool(re.search(r"skeleton|spinner|progress|loading|<circle.*animate", content))
         if has_async and not has_loading_indicator:
             self.warnings.append(
                 f"[Animation] {filename}: Async operations without loading indicator. Add skeleton or spinner for perceived performance."
@@ -902,9 +808,7 @@ class UXAuditor:
         # 5.5 Page Transition Patterns
         # Check for page/view transitions
         has_routing = bool(re.search(r"router|navigate|Link.*to|useHistory", content))
-        has_page_transition = bool(
-            re.search(r"AnimatePresence|motion\.|transition.*page|fade.*route", content)
-        )
+        has_page_transition = bool(re.search(r"AnimatePresence|motion\.|transition.*page|fade.*route", content))
         if has_routing and not has_page_transition:
             self.warnings.append(
                 f"[Animation] {filename}: Routing detected without page transitions. Consider fade/slide for context continuity."
@@ -912,9 +816,7 @@ class UXAuditor:
 
         # 5.6 Scroll Animation Performance
         # Check for scroll-driven animations
-        has_scroll_anim = bool(
-            re.search(r"onScroll|scroll.*trigger|IntersectionObserver", content)
-        )
+        has_scroll_anim = bool(re.search(r"onScroll|scroll.*trigger|IntersectionObserver", content))
         if has_scroll_anim:
             # Check if using expensive properties in scroll handlers
             if re.search(r"onScroll.*[^\w](width|height|top|left)", content):
@@ -943,32 +845,24 @@ class UXAuditor:
         has_gsap = bool(re.search(r"gsap|ScrollTrigger|from\(.*gsap", content))
         if has_gsap:
             # Check for cleanup patterns
-            has_gsap_cleanup = bool(
-                re.search(r"kill\(|revert\(|useEffect.*return.*gsap", content)
-            )
+            has_gsap_cleanup = bool(re.search(r"kill\(|revert\(|useEffect.*return.*gsap", content))
             if not has_gsap_cleanup:
                 self.issues.append(
                     f"[Motion] {filename}: GSAP animation without cleanup (kill/revert). Memory leak risk on unmount."
                 )
 
         # 6.3 SVG Animation Performance
-        svg_animations = re.findall(
-            r"<animate|<animateTransform|stroke-dasharray|stroke-dashoffset", content
-        )
+        svg_animations = re.findall(r"<animate|<animateTransform|stroke-dasharray|stroke-dashoffset", content)
         if len(svg_animations) > 3:
             self.warnings.append(
                 f"[Motion] {filename}: Multiple SVG animations detected. Ensure stroke-dashoffset is used sparingly for mobile performance."
             )
 
         # 6.4 3D Transform Performance
-        has_3d_transform = bool(
-            re.search(r"transform3d|perspective\(|rotate3d|translate3d", content)
-        )
+        has_3d_transform = bool(re.search(r"transform3d|perspective\(|rotate3d|translate3d", content))
         if has_3d_transform:
             # Check for perspective on parent
-            has_perspective_parent = bool(
-                re.search(r"perspective:\s*\d+px|perspective\s*\(", content)
-            )
+            has_perspective_parent = bool(re.search(r"perspective:\s*\d+px|perspective\s*\(", content))
             if not has_perspective_parent:
                 self.warnings.append(
                     f"[Motion] {filename}: 3D transform without perspective parent. Add perspective: 1000px for realistic depth."
@@ -981,27 +875,17 @@ class UXAuditor:
 
         # 6.5 Particle Effect Warnings
         # Check for canvas/WebGL particle systems
-        has_particles = bool(
-            re.search(
-                r"particle|canvas.*loop|requestAnimationFrame.*draw|Three\.js", content
-            )
-        )
+        has_particles = bool(re.search(r"particle|canvas.*loop|requestAnimationFrame.*draw|Three\.js", content))
         if has_particles:
             self.warnings.append(
                 f"[Motion] {filename}: Particle effects detected. Ensure fallback or reduced-quality option for mobile devices."
             )
 
         # 6.6 Scroll-Driven Animation Performance
-        has_scroll_driven = bool(
-            re.search(
-                r"IntersectionObserver.*animate|scroll.*progress|view-timeline", content
-            )
-        )
+        has_scroll_driven = bool(re.search(r"IntersectionObserver.*animate|scroll.*progress|view-timeline", content))
         if has_scroll_driven:
             # Check for throttling/debouncing
-            has_throttle = bool(
-                re.search(r"throttle|debounce|requestAnimationFrame", content)
-            )
+            has_throttle = bool(re.search(r"throttle|debounce|requestAnimationFrame", content))
             if not has_throttle:
                 self.issues.append(
                     f"[Motion] {filename}: Scroll-driven animation without throttling. Add requestAnimationFrame for 60fps."
@@ -1016,9 +900,7 @@ class UXAuditor:
         )
         if total_animations > 5:
             # Check if animations are functional
-            functional_animations = len(
-                re.findall(r"hover:|focus:|disabled|loading|error|success", content)
-            )
+            functional_animations = len(re.findall(r"hover:|focus:|disabled|loading|error|success", content))
             if functional_animations < total_animations / 2:
                 self.warnings.append(
                     f"[Motion] {filename}: Many animations ({total_animations}). Ensure majority serve functional purpose (feedback, guidance), not decoration."
@@ -1031,11 +913,7 @@ class UXAuditor:
     def audit_directory(self, directory: str) -> None:
         extensions = {".tsx", ".jsx", ".html", ".vue", ".svelte", ".css"}
         for root, dirs, files in os.walk(directory):
-            dirs[:] = [
-                d
-                for d in dirs
-                if d not in {"node_modules", ".git", "dist", "build", ".next"}
-            ]
+            dirs[:] = [d for d in dirs if d not in {"node_modules", ".git", "dist", "build", ".next"}]
             for file in files:
                 if Path(file).suffix in extensions:
                     self.audit_file(os.path.join(root, file))

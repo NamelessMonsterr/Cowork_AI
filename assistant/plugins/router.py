@@ -8,15 +8,16 @@ Features:
 4. Safe Execution.
 """
 
-import logging
-import time
-from typing import Dict, Any
-from assistant.plugins.sdk import ToolContext
-from assistant.plugins.registry import ToolRegistry
-from assistant.plugins.permissions import PermissionManager
-from assistant.plugins.secrets import PluginSecrets
 import json
+import logging
 import os
+import time
+from typing import Any
+
+from assistant.plugins.permissions import PermissionManager
+from assistant.plugins.registry import ToolRegistry
+from assistant.plugins.sdk import ToolContext
+from assistant.plugins.secrets import PluginSecrets
 
 logger = logging.getLogger("ToolRouter")
 
@@ -36,7 +37,7 @@ class ToolRouter:
         self.log_path = os.path.join("logs", "plugin_audit.jsonl")
         os.makedirs("logs", exist_ok=True)
 
-    def _log_audit(self, entry: Dict[str, Any]):
+    def _log_audit(self, entry: dict[str, Any]):
         """Write audit entry to disk."""
         try:
             with open(self.log_path, "a", encoding="utf-8") as f:
@@ -44,9 +45,7 @@ class ToolRouter:
         except Exception as e:
             logger.error(f"Failed to write audit log: {e}")
 
-    async def call_tool(
-        self, tool_name: str, args: Dict[str, Any], ctx: ToolContext
-    ) -> Dict[str, Any]:
+    async def call_tool(self, tool_name: str, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         """
         Execute a tool safely.
         """

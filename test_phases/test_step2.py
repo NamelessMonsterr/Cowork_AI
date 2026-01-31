@@ -57,9 +57,7 @@ def test_ocr_and_verifier():
         # We'll look for something that should be on screen, like the window title
         if win and win.title:
             print(f"Verifying text presence: '{win.title[:5]}'")
-            res = verifier.verify(
-                VerifySpec(type=VerifyType.TEXT_PRESENT, value=win.title[:5], timeout=5)
-            )
+            res = verifier.verify(VerifySpec(type=VerifyType.TEXT_PRESENT, value=win.title[:5], timeout=5))
             if res.success:
                 print(f"✅ OCR found text: '{res.actual}'")
             else:
@@ -77,9 +75,7 @@ def test_download_watcher():
 
     print(f"Watching {downloads_path}...")
 
-    watcher = DownloadWatcher(
-        watch_paths=[downloads_path], stability_duration=1.0, check_interval=0.5
-    )
+    watcher = DownloadWatcher(watch_paths=[downloads_path], stability_duration=1.0, check_interval=0.5)
     watcher.start()
 
     try:

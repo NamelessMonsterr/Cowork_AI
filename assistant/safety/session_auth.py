@@ -5,11 +5,12 @@ This module ensures that no automation occurs without user permission.
 Sessions expire on: timeout, app close, screen lock, or manual revoke.
 """
 
-import time
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Callable
 from enum import Enum
+from typing import Literal
 
 
 class PermissionMode(str, Enum):
@@ -45,7 +46,7 @@ class SessionPermit:
     issued_at: float = 0
     expires_at: float = 0
     task_completed: bool = False
-    csrf_token: Optional[str] = None
+    csrf_token: str | None = None
 
 
 class PermissionDeniedError(Exception):
@@ -85,8 +86,8 @@ class SessionAuth:
     def __init__(
         self,
         ttl_sec: int = DEFAULT_TTL_SEC,
-        on_expire: Optional[Callable[[], None]] = None,
-        on_revoke: Optional[Callable[[], None]] = None,
+        on_expire: Callable[[], None] | None = None,
+        on_revoke: Callable[[], None] | None = None,
     ):
         """
         Initialize SessionAuth.
@@ -101,7 +102,7 @@ class SessionAuth:
         self._lock = threading.Lock()
         self._on_expire = on_expire
         self._on_revoke = on_revoke
-        self._expiry_timer: Optional[threading.Timer] = None
+        self._expiry_timer: threading.Timer | None = None
 
         # Initialize session manager
         from .session_manager import SessionManager
@@ -131,9 +132,7 @@ class SessionAuth:
                 # Restore timer
                 remaining = saved["expires_at"] - now
                 if remaining > 0:
-                    self._expiry_timer = threading.Timer(
-                        remaining, self._on_auto_expire
-                    )
+                    self._expiry_timer = threading.Timer(remaining, self._on_auto_expire)
                     self._expiry_timer.daemon = True
                     self._expiry_timer.start()
 
@@ -171,10 +170,10 @@ class SessionAuth:
     def grant(
         self,
         mode: Literal["session", "once"] = "session",
-        apps: Optional[list[str]] = None,
-        folders: Optional[list[str]] = None,
+        apps: list[str] | None = None,
+        folders: list[str] | None = None,
         allow_network: bool = False,
-        ttl_override: Optional[int] = None,
+        ttl_override: int | None = None,
     ) -> None:
         """
         Grant permission for the session.
@@ -201,9 +200,7 @@ class SessionAuth:
                 allowed=True,
                 mode=PermissionMode(mode),
                 granted_apps=apps if apps is not None else self.DEFAULT_APPS.copy(),
-                granted_folders=folders
-                if folders is not None
-                else self.DEFAULT_FOLDERS.copy(),
+                granted_folders=folders if folders is not None else self.DEFAULT_FOLDERS.copy(),
                 allow_network=allow_network,
                 issued_at=now,
                 expires_at=now + ttl,
@@ -311,9 +308,7 @@ class SessionAuth:
             # Check against granted folders (also normalized)
             for granted_folder in self._permit.granted_folders:
                 try:
-                    normalized_granted = os.path.realpath(
-                        os.path.abspath(granted_folder)
-                    )
+                    normalized_granted = os.path.realpath(os.path.abspath(granted_folder))
                     # Check if the path starts with any granted folder
                     if normalized_path.startswith(normalized_granted):
                         return True
@@ -384,9 +379,7 @@ class SessionAuth:
             "granted_folders": permit.granted_folders,
             "allow_network": permit.allow_network,
             "time_remaining_sec": self.time_remaining(),
-            "expires_at_iso": time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(permit.expires_at)
-            )
+            "expires_at_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(permit.expires_at))
             if permit.expires_at > 0
             else None,
             "csrf_token": permit.csrf_token,

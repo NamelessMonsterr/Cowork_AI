@@ -6,11 +6,12 @@ Tests:
 2. Safe Mode blocking destructive actions
 """
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,9 +24,9 @@ class TestHardening:
     def mock_executor_components(self):
         """Create mock components for executor."""
         from assistant.executor.executor import ExecutorConfig
-        from assistant.safety.session_auth import SessionAuth
-        from assistant.safety.budget import ActionBudget
         from assistant.executor.verify import Verifier
+        from assistant.safety.budget import ActionBudget
+        from assistant.safety.session_auth import SessionAuth
 
         session = MagicMock(spec=SessionAuth)
         session.ensure.return_value = True
@@ -72,7 +73,7 @@ class TestHardening:
     def test_focus_guard_integration(self, mock_executor_components):
         """Test that FocusGuard blocks execution when focus is lost."""
         from assistant.executor.executor import ReliableExecutor
-        from assistant.safety.focus_guard import FocusGuard, FocusCheckResult
+        from assistant.safety.focus_guard import FocusCheckResult, FocusGuard
         from assistant.ui_contracts.schemas import ActionStep
 
         session, budget, verifier, config = mock_executor_components
@@ -162,7 +163,7 @@ class TestHardening:
                 try:
                     await asyncio.wait_for(asyncio.sleep(0.5), timeout=0.1)
                     return True
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     return False
 
             assert await run_with_timeout() is False

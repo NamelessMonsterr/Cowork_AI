@@ -3,10 +3,11 @@ Plugin Signing & Verification (W16.1).
 Uses Ed25519 for secure, high-performance signatures.
 """
 
-import os
 import logging
-from cryptography.hazmat.primitives.asymmetric import ed25519
+import os
+
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 logger = logging.getLogger("PluginSigning")
 
@@ -97,9 +98,7 @@ class PluginSigner:
             return False
 
     @staticmethod
-    def verify_with_raw_hex(
-        file_path: str, signature_hex: str, public_key_hex: str
-    ) -> bool:
+    def verify_with_raw_hex(file_path: str, signature_hex: str, public_key_hex: str) -> bool:
         """Verify using raw hex-encoded public key (32 bytes)."""
         try:
             # 1. Load Raw Key

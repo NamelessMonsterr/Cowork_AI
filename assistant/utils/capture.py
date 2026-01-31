@@ -8,7 +8,6 @@ Provides:
 """
 
 import time
-from typing import Optional, Tuple
 from dataclasses import dataclass
 
 try:
@@ -26,10 +25,11 @@ try:
 except ImportError:
     HAS_MSS = False
 
+import base64
+import io
+
 import numpy as np
 from PIL import Image
-import io
-import base64
 
 
 @dataclass
@@ -39,7 +39,7 @@ class CaptureConfig:
     target_fps: int = 60
     use_dxcam: bool = True  # Prefer DXcam if available
     monitor: int = 0  # Primary monitor
-    region: Optional[Tuple[int, int, int, int]] = None  # x, y, w, h
+    region: tuple[int, int, int, int] | None = None  # x, y, w, h
 
 
 class ScreenCapture:
@@ -50,7 +50,7 @@ class ScreenCapture:
     falls back to mss for compatibility.
     """
 
-    def __init__(self, config: Optional[CaptureConfig] = None):
+    def __init__(self, config: CaptureConfig | None = None):
         self._config = config or CaptureConfig()
         self._camera = None
         self._mss = None
@@ -89,7 +89,7 @@ class ScreenCapture:
     def is_available(self) -> bool:
         return self._backend != "none"
 
-    def capture(self, as_base64: bool = False) -> Optional[bytes]:
+    def capture(self, as_base64: bool = False) -> bytes | None:
         """
         Capture current screen.
 
@@ -121,7 +121,7 @@ class ScreenCapture:
             return base64.b64encode(png_bytes).decode("utf-8")
         return png_bytes
 
-    def _dxcam_capture(self) -> Optional[np.ndarray]:
+    def _dxcam_capture(self) -> np.ndarray | None:
         """Capture using DXcam."""
         try:
             if self._config.region:
@@ -130,7 +130,7 @@ class ScreenCapture:
         except Exception:
             return None
 
-    def _mss_capture(self) -> Optional[np.ndarray]:
+    def _mss_capture(self) -> np.ndarray | None:
         """Capture using mss."""
         try:
             monitor = self._mss.monitors[self._config.monitor + 1]  # mss uses 1-indexed
@@ -156,13 +156,13 @@ class ScreenCapture:
         if self._backend == "dxcam" and self._camera:
             self._camera.stop()
 
-    def get_latest_frame(self) -> Optional[np.ndarray]:
+    def get_latest_frame(self) -> np.ndarray | None:
         """Get latest frame from stream (DXcam only)."""
         if self._backend == "dxcam" and self._camera:
             return self._camera.get_latest_frame()
         return None
 
-    def get_dimensions(self) -> Tuple[int, int]:
+    def get_dimensions(self) -> tuple[int, int]:
         """Get screen dimensions."""
         if self._backend == "mss" and self._mss:
             monitor = self._mss.monitors[self._config.monitor + 1]
@@ -189,7 +189,7 @@ class ScreenCapture:
 
 # ==================== Global Instance ====================
 
-_global_capture: Optional[ScreenCapture] = None
+_global_capture: ScreenCapture | None = None
 
 
 def get_capture() -> ScreenCapture:

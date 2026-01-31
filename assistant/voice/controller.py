@@ -7,7 +7,7 @@ Provides:
 - Event coordination
 """
 
-from typing import Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -18,7 +18,7 @@ try:
 except ImportError:
     HAS_KEYBOARD = False
 
-from .stt import WhisperSTT, TranscriptionResult
+from .stt import TranscriptionResult, WhisperSTT
 from .tts import EdgeTTS
 
 
@@ -55,10 +55,10 @@ class VoiceController:
 
     def __init__(
         self,
-        config: Optional[VoiceConfig] = None,
-        on_command: Optional[Callable[[str], None]] = None,
-        on_interrupt: Optional[Callable[[str], None]] = None,
-        on_state_change: Optional[Callable[[VoiceState], None]] = None,
+        config: VoiceConfig | None = None,
+        on_command: Callable[[str], None] | None = None,
+        on_interrupt: Callable[[str], None] | None = None,
+        on_state_change: Callable[[VoiceState], None] | None = None,
     ):
         """
         Initialize voice controller.
@@ -160,7 +160,7 @@ class VoiceController:
         self._set_state(VoiceState.LISTENING)
         self._stt.start_listening()
 
-    def stop_listening(self) -> Optional[TranscriptionResult]:
+    def stop_listening(self) -> TranscriptionResult | None:
         """Stop listening and process speech."""
         if self._state != VoiceState.LISTENING:
             return None
@@ -177,10 +177,9 @@ class VoiceController:
 
     def narrate_event(self, event_type: str, details: str = ""):
         """Narrate an event if configured."""
-        should_narrate = (
-            event_type in ["task_start", "task_complete", "error"]
-            and self._config.narrate_steps
-        ) or (event_type == "takeover_required" and self._config.narrate_takeover)
+        should_narrate = (event_type in ["task_start", "task_complete", "error"] and self._config.narrate_steps) or (
+            event_type == "takeover_required" and self._config.narrate_takeover
+        )
 
         if should_narrate:
             self._tts.narrate_event(event_type, details)

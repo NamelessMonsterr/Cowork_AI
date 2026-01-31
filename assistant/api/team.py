@@ -3,11 +3,11 @@ Team API (W17.2/W17.3).
 Expose peer info and delegation endpoints.
 """
 
+import logging
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
-import logging
-
 
 logger = logging.getLogger("TeamAPI")
 router = APIRouter(prefix="/team", tags=["Team"])
@@ -20,8 +20,8 @@ router = APIRouter(prefix="/team", tags=["Team"])
 
 class DelegateRequest(BaseModel):
     task: str
-    context: Dict[str, Any] = {}
-    target_peer_id: Optional[str] = None
+    context: dict[str, Any] = {}
+    target_peer_id: str | None = None
 
 
 @router.get("/peers")
@@ -43,9 +43,7 @@ async def receive_delegation(req: DelegateRequest):
     """
     Receive a task delegated from another agent.
     """
-    logger.info(
-        f"Received Delegated Task: {req.task} from {req.target_peer_id or 'unknown'}"
-    )
+    logger.info(f"Received Delegated Task: {req.task} from {req.target_peer_id or 'unknown'}")
 
     # Ideally: Validate auth/trust
     # Then: Queue for execution
@@ -57,9 +55,7 @@ async def receive_delegation(req: DelegateRequest):
     # import asyncio
     # asyncio.create_task(run_plan_execution(f"Delegated: {req.task}"))
 
-    logger.info(
-        f"Delegation received (Dry Run): {req.task}. Auto-execution disabled for safety."
-    )
+    logger.info(f"Delegation received (Dry Run): {req.task}. Auto-execution disabled for safety.")
     return {"status": "accepted", "message": "Task logged (Auto-execution disabled)."}
 
     return {"status": "accepted", "message": "Task received and queued."}

@@ -1,6 +1,6 @@
-import sys
-import subprocess
 import os
+import subprocess
+import sys
 
 
 def run_tests():
@@ -32,9 +32,7 @@ def run_tests():
         try:
             # Run without check=True so we see output even on failure
             # Use encoding='utf-8' but handle potential errors
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
-            )
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
             status = "[PASS]" if proc.returncode == 0 else "[FAIL]"
             if proc.returncode != 0:

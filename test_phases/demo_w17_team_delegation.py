@@ -2,13 +2,14 @@
 W17 Verification - Team Delegation.
 """
 
-import sys
-import os
-import time
-import threading
-import uvicorn
-import socket
 import json
+import os
+import socket
+import sys
+import threading
+import time
+
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 

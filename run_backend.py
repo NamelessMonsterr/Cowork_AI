@@ -1,6 +1,7 @@
+import multiprocessing
 import os
 import sys
-import multiprocessing
+
 import uvicorn
 
 # Necessary for PyInstaller when using multiprocessing (e.g. in Uvicorn workers or plugins)
@@ -19,8 +20,8 @@ sys.path.insert(0, base_dir)
 if __name__ == "__main__":
     try:
         # Import app here to avoid side effects at module level
-        from assistant.main import app
         from assistant.config.settings import get_settings
+        from assistant.main import app
 
         # Get port from env (set by Electron) or fallback to settings
         settings = get_settings()

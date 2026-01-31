@@ -8,15 +8,15 @@ Features:
 - Handles session expiration and cleanup
 """
 
-import os
-import json
-import time
 import hashlib
+import json
+import logging
+import os
 import secrets
 import threading
-import logging
+import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class SessionManager:
     }
     """
 
-    def __init__(self, storage_path: Optional[str] = None):
+    def __init__(self, storage_path: str | None = None):
         if storage_path:
             self.storage_path = Path(storage_path)
         else:
@@ -63,38 +63,30 @@ class SessionManager:
         """Initialize session data with automatic recovery from backup if needed."""
         try:
             if self.storage_path.exists():
-                with open(self.storage_path, "r", encoding="utf-8") as f:
+                with open(self.storage_path, encoding="utf-8") as f:
                     json.load(f)  # Validate that it's valid JSON
                 logger.info("[SessionManager] Session file loaded successfully")
                 return
         except json.JSONDecodeError:
-            logger.warning(
-                "[SessionManager] Main session file corrupt. Attempting recovery from .bak..."
-            )
+            logger.warning("[SessionManager] Main session file corrupt. Attempting recovery from .bak...")
         except Exception as e:
-            logger.warning(
-                f"[SessionManager] Failed to read main file: {e}. Checking backup..."
-            )
+            logger.warning(f"[SessionManager] Failed to read main file: {e}. Checking backup...")
 
         # Fallback to backup
         backup_path = str(self.storage_path) + ".bak"
         if os.path.exists(backup_path):
             try:
-                with open(backup_path, "r", encoding="utf-8") as f:
+                with open(backup_path, encoding="utf-8") as f:
                     data = json.load(f)
 
                 # Self-healing: Restore main file from validated backup
                 with open(self.storage_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2)
 
-                logger.info(
-                    "[SessionManager] ✅ Session recovered from .bak and main file restored"
-                )
+                logger.info("[SessionManager] ✅ Session recovered from .bak and main file restored")
                 return
             except Exception as e:
-                logger.error(
-                    f"[SessionManager] Backup also corrupt: {e}. Starting fresh."
-                )
+                logger.error(f"[SessionManager] Backup also corrupt: {e}. Starting fresh.")
 
         # Both failed - start fresh
         logger.warning("[SessionManager] Starting with fresh session state")
@@ -111,7 +103,7 @@ class SessionManager:
         """Hash token for storage."""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def load_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def load_session(self, session_id: str) -> dict[str, Any] | None:
         """
         Load a session by ID. Returns session dict if valid, None if not found/expired.
         """
@@ -134,9 +126,7 @@ class SessionManager:
 
             return session
 
-    def save_session(
-        self, session_id: str, permit_data: Dict[str, Any], csrf_token: str
-    ) -> bool:
+    def save_session(self, session_id: str, permit_data: dict[str, Any], csrf_token: str) -> bool:
         """
         Save a new session or update existing one.
         """
@@ -194,30 +184,28 @@ class SessionManager:
 
         return secrets.compare_digest(stored_token, token)
 
-    def _read_file(self) -> Dict[str, Any]:
+    def _read_file(self) -> dict[str, Any]:
         """Read sessions from disk."""
         if not self.storage_path.exists():
             return {"sessions": {}}
 
         try:
-            with open(self.storage_path, "r") as f:
+            with open(self.storage_path) as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"[SessionManager] Read error: {e}")
             return {"sessions": {}}
 
-    def _write_file(self, data: Dict[str, Any]) -> bool:
+    def _write_file(self, data: dict[str, Any]) -> bool:
         """Write sessions to disk (atomic with backup)."""
-        import tempfile
         import shutil
+        import tempfile
 
         try:
             # P2 FIX: Atomic write to prevent corruption
             # Write to temp file first, then rename
             dir_name = os.path.dirname(self.storage_path)
-            with tempfile.NamedTemporaryFile(
-                "w", dir=dir_name, delete=False, encoding="utf-8"
-            ) as tf:
+            with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tf:
                 json.dump(data, tf, indent=2)
                 temp_name = tf.name
 
@@ -233,16 +221,12 @@ class SessionManager:
                 shutil.copy2(self.storage_path, str(self.storage_path) + ".bak")
             except PermissionError:
                 # If backup is locked (e.g., admin has .bak open in Notepad), continue anyway
-                logger.warning(
-                    "[SessionManager] Could not update .bak (File in use?). Main file saved."
-                )
+                logger.warning("[SessionManager] Could not update .bak (File in use?). Main file saved.")
 
             return True
         except PermissionError as e:
             # P8 FIX: Clearer error for locked files
-            logger.error(
-                f"[SessionManager] CRITICAL: Cannot write session file (is it open in another app?): {e}"
-            )
+            logger.error(f"[SessionManager] CRITICAL: Cannot write session file (is it open in another app?): {e}")
             logger.error("[SessionManager] Session changes will be lost on restart!")
             return False
         except Exception as e:
@@ -255,18 +239,16 @@ class SessionManager:
                 pass
             return False
 
-    def _cleanup_expired(self, data: Dict[str, Any]):
+    def _cleanup_expired(self, data: dict[str, Any]):
         """Remove expired sessions from data dict (in-place)."""
         now = time.time()
         sessions = data.get("sessions", {})
-        expired_hashes = [
-            k for k, v in sessions.items() if now > v.get("expires_at", 0)
-        ]
+        expired_hashes = [k for k, v in sessions.items() if now > v.get("expires_at", 0)]
 
         for k in expired_hashes:
             del sessions[k]
 
-    def _delete_session(self, session_hash: str, data: Dict[str, Any]):
+    def _delete_session(self, session_hash: str, data: dict[str, Any]):
         """Delete specific session and save."""
         if session_hash in data.get("sessions", {}):
             del data["sessions"][session_hash]

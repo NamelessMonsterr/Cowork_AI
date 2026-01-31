@@ -9,11 +9,10 @@ Safety mechanism to:
 This prevents accidental spam loops that could damage user data.
 """
 
-import time
 import logging
+import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +47,12 @@ class InputRateLimiter:
         limiter.record_click()  # Raises if limit exceeded
     """
 
-    def __init__(self, config: Optional[RateLimitConfig] = None):
+    def __init__(self, config: RateLimitConfig | None = None):
         self.config = config or RateLimitConfig()
         self._keystroke_times: deque = deque()
         self._click_times: deque = deque()
         self._paused = False
-        self._pause_reason: Optional[str] = None
+        self._pause_reason: str | None = None
 
     def record_keystroke(self, count: int = 1, source: str = "user"):
         """
@@ -80,21 +79,14 @@ class InputRateLimiter:
 
         current_rate = len(self._keystroke_times) / self.config.window_sec
 
-        if (
-            current_rate
-            > self.config.max_keystrokes_per_sec * self.config.hard_stop_threshold
-        ):
+        if current_rate > self.config.max_keystrokes_per_sec * self.config.hard_stop_threshold:
             self._paused = True
-            self._pause_reason = (
-                f"Keystroke rate {current_rate:.1f}/sec exceeds hard limit"
-            )
+            self._pause_reason = f"Keystroke rate {current_rate:.1f}/sec exceeds hard limit"
             logger.critical(f"[RateLimiter] HARD STOP: {self._pause_reason}")
             raise RateLimitExceededError(self._pause_reason)
 
         if current_rate > self.config.max_keystrokes_per_sec:
-            logger.warning(
-                f"[RateLimiter] Keystroke rate {current_rate:.1f}/sec exceeds soft limit"
-            )
+            logger.warning(f"[RateLimiter] Keystroke rate {current_rate:.1f}/sec exceeds soft limit")
             # Soft limit: log warning but allow (for now)
 
     def record_click(self, source: str = "user"):
@@ -119,19 +111,14 @@ class InputRateLimiter:
 
         current_rate = len(self._click_times) / self.config.window_sec
 
-        if (
-            current_rate
-            > self.config.max_clicks_per_sec * self.config.hard_stop_threshold
-        ):
+        if current_rate > self.config.max_clicks_per_sec * self.config.hard_stop_threshold:
             self._paused = True
             self._pause_reason = f"Click rate {current_rate:.1f}/sec exceeds hard limit"
             logger.critical(f"[RateLimiter] HARD STOP: {self._pause_reason}")
             raise RateLimitExceededError(self._pause_reason)
 
         if current_rate > self.config.max_clicks_per_sec:
-            logger.warning(
-                f"[RateLimiter] Click rate {current_rate:.1f}/sec exceeds soft limit"
-            )
+            logger.warning(f"[RateLimiter] Click rate {current_rate:.1f}/sec exceeds soft limit")
 
     def _cleanup_old(self, queue: deque, now: float):
         """Remove events outside the sliding window."""

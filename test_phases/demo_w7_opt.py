@@ -5,20 +5,20 @@ W7 verification script:
 3. Tiered Verification check.
 """
 
-import sys
-import os
-import time
 import logging
+import os
+import sys
+import time
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from assistant.session_auth import SessionAuth
 from assistant.computer.windows import WindowsComputer
-from assistant.safety.budget import ActionBudget
-from assistant.executor.executor import ReliableExecutor, ExecutorConfig
+from assistant.executor.executor import ExecutorConfig, ReliableExecutor
+from assistant.executor.strategies import CoordsStrategy, UIAStrategy
 from assistant.executor.verify import Verifier
-from assistant.executor.strategies import UIAStrategy, CoordsStrategy
+from assistant.safety.budget import ActionBudget
+from assistant.session_auth import SessionAuth
 from assistant.ui_contracts.schemas import ActionStep
 
 # Setup Logging
@@ -69,9 +69,7 @@ def main():
     if fp2 > fp1:
         logger.info("✅ FPS Boost Confirmed")
     else:
-        logger.warning(
-            f"⚠️ FPS Boost not significant ({fp1} vs {fp2}) - check hardware/DXCam"
-        )
+        logger.warning(f"⚠️ FPS Boost not significant ({fp1} vs {fp2}) - check hardware/DXCam")
 
     # 3. Test Cache Speed (W7.3)
     logger.info("\n--- 2. Testing Selector Cache (W7.3) ---")

@@ -18,11 +18,11 @@ Usage:
     python seo_checker.py <project_path>
 """
 
-import sys
 import json
 import re
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Fix Windows console encoding
 try:
@@ -152,10 +152,7 @@ def check_page(file_path: Path) -> dict:
         issues.append("Missing <title> tag")
 
     # 2. Meta description
-    has_description = (
-        'name="description"' in content.lower()
-        or "name='description'" in content.lower()
-    )
+    has_description = 'name="description"' in content.lower() or "name='description'" in content.lower()
     if not has_description and is_layout:
         issues.append("Missing meta description")
 

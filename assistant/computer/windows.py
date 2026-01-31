@@ -3,27 +3,28 @@ Windows Computer Control Module - PRODUCTION IMPLEMENTATION
 Provides low-level access to Windows OS: Process, Window, Input (SendInput), Screen Capture (DXCam).
 """
 
-import os
-import time
-import logging
-import subprocess
 import ctypes
-import pyautogui
-import keyboard
-from typing import Optional, List, Tuple
+import logging
+import os
+import subprocess
+import time
 from dataclasses import dataclass
+
+import keyboard
+import pyautogui
+
+from assistant.screen.capture import ScreenCapture
 
 from .input_protocol import (
     INPUT,
-    INPUT_UNION,
-    MOUSEINPUT,
     INPUT_MOUSE,
-    MOUSEEVENTF_MOVE,
+    INPUT_UNION,
     MOUSEEVENTF_ABSOLUTE,
     MOUSEEVENTF_LEFTDOWN,
     MOUSEEVENTF_LEFTUP,
+    MOUSEEVENTF_MOVE,
+    MOUSEINPUT,
 )
-from assistant.screen.capture import ScreenCapture
 
 try:
     import pywinauto
@@ -40,7 +41,7 @@ class WindowInfo:
     title: str
     handle: int
     process_id: int
-    rect: Tuple[int, int, int, int]
+    rect: tuple[int, int, int, int]
     is_active: bool
 
 
@@ -69,8 +70,8 @@ class WindowsComputer:
         Returns:
             Path to the saved screenshot
         """
-        from datetime import datetime
         import os
+        from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_reason = reason.replace(" ", "_").replace("/", "_").replace("\\", "_")[:30]
@@ -99,11 +100,7 @@ class WindowsComputer:
     def _cleanup_old_screenshots(self, directory: str, max_files: int = 100):
         """Remove old error screenshots to prevent disk bloat."""
         try:
-            files = [
-                os.path.join(directory, f)
-                for f in os.listdir(directory)
-                if f.endswith(".png")
-            ]
+            files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(".png")]
             if len(files) > max_files:
                 # Sort by modification time, oldest first
                 files.sort(key=os.path.getmtime)
@@ -129,7 +126,7 @@ class WindowsComputer:
         """Set capture target FPS (W7.1)."""
         self.screen_capture.set_target_fps(fps)
 
-    def get_active_window(self) -> Optional[WindowInfo]:
+    def get_active_window(self) -> WindowInfo | None:
         """Get information about the currently active window."""
         hwnd = self.user32.GetForegroundWindow()
         if not hwnd:
@@ -156,13 +153,13 @@ class WindowsComputer:
             is_active=True,
         )
 
-    def _to_absolute(self, x: int, y: int) -> Tuple[int, int]:
+    def _to_absolute(self, x: int, y: int) -> tuple[int, int]:
         """Convert pixel coords to 0-65535 absolute coords."""
         abs_x = int(x * 65535 / self.width)
         abs_y = int(y * 65535 / self.height)
         return abs_x, abs_y
 
-    def _send_input(self, inputs: List[INPUT]):
+    def _send_input(self, inputs: list[INPUT]):
         """Low-level SendInput wrapper."""
         self._ensure_permission()
         n = len(inputs)
@@ -194,8 +191,7 @@ class WindowsComputer:
         # P5A FIX: Check if workstation is locked before UI automation
         if self.is_workstation_locked():
             raise RuntimeError(
-                "Workstation is locked. UI automation cannot proceed. "
-                "Please unlock the screen to resume execution."
+                "Workstation is locked. UI automation cannot proceed. Please unlock the screen to resume execution."
             )
 
         self.mouse_move(x, y)
@@ -227,10 +223,10 @@ class WindowsComputer:
         logger.info(f"Pressing: {keys}")
         keyboard.send(keys)
 
-    def screenshot_base64(self) -> Optional[str]:
+    def screenshot_base64(self) -> str | None:
         """Return screenshot as base64 string."""
-        import io
         import base64
+        import io
 
         img = self.screen_capture.capture()
         if img:
@@ -239,7 +235,7 @@ class WindowsComputer:
             return base64.b64encode(buffered.getvalue()).decode("utf-8")
         return None
 
-    def take_screenshot(self) -> Optional[str]:
+    def take_screenshot(self) -> str | None:
         """Capture screen using DXCam/MSS."""
         img = self.screen_capture.capture()
         if img:

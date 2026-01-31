@@ -7,8 +7,8 @@ Tests:
 3. API availability (if backend is running)
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -116,9 +116,7 @@ def test_takeover_manager():
     assert manager.state == TakeoverState.INACTIVE, "Should be inactive after"
     assert callbacks["completed"] == 1, "Callback should fire"
     assert len(completed.user_actions) == 2, "Should have 2 actions"
-    print(
-        f"   ✅ Completed. Duration: {completed.duration_sec:.2f}s, Actions: {len(completed.user_actions)}"
-    )
+    print(f"   ✅ Completed. Duration: {completed.duration_sec:.2f}s, Actions: {len(completed.user_actions)}")
 
     # Test 6: Status
     print("6. Testing status...")

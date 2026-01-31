@@ -1,16 +1,16 @@
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock
-import sys
-import os
 
 # Add project root to sys.path
 sys.path.append(os.getcwd())
 
-from assistant.executor.executor import ReliableExecutor, ExecutorConfig
-from assistant.ui_contracts.schemas import ActionStep, VerificationResult
-from assistant.safety.budget import ActionBudget, BudgetExceededError
-from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
+from assistant.executor.executor import ExecutorConfig, ReliableExecutor
 from assistant.executor.strategies.base import Strategy, StrategyResult
+from assistant.safety.budget import ActionBudget, BudgetExceededError
+from assistant.safety.session_auth import PermissionDeniedError, SessionAuth
+from assistant.ui_contracts.schemas import ActionStep, VerificationResult
 
 
 class MockStrategy(Strategy):
@@ -89,9 +89,7 @@ class TestReliableExecutor(unittest.TestCase):
         fail_strat = MockStrategy("fail", priority=1, should_fail=True)
         success_strat = MockStrategy("success", priority=2)
 
-        executor = ReliableExecutor(
-            [fail_strat, success_strat], self.verifier, self.auth, self.budget
-        )
+        executor = ReliableExecutor([fail_strat, success_strat], self.verifier, self.auth, self.budget)
 
         result = executor.execute(self.step)
 
@@ -104,16 +102,12 @@ class TestReliableExecutor(unittest.TestCase):
         """Test retries on a single strategy."""
         strat = MockStrategy("retry_strat", should_fail=True)
         config = ExecutorConfig(max_retries_per_strategy=2, retry_delays=[0, 0])
-        executor = ReliableExecutor(
-            [strat], self.verifier, self.auth, self.budget, config=config
-        )
+        executor = ReliableExecutor([strat], self.verifier, self.auth, self.budget, config=config)
 
         result = executor.execute(self.step)
 
         self.assertFalse(result.success)
-        self.assertEqual(
-            strat.call_count, 2
-        )  # 2 attempts based on delay list length/config
+        self.assertEqual(strat.call_count, 2)  # 2 attempts based on delay list length/config
 
 
 if __name__ == "__main__":

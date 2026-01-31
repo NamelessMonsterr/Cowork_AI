@@ -4,11 +4,12 @@ Plugin Management API (W13.1).
 Exposes endpoints for listing, enabling, disabling, and installing plugins.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from typing import List, Optional
-from assistant.plugins.lifecycle import PluginState
+
 from assistant.plugins.installer import PluginInstaller
+from assistant.plugins.lifecycle import PluginState
+
 # We will import 'state' from main inside functions to avoid circular imports?
 # Or better, pass dependencies. For now, accessing state via a helper or direct import if safe.
 # Circular import main <-> api is risky.
@@ -22,15 +23,15 @@ class PluginDTO(BaseModel):
     id: str
     name: str
     version: str
-    publisher: Optional[str]
+    publisher: str | None
     description: str
     state: str
-    tools: List[str]
-    permissions_required: List[str]
+    tools: list[str]
+    permissions_required: list[str]
     # secrets...
 
 
-@router.get("/list", response_model=List[PluginDTO])
+@router.get("/list", response_model=list[PluginDTO])
 async def list_plugins():
     from assistant.main import state  # Late import to avoid circular dependency
 
@@ -132,7 +133,7 @@ async def trust_publisher(publisher: str):
 
 class PermissionGrant(BaseModel):
     plugin_id: str
-    scopes: List[str]
+    scopes: list[str]
 
 
 @router.get("/permissions/{plugin_id}")
@@ -180,8 +181,8 @@ async def set_secret(s: SecretSet):
 
 @router.get("/audit/recent")
 async def get_audit_logs(limit: int = 50):
-    import os
     import json
+    import os
 
     log_path = os.path.join("logs", "plugin_audit.jsonl")
     logs = []
@@ -189,7 +190,7 @@ async def get_audit_logs(limit: int = 50):
     if os.path.exists(log_path):
         try:
             # Read last N lines (inefficient but OK for MVP)
-            with open(log_path, "r", encoding="utf-8") as f:
+            with open(log_path, encoding="utf-8") as f:
                 lines = f.readlines()
                 for line in lines[-limit:]:
                     try:

@@ -3,13 +3,13 @@ W17.1 Peer Discovery (UDP Multicast).
 Allows agents on the same LAN to find each other.
 """
 
+import json
+import logging
 import socket
 import struct
-import json
-import time
 import threading
-import logging
-from typing import Dict, List, Optional
+import time
+
 from pydantic import BaseModel
 
 logger = logging.getLogger("TeamDiscovery")
@@ -34,9 +34,9 @@ class PeerDiscovery:
         self.agent_name = agent_name
         self.port = port  # API port (tcp)
 
-        self.peers: Dict[str, PeerInfo] = {}
+        self.peers: dict[str, PeerInfo] = {}
         self.running = False
-        self.sock: Optional[socket.socket] = None
+        self.sock: socket.socket | None = None
 
     def start(self):
         self.running = True
@@ -56,9 +56,7 @@ class PeerDiscovery:
 
         # Join Group
         try:
-            mreq = struct.pack(
-                "4sl", socket.inet_aton(MULTICAST_GROUP), socket.INADDR_ANY
-            )
+            mreq = struct.pack("4sl", socket.inet_aton(MULTICAST_GROUP), socket.INADDR_ANY)
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
             # Set TTL
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
@@ -78,7 +76,7 @@ class PeerDiscovery:
         if self.sock:
             self.sock.close()
 
-    def get_peers(self) -> List[PeerInfo]:
+    def get_peers(self) -> list[PeerInfo]:
         return list(self.peers.values())
 
     def _beacon_loop(self):

@@ -3,10 +3,10 @@ Plugin Host Sandbox (W14.4).
 Enforces security boundaries by monkey-patching risky modules.
 """
 
-import sys
 import builtins
-import os
 import logging
+import os
+import sys
 
 logger = logging.getLogger("Sandbox")
 
@@ -32,9 +32,7 @@ def safe_open(
 
     # 1. Allow read-only of system/library files
     if "r" in mode and "w" not in mode and "a" not in mode and "+" not in mode:
-        return original_open(
-            file, mode, buffering, encoding, errors, newline, closefd, opener
-        )
+        return original_open(file, mode, buffering, encoding, errors, newline, closefd, opener)
 
     # 2. Enforce Allowlist for Writes
     is_allowed = False
@@ -47,9 +45,7 @@ def safe_open(
         logger.warning(f"SANDBOX: Blocked fs access to {s_file}")
         raise PermissionError(f"Sandbox blocked access to {s_file}")
 
-    return original_open(
-        file, mode, buffering, encoding, errors, newline, closefd, opener
-    )
+    return original_open(file, mode, buffering, encoding, errors, newline, closefd, opener)
 
 
 def apply_patches():

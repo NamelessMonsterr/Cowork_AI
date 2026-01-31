@@ -4,9 +4,9 @@ API Validator - Checks API endpoints for best practices.
 Validates OpenAPI specs, response formats, and common issues.
 """
 
-import sys
 import json
 import re
+import sys
 from pathlib import Path
 
 # Fix Windows console encoding for Unicode output
@@ -43,14 +43,7 @@ def find_api_files(project_path: Path) -> list:
         files.extend(project_path.glob(pattern))
 
     # Exclude node_modules, etc.
-    return [
-        f
-        for f in files
-        if not any(
-            x in str(f)
-            for x in ["node_modules", ".git", "dist", "build", "__pycache__"]
-        )
-    ]
+    return [f for f in files if not any(x in str(f) for x in ["node_modules", ".git", "dist", "build", "__pycache__"])]
 
 
 def check_openapi_spec(file_path: Path) -> dict:
@@ -106,13 +99,9 @@ def check_openapi_spec(file_path: Path) -> dict:
                 for method, details in methods.items():
                     if method in ["get", "post", "put", "patch", "delete"]:
                         if "responses" not in details:
-                            issues.append(
-                                f"[X] {method.upper()} {path}: No responses defined"
-                            )
+                            issues.append(f"[X] {method.upper()} {path}: No responses defined")
                         if "summary" not in details and "description" not in details:
-                            issues.append(
-                                f"[!] {method.upper()} {path}: No description"
-                            )
+                            issues.append(f"[!] {method.upper()} {path}: No description")
 
     except Exception as e:
         issues.append(f"[X] Parse error: {e}")

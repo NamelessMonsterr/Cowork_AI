@@ -8,8 +8,8 @@ Tests:
 4. Dependency check works
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,7 +27,7 @@ def test_pyinstaller_spec():
 
     # Test 2: Spec has valid content
     print("2. Testing spec content...")
-    with open(spec_path, "r") as f:
+    with open(spec_path) as f:
         content = f.read()
     assert "Analysis" in content, "Should have Analysis"
     assert "EXE" in content, "Should have EXE"
@@ -74,7 +74,7 @@ def test_electron_files():
 
     import json
 
-    with open(pkg_path, "r") as f:
+    with open(pkg_path) as f:
         pkg = json.load(f)
 
     assert pkg.get("name") == "cowork-assistant"
@@ -86,7 +86,7 @@ def test_electron_files():
     main_path = os.path.join(ROOT, "main.js")
     assert os.path.exists(main_path), "main.js not found"
 
-    with open(main_path, "r") as f:
+    with open(main_path) as f:
         content = f.read()
     assert "BrowserWindow" in content
     assert "createWindow" in content

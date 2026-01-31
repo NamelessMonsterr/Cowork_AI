@@ -27,9 +27,9 @@ class TestPaths:
         """Test all paths are under appdata."""
         from assistant.config.paths import (
             get_appdata_dir,
+            get_learning_db_path,
             get_logs_dir,
             get_plugins_dir,
-            get_learning_db_path,
         )
 
         appdata = get_appdata_dir()
@@ -52,8 +52,9 @@ class TestSettings:
 
     def test_settings_validation(self):
         """Test settings validation."""
-        from assistant.config.settings import AppSettings
         from pydantic import ValidationError
+
+        from assistant.config.settings import AppSettings
 
         # Invalid TTL should fail
         with pytest.raises(ValidationError):

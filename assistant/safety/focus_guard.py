@@ -11,7 +11,6 @@ This prevents typing/clicking into wrong applications (dangerous).
 
 import logging
 import time
-from typing import Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -22,10 +21,10 @@ class FocusCheckResult:
     """Result of a focus check."""
 
     is_focused: bool
-    expected_title: Optional[str]
-    actual_title: Optional[str]
+    expected_title: str | None
+    actual_title: str | None
     refocused: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class FocusGuard:
@@ -50,10 +49,10 @@ class FocusGuard:
         """
         self.computer = computer
         self.max_refocus_attempts = max_refocus_attempts
-        self._expected_title: Optional[str] = None
-        self._expected_handle: Optional[int] = None
+        self._expected_title: str | None = None
+        self._expected_handle: int | None = None
 
-    def set_expected_window(self, title_contains: str, handle: Optional[int] = None):
+    def set_expected_window(self, title_contains: str, handle: int | None = None):
         """Set the expected window for subsequent actions."""
         self._expected_title = title_contains.lower() if title_contains else None
         self._expected_handle = handle
@@ -76,9 +75,7 @@ class FocusGuard:
         """
         if not self._expected_title:
             # No expectation set, always pass
-            return FocusCheckResult(
-                is_focused=True, expected_title=None, actual_title=None
-            )
+            return FocusCheckResult(is_focused=True, expected_title=None, actual_title=None)
 
         active = self.computer.get_active_window()
         if not active:
@@ -108,9 +105,7 @@ class FocusGuard:
             )
 
         # Focus lost!
-        logger.warning(
-            f"[FocusGuard] Focus LOST! Expected '{self._expected_title}', got '{active.title}'"
-        )
+        logger.warning(f"[FocusGuard] Focus LOST! Expected '{self._expected_title}', got '{active.title}'")
 
         if auto_refocus:
             refocused = self._attempt_refocus()
@@ -132,9 +127,7 @@ class FocusGuard:
     def _attempt_refocus(self) -> bool:
         """Try to refocus the expected window."""
         for attempt in range(self.max_refocus_attempts):
-            logger.info(
-                f"[FocusGuard] Refocus attempt {attempt + 1}/{self.max_refocus_attempts}"
-            )
+            logger.info(f"[FocusGuard] Refocus attempt {attempt + 1}/{self.max_refocus_attempts}")
 
             try:
                 # Use pywinauto to find and focus the window
@@ -161,7 +154,7 @@ class FocusGuard:
         logger.error("[FocusGuard] All refocus attempts FAILED")
         return False
 
-    def _get_active_title(self) -> Optional[str]:
+    def _get_active_title(self) -> str | None:
         """Get current active window title."""
         active = self.computer.get_active_window()
         return active.title if active else None

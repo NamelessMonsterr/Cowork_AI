@@ -9,11 +9,12 @@ Verifies that the full application stack can initialize and start:
 5. Shuts down cleanly.
 """
 
-import time
-import requests
+import os
 import subprocess
 import sys
-import os
+import time
+
+import requests
 
 
 def test_startup():

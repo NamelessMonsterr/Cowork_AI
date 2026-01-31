@@ -4,11 +4,11 @@ Mock implementation of Email OTP flow.
 In production, this would talk to a real auth service (Firebase/Auth0/Custom).
 """
 
-import uuid
 import logging
 import random
-from typing import Optional, Dict
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+import uuid
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger("CloudAuth")
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/cloud/auth", tags=["Cloud Auth"])
 
 # Mock Storage
 # OTP Store: {email: {"otp": "123456", "expires": timestamp}}
-OTP_STORE: Dict[str, Dict] = {}
+OTP_STORE: dict[str, dict] = {}
 # Session Store: {token: {"user_id": "u_...", "email": "..."}}
-SESSIONS: Dict[str, Dict] = {}
+SESSIONS: dict[str, dict] = {}
 
 
 class AuthRequest(BaseModel):
@@ -33,11 +33,11 @@ class VerifyRequest(BaseModel):
 class AuthUser(BaseModel):
     user_id: str
     email: str
-    token: Optional[str] = None
+    token: str | None = None
 
 
 # Current User (In-memory singleton for MVP, per process)
-current_user: Optional[AuthUser] = None
+current_user: AuthUser | None = None
 
 
 @router.post("/request_otp")
@@ -95,5 +95,5 @@ async def get_status():
     return {"authenticated": False}
 
 
-def get_current_user() -> Optional[AuthUser]:
+def get_current_user() -> AuthUser | None:
     return current_user

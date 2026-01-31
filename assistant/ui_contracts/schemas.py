@@ -9,10 +9,10 @@ These schemas define the contract between:
 All data exchanged between components should use these types.
 """
 
-from typing import Optional, Literal
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
 
+from pydantic import BaseModel, ConfigDict, Field
 
 # ==================== UI Selector (Unified element reference) ====================
 
@@ -33,32 +33,32 @@ class UISelector(BaseModel):
     strategy: Literal["uia", "ocr", "vision", "coords"]
 
     # For UIA strategy
-    window_title: Optional[str] = None
-    control_type: Optional[str] = None  # Button, Edit, Text, etc.
-    name: Optional[str] = None
-    automation_id: Optional[str] = None
+    window_title: str | None = None
+    control_type: str | None = None  # Button, Edit, Text, etc.
+    name: str | None = None
+    automation_id: str | None = None
 
     # For OCR/Vision strategies
-    text_content: Optional[str] = None
-    template_name: Optional[str] = None  # Reference to saved template image
+    text_content: str | None = None
+    template_name: str | None = None  # Reference to saved template image
 
     # Universal: bounding box (can be derived from any strategy)
-    bbox: Optional[tuple[int, int, int, int]] = None  # x1, y1, x2, y2
+    bbox: tuple[int, int, int, int] | None = None  # x1, y1, x2, y2
 
     # Confidence of the match (0.0 - 1.0)
     confidence: float = 1.0
 
     # When this selector was last validated
-    last_validated_at: Optional[float] = None
+    last_validated_at: float | None = None
 
-    def get_center(self) -> Optional[tuple[int, int]]:
+    def get_center(self) -> tuple[int, int] | None:
         """Get center point of bounding box."""
         if self.bbox is None:
             return None
         x1, y1, x2, y2 = self.bbox
         return ((x1 + x2) // 2, (y1 + y2) // 2)
 
-    def to_click_coords(self) -> Optional[tuple[int, int]]:
+    def to_click_coords(self) -> tuple[int, int] | None:
         """Get coordinates suitable for click action."""
         return self.get_center()
 
@@ -93,7 +93,7 @@ class VerifySpec(BaseModel):
     type: VerifyType
     value: str  # What to check for (text, title, path, etc.)
     timeout: int = Field(default=5, ge=1, le=60)  # Seconds to wait
-    region: Optional[tuple[int, int, int, int]] = None  # Screen region for text search
+    region: tuple[int, int, int, int] | None = None  # Screen region for text search
     negate: bool = False  # If True, verification succeeds when condition is NOT met
 
     model_config = ConfigDict(use_enum_values=True)
@@ -105,9 +105,9 @@ class VerificationResult(BaseModel):
     success: bool
     verify_type: str
     expected: str
-    actual: Optional[str] = None
+    actual: str | None = None
     duration_ms: int
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # ==================== Action Steps ====================
@@ -138,20 +138,14 @@ class ActionStep(BaseModel):
 
     # Risk and verification
     risk_level: RiskLevel = Field(default=RiskLevel.LOW)
-    verify: Optional[VerifySpec] = Field(
-        default=None, description="How to verify success"
-    )
-    unverifiable: bool = Field(
-        default=False, description="Mark if verification not possible"
-    )
+    verify: VerifySpec | None = Field(default=None, description="How to verify success")
+    unverifiable: bool = Field(default=False, description="Mark if verification not possible")
 
     # UI display
-    description: Optional[str] = Field(
-        default=None, description="Human-readable description"
-    )
+    description: str | None = Field(default=None, description="Human-readable description")
 
     # Selector (cached from previous execution or pre-computed)
-    selector: Optional[UISelector] = None
+    selector: UISelector | None = None
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -161,16 +155,16 @@ class StepResult(BaseModel):
 
     step_id: str
     success: bool
-    strategy_used: Optional[str] = None
+    strategy_used: str | None = None
     attempts: int = 1
     duration_ms: int
-    verification: Optional[VerificationResult] = None
-    error: Optional[str] = None
-    screenshot_before: Optional[str] = None  # Base64 or path
-    screenshot_after: Optional[str] = None
-    selector_cached: Optional[UISelector] = None  # For selector memory
+    verification: VerificationResult | None = None
+    error: str | None = None
+    screenshot_before: str | None = None  # Base64 or path
+    screenshot_after: str | None = None
+    selector_cached: UISelector | None = None  # For selector memory
     requires_takeover: bool = False
-    takeover_reason: Optional[str] = None
+    takeover_reason: str | None = None
 
 
 # ==================== Execution Plan ====================
@@ -193,7 +187,7 @@ class ExecutionPlan(BaseModel):
     requires_admin: bool = Field(default=False)
 
     # For display
-    summary: Optional[str] = None
+    summary: str | None = None
 
     def total_risk_score(self) -> int:
         """Calculate total risk score (for UI display)."""
@@ -211,9 +205,9 @@ class ExecutionResult(BaseModel):
     step_results: list[StepResult]
     total_duration_ms: int
     was_interrupted: bool = False
-    interrupt_reason: Optional[str] = None
+    interrupt_reason: str | None = None
     requires_takeover: bool = False
-    takeover_reason: Optional[str] = None
+    takeover_reason: str | None = None
 
 
 # ==================== Agent Events ====================
@@ -268,11 +262,11 @@ class AgentEvent(BaseModel):
     data: dict = Field(default_factory=dict)
 
     # For step-related events
-    step_id: Optional[str] = None
-    step_index: Optional[int] = None
+    step_id: str | None = None
+    step_index: int | None = None
 
     # For error events
-    error: Optional[str] = None
+    error: str | None = None
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -308,4 +302,4 @@ class SessionStatus(BaseModel):
     granted_folders: list[str]
     allow_network: bool
     time_remaining_sec: int
-    expires_at_iso: Optional[str] = None
+    expires_at_iso: str | None = None

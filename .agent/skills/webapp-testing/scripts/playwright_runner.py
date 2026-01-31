@@ -9,9 +9,9 @@ Note: Requires playwright (pip install playwright && playwright install chromium
 Screenshots: Saved to system temp directory (auto-cleaned by OS)
 """
 
-import sys
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime
 
@@ -72,9 +72,7 @@ def run_basic_test(url: str, take_screenshot: bool = False) -> dict:
             console_errors = []
             page.on(
                 "console",
-                lambda msg: console_errors.append(msg.text)
-                if msg.type == "error"
-                else None,
+                lambda msg: console_errors.append(msg.text) if msg.type == "error" else None,
             )
 
             # Performance metrics
@@ -90,9 +88,7 @@ def run_basic_test(url: str, take_screenshot: bool = False) -> dict:
             # Screenshot - uses system temp directory (cross-platform, auto-cleaned)
             if take_screenshot:
                 # Cross-platform: Windows=%TEMP%, Linux/macOS=/tmp
-                screenshot_dir = os.path.join(
-                    tempfile.gettempdir(), "maestro_screenshots"
-                )
+                screenshot_dir = os.path.join(tempfile.gettempdir(), "maestro_screenshots")
                 os.makedirs(screenshot_dir, exist_ok=True)
                 screenshot_path = os.path.join(
                     screenshot_dir,
@@ -100,9 +96,7 @@ def run_basic_test(url: str, take_screenshot: bool = False) -> dict:
                 )
                 page.screenshot(path=screenshot_path, full_page=True)
                 result["screenshot"] = screenshot_path
-                result["screenshot_note"] = (
-                    "Saved to temp directory (auto-cleaned by OS)"
-                )
+                result["screenshot_note"] = "Saved to temp directory (auto-cleaned by OS)"
 
             # Element counts
             result["elements"] = {
@@ -117,9 +111,7 @@ def run_basic_test(url: str, take_screenshot: bool = False) -> dict:
 
             result["status"] = "success" if result["health"]["loaded"] else "failed"
             result["summary"] = (
-                "[OK] Page loaded successfully"
-                if result["status"] == "success"
-                else "[X] Page failed to load"
+                "[OK] Page loaded successfully" if result["status"] == "success" else "[X] Page failed to load"
             )
 
     except Exception as e:
@@ -147,9 +139,7 @@ def run_accessibility_check(url: str) -> dict:
             result["accessibility"] = {
                 "images_with_alt": page.locator("img[alt]").count(),
                 "images_without_alt": page.locator("img:not([alt])").count(),
-                "buttons_with_label": page.locator(
-                    "button[aria-label], button:has-text('')"
-                ).count(),
+                "buttons_with_label": page.locator("button[aria-label], button:has-text('')").count(),
                 "links_with_text": page.locator("a:has-text('')").count(),
                 "form_labels": page.locator("label").count(),
                 "headings": {

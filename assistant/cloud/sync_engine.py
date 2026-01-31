@@ -5,12 +5,12 @@ Orchestrates Snapshot Push/Pull and Conflict Resolution.
 
 import logging
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any
 
-from assistant.cloud.snapshot import Snapshot
+from assistant.cloud.auth import get_current_user
 from assistant.cloud.crypto import SyncCrypto
 from assistant.cloud.local_store import LocalSyncStore
-from assistant.cloud.auth import get_current_user
+from assistant.cloud.snapshot import Snapshot
 
 logger = logging.getLogger("SyncEngine")
 
@@ -24,7 +24,7 @@ class SyncEngine:
         # In-memory Cloud Mock
         self.cloud_mock_snapshots = []  # List of Snapshot objects
 
-    def _get_cloud_head(self) -> Optional[Snapshot]:
+    def _get_cloud_head(self) -> Snapshot | None:
         """Mock: Get latest from cloud."""
         if not self.cloud_mock_snapshots:
             return None
@@ -40,7 +40,7 @@ class SyncEngine:
         self.cloud_mock_snapshots.append(snap)
         logger.info(f"☁️ Pushed Revision {snap.revision} to Cloud.")
 
-    def push(self, current_state: Dict[str, Any]):
+    def push(self, current_state: dict[str, Any]):
         """Capture state and push."""
         user = get_current_user()
         if not user:
@@ -79,7 +79,7 @@ class SyncEngine:
         except Exception as e:
             logger.error(f"Sync Push Failed: {e}")
 
-    def pull(self) -> Optional[Dict[str, Any]]:
+    def pull(self) -> dict[str, Any] | None:
         """Pull latest and return decrypted payload if newer."""
         user = get_current_user()
         if not user:
@@ -93,18 +93,14 @@ class SyncEngine:
         local_rev = self.store.get_last_revision()
 
         if cloud_head.revision > local_rev:
-            logger.info(
-                f"⬇️ Pulling Revision {cloud_head.revision} (Local: {local_rev})..."
-            )
+            logger.info(f"⬇️ Pulling Revision {cloud_head.revision} (Local: {local_rev})...")
 
             # Decrypt
             try:
                 payload = self.crypto.decrypt_payload(cloud_head.encrypted_payload)
 
                 # Update Local Store
-                self.store.save_snapshot(
-                    cloud_head, applied=True
-                )  # Assuming we apply it immediately
+                self.store.save_snapshot(cloud_head, applied=True)  # Assuming we apply it immediately
 
                 return payload
             except Exception as e:

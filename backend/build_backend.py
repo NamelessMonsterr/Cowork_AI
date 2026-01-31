@@ -3,8 +3,8 @@ Build Backend - Automates PyInstaller Build (W10.1).
 """
 
 import os
-import subprocess
 import shutil
+import subprocess
 
 
 def build():

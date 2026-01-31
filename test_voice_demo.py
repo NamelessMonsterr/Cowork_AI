@@ -4,9 +4,10 @@ Quick demo test for voice-controlled computer.
 Usage: python test_voice_demo.py
 """
 
-import requests
 import sys
 import time
+
+import requests
 
 BASE = "http://127.0.0.1:8765"
 
@@ -27,9 +28,7 @@ def test_direct_commands():
     for test in test_cases:
         print(f"\n🎯 Testing: '{test['task']}'")
         try:
-            r = requests.post(
-                f"{BASE}/just_do_it", json={"task": test["task"]}, timeout=10
-            )
+            r = requests.post(f"{BASE}/just_do_it", json={"task": test["task"]}, timeout=10)
             data = r.json()
 
             if data.get("success") == test["expected_success"]:
@@ -61,13 +60,9 @@ def test_voice_execute():
             if data.get("success"):
                 print("   ✅ SUCCESS!")
                 print(f"   Heard: '{data.get('transcript')}'")
-                print(
-                    f"   Action: {data.get('execution', {}).get('action', 'unknown')}"
-                )
+                print(f"   Action: {data.get('execution', {}).get('action', 'unknown')}")
             else:
-                print(
-                    f"   ❌ FAILED: {data.get('error') or data.get('transcript', 'no speech')}"
-                )
+                print(f"   ❌ FAILED: {data.get('error') or data.get('transcript', 'no speech')}")
 
             time.sleep(1)
 

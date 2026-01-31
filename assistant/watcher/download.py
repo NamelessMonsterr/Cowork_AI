@@ -9,9 +9,9 @@ Tracks the Downloads folder (or other paths) to:
 """
 
 import os
-import time
 import threading
-from typing import Optional, Callable, List
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -47,8 +47,8 @@ class DownloadWatcher:
 
     def __init__(
         self,
-        watch_paths: List[str] = None,
-        on_download_complete: Optional[Callable[[DownloadEvent], None]] = None,
+        watch_paths: list[str] = None,
+        on_download_complete: Callable[[DownloadEvent], None] | None = None,
         stability_duration: float = 2.0,  # File size must be stable for 2s
         check_interval: float = 0.5,
     ):
@@ -71,7 +71,7 @@ class DownloadWatcher:
         self._check_interval = check_interval
 
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
 
         # Track pending files: {abspath: {"start_time": t, "last_size": s, "stable_since": t}}
@@ -82,7 +82,7 @@ class DownloadWatcher:
 
         # Event for synchronous waiting
         self._wait_event = threading.Event()
-        self._last_download: Optional[DownloadEvent] = None
+        self._last_download: DownloadEvent | None = None
 
     def start(self) -> None:
         """Start watching."""
@@ -106,7 +106,7 @@ class DownloadWatcher:
             self._thread.join(timeout=2)
             self._thread = None
 
-    def wait_for_download(self, timeout: float = 30.0) -> Optional[DownloadEvent]:
+    def wait_for_download(self, timeout: float = 30.0) -> DownloadEvent | None:
         """
         Block until a new download completes.
 
@@ -184,9 +184,7 @@ class DownloadWatcher:
                         if size == info["last_size"]:
                             if info["stable_since"] == 0:
                                 info["stable_since"] = now
-                            elif (
-                                now - info["stable_since"]
-                            ) >= self._stability_duration:
+                            elif (now - info["stable_since"]) >= self._stability_duration:
                                 # Completed!
                                 completed.append((path, size, now - info["start_time"]))
                                 del self._pending_files[path]

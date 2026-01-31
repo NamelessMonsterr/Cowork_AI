@@ -4,8 +4,9 @@ Pre-Demo Test - Verify Everything Works
 Run this before recording your demo!
 """
 
-import requests
 import time
+
+import requests
 
 BASE = "http://127.0.0.1:8765"
 
@@ -16,9 +17,7 @@ def test_command(task):
         r = requests.post(f"{BASE}/just_do_it", json={"task": task}, timeout=5)
         data = r.json()
         status = "✅" if data.get("success") else "❌"
-        print(
-            f"{status} {task:30} → {data.get('action', 'unknown'):15} {data.get('status', 'error')}"
-        )
+        print(f"{status} {task:30} → {data.get('action', 'unknown'):15} {data.get('status', 'error')}")
         return data.get("success", False)
     except Exception as e:
         print(f"❌ {task:30} → ERROR: {e}")

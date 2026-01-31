@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import logging
+
 from fastapi import APIRouter, Request
 
 logger = logging.getLogger("VoiceRoutes")
@@ -47,9 +48,7 @@ async def list_audio_devices():
         return {
             "success": True,
             "devices": input_devices,
-            "default_device": str(default_device)
-            if default_device is not None
-            else None,
+            "default_device": str(default_device) if default_device is not None else None,
         }
 
     except ImportError:
@@ -120,6 +119,7 @@ async def voice_execute(request: Request, seconds: int = 5):
     Production-ready with error handling.
     """
     import time
+
     import httpx
 
     start = time.time()
@@ -147,9 +147,7 @@ async def voice_execute(request: Request, seconds: int = 5):
 
         # 2. Call the working execution endpoint
         async with httpx.AsyncClient() as client:
-            exec_response = await client.post(
-                "http://127.0.0.1:8765/just_do_it", json={"task": text}, timeout=30.0
-            )
+            exec_response = await client.post("http://127.0.0.1:8765/just_do_it", json={"task": text}, timeout=30.0)
             exec_result = exec_response.json()
 
         total_duration = int((time.time() - start) * 1000)

@@ -2,17 +2,18 @@
 W16 Verification - Marketplace Flow.
 """
 
-import sys
 import os
 import shutil
+import sys
+
 from fastapi.testclient import TestClient
 
 sys.path.append(os.getcwd())
 
 from assistant.main import app
 from assistant.marketplace.client import MarketplacePlugin
-from assistant.plugins.signing import PluginSigner
 from assistant.plugins.builder import PluginBuilder
+from assistant.plugins.signing import PluginSigner
 
 
 # 1. Setup Dummy Plugin & Package
@@ -34,9 +35,7 @@ def setup_package():
         pub_key = PluginSigner.load_public_key(pub_path)
         # Get RAW bytes
         # Ed25519PublicKey.public_bytes(Raw, Raw)
-        raw_bytes = pub_key.public_bytes(
-            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
-        )
+        raw_bytes = pub_key.public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
         pub_key_hex = raw_bytes.hex()
 
     # Create Plugin
@@ -117,9 +116,7 @@ def test_marketplace():
         if res.status_code == 200:
             print("[OK] Install API OK")
             # Verify File System
-            install_path = os.path.join(
-                os.getenv("APPDATA"), "CoworkAI", "plugins", plugin_id
-            )
+            install_path = os.path.join(os.getenv("APPDATA"), "CoworkAI", "plugins", plugin_id)
             if os.path.exists(install_path):
                 print(f"[OK] Plugin directory exists: {install_path}")
                 if os.path.exists(os.path.join(install_path, "main.py")):

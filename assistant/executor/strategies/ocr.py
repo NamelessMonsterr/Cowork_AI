@@ -1,7 +1,6 @@
 """OCR helper for text detection."""
 
 import asyncio
-from typing import Optional
 
 try:
     import screen_ocr
@@ -11,8 +10,9 @@ except ImportError:
     HAS_OCR = False
 
 try:
-    from PIL import Image
     import io
+
+    from PIL import Image
 except ImportError:
     pass
 
@@ -32,17 +32,13 @@ class OCRBackend:
                 self._reader = Reader(backend)
                 print("OCR: Initialized WinRT backend")
             except (ImportError, ValueError) as e:
-                print(
-                    f"OCR: WinRT initialization failed ({e}), falling back to default"
-                )
+                print(f"OCR: WinRT initialization failed ({e}), falling back to default")
                 try:
                     self._reader = screen_ocr.Reader.create_quality_reader()
                 except Exception as e2:
                     print(f"OCR: Default reader failed: {e2}")
 
-    def read_text(
-        self, image_bytes: bytes, region: Optional[tuple[int, int, int, int]] = None
-    ) -> str:
+    def read_text(self, image_bytes: bytes, region: tuple[int, int, int, int] | None = None) -> str:
         """
         Read text from image bytes using WinRT OCR.
 

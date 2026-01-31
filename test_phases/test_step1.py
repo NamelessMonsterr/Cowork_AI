@@ -9,16 +9,16 @@ It tests:
 4. Safety Monitors (Budget & Environment)
 """
 
-import time
 import os
 import sys
+import time
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.computer.windows import WindowsComputer
-from assistant.safety.session_auth import SessionAuth, PermissionDeniedError
 from assistant.safety.environment import EnvironmentMonitor
+from assistant.safety.session_auth import PermissionDeniedError, SessionAuth
 
 
 def test_safety_first():

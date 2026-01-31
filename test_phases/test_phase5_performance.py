@@ -8,23 +8,23 @@ Tests:
 4. Permission system
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.utils import (
-    PrivacySanitizer,
-    CoworkLogger,
-    LogConfig,
-    Timer,
-    ScreenCapture,
-    CaptureConfig,
     HAS_DXCAM,
     HAS_MSS,
+    CaptureConfig,
+    CoworkLogger,
+    LogConfig,
     Permission,
-    PluginManifest,
     PermissionManager,
+    PluginManifest,
+    PrivacySanitizer,
+    ScreenCapture,
+    Timer,
 )
 
 

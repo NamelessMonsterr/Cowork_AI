@@ -3,12 +3,12 @@ Diagnostics Module (W15.3).
 Export comprehensive support bundles for debugging.
 """
 
-import os
-import json
-import zipfile
-import logging
-import platform
 import datetime
+import json
+import logging
+import os
+import platform
+import zipfile
 
 logger = logging.getLogger("Diagnostics")
 

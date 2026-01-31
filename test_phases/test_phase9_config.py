@@ -7,20 +7,20 @@ Tests:
 3. NotificationManager
 """
 
-import sys
 import os
-import tempfile
 import shutil
+import sys
+import tempfile
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.config import (
-    ConfigManager,
     AppConfig,
-    UIConfig,
+    ConfigManager,
+    Notification,
     NotificationManager,
     NotificationType,
-    Notification,
+    UIConfig,
 )
 
 
@@ -41,9 +41,7 @@ def test_config_manager():
         print("2. Testing defaults...")
         assert manager.config.api_port == 8765
         assert manager.config.ui.theme == "dark"
-        print(
-            f"   ✅ Defaults: port={manager.config.api_port}, theme={manager.config.ui.theme}"
-        )
+        print(f"   ✅ Defaults: port={manager.config.api_port}, theme={manager.config.ui.theme}")
 
         # Test 3: Get by key
         print("3. Testing get by key...")

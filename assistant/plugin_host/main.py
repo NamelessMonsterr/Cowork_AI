@@ -3,18 +3,19 @@ Plugin Host Service (W14.1).
 Isolated process that loads plugins and executes tools via HTTP/IPC.
 """
 
-import sys
-import os
-import uvicorn
 import logging
-from typing import Dict, Any
+import os
+import sys
+from typing import Any
+
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from assistant.plugins.registry import ToolRegistry, PluginLoader
+from assistant.plugins.registry import PluginLoader, ToolRegistry
 from assistant.plugins.sdk import ToolContext
 
 # Setup Logging
@@ -34,8 +35,8 @@ app = FastAPI(title="Plugin Host")
 
 class ToolCallRequest(BaseModel):
     tool_name: str
-    args: Dict[str, Any]
-    ctx: Dict[str, Any]  # Serialized context
+    args: dict[str, Any]
+    ctx: dict[str, Any]  # Serialized context
 
 
 @app.get("/host/health")

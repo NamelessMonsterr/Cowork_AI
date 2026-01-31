@@ -11,7 +11,6 @@ Priority: 30 (after UIA and OCR)
 """
 
 import time
-from typing import Optional
 
 try:
     import cv2
@@ -21,8 +20,9 @@ try:
 except ImportError:
     HAS_OPENCV = False
 
-from .base import Strategy, StrategyResult
 from assistant.ui_contracts.schemas import ActionStep, UISelector
+
+from .base import Strategy, StrategyResult
 
 
 class VisionStrategy(Strategy):
@@ -87,9 +87,7 @@ class VisionStrategy(Strategy):
         has_template = "template" in args or "template_name" in args
 
         # Check for vision selector
-        has_vision_selector = (
-            step.selector is not None and step.selector.strategy == "vision"
-        )
+        has_vision_selector = step.selector is not None and step.selector.strategy == "vision"
 
         # Tools that vision can handle
         supported_tools = {"click", "double_click", "right_click", "wait_for"}
@@ -106,9 +104,7 @@ class VisionStrategy(Strategy):
             match = self._find_template(step)
 
             if match is None:
-                return StrategyResult(
-                    success=False, error="Template not found on screen"
-                )
+                return StrategyResult(success=False, error="Template not found on screen")
 
             x, y, confidence, bbox = match
 
@@ -131,9 +127,7 @@ class VisionStrategy(Strategy):
                 pass
 
             else:
-                return StrategyResult(
-                    success=False, error=f"Unsupported tool for vision: {tool}"
-                )
+                return StrategyResult(success=False, error=f"Unsupported tool for vision: {tool}")
 
             # Build selector for caching
             selector = UISelector(
@@ -155,9 +149,7 @@ class VisionStrategy(Strategy):
             )
 
         except Exception as e:
-            return StrategyResult(
-                success=False, error=f"Vision execution failed: {str(e)}"
-            )
+            return StrategyResult(success=False, error=f"Vision execution failed: {str(e)}")
 
     def _find_template(self, step: ActionStep):
         """
@@ -223,7 +215,7 @@ class VisionStrategy(Strategy):
 
         return template
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """Pre-find a template and return its selector."""
         match = self._find_template(step)
 
@@ -246,9 +238,7 @@ class VisionStrategy(Strategy):
             return False
 
         # Re-find template
-        step = ActionStep(
-            id="validate", tool="wait_for", args={"template": selector.template_name}
-        )
+        step = ActionStep(id="validate", tool="wait_for", args={"template": selector.template_name})
 
         match = self._find_template(step)
 

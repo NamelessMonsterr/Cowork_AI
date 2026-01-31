@@ -3,9 +3,9 @@ Demo/Verification for Windows Modules W1 & W2.
 Run this to verify Capture and Input integration.
 """
 
-import time
 import os
 import sys
+import time
 
 # Ensure assistant module is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

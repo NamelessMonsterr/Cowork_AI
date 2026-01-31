@@ -1,7 +1,9 @@
+import os
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+
 from assistant.support.diagnostics import DiagnosticsManager
-import os
 
 router = APIRouter(prefix="/support", tags=["Support"])
 

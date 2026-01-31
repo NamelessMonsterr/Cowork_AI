@@ -7,15 +7,15 @@ Tests:
 3. Interval tasks
 """
 
-import sys
 import os
+import sys
 import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from assistant.automation import (
-    Scheduler,
     DelayedExecutor,
+    Scheduler,
 )
 
 
@@ -31,9 +31,7 @@ def test_scheduler():
     # Test 2: Schedule once
     print("2. Testing one-time scheduling...")
     executed = []
-    task_id = scheduler.schedule_once(
-        lambda: executed.append("once"), delay_sec=0.2, name="test_once"
-    )
+    task_id = scheduler.schedule_once(lambda: executed.append("once"), delay_sec=0.2, name="test_once")
     assert task_id is not None
     print(f"   ✅ Task scheduled: {task_id}")
 
@@ -51,9 +49,7 @@ def test_scheduler():
     )
     time.sleep(0.35)
     scheduler.cancel(interval_id)
-    assert len(interval_count) >= 2, (
-        f"Should execute 2+ times, got: {len(interval_count)}"
-    )
+    assert len(interval_count) >= 2, f"Should execute 2+ times, got: {len(interval_count)}"
     print(f"   ✅ Interval executed {len(interval_count)} times")
 
     # Test 5: Get tasks

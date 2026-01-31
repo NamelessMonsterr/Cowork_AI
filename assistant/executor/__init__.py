@@ -1,9 +1,9 @@
 """Executor module for reliable action execution."""
 
-from .executor import ReliableExecutor
 from .cache import SelectorCache
-from .verify import Verifier, VerificationError
+from .executor import ReliableExecutor
 from .strategies.base import Strategy, StrategyResult
+from .verify import VerificationError, Verifier
 
 __all__ = [
     "ReliableExecutor",

@@ -3,11 +3,12 @@ LLM Client - Brain of the Operation.
 Now Powered by OpenAI GPT-4.
 """
 
-import os
-import logging
-import json
 import base64
-from typing import List, Dict, Any, Optional
+import json
+import logging
+import os
+from typing import Any
+
 from pydantic import BaseModel
 
 logger = logging.getLogger("LLM")
@@ -23,8 +24,8 @@ except ImportError:
 
 class AgentResponse(BaseModel):
     thought: str
-    reply_text: Optional[str] = None
-    plan: List[Dict[str, Any]]
+    reply_text: str | None = None
+    plan: list[dict[str, Any]]
     needs_more_info: bool = False
 
 
@@ -39,9 +40,7 @@ class LLMClient:
             self.api_key = settings.voice.openai_api_key
 
         if not self.api_key:
-            logger.warning(
-                "OpenAI API Key not found. Set OPENAI_API_KEY env var or configure in settings."
-            )
+            logger.warning("OpenAI API Key not found. Set OPENAI_API_KEY env var or configure in settings.")
 
         if HAS_OPENAI:
             self.client = OpenAI(api_key=self.api_key)
@@ -51,7 +50,7 @@ class LLMClient:
     def analyze_screen_and_plan(
         self,
         task: str,
-        screenshot_path: Optional[str] = None,
+        screenshot_path: str | None = None,
         context: str = "",
         system_append: str = "",
     ) -> AgentResponse:
@@ -77,10 +76,10 @@ class LLMClient:
 
         logger.info(f"🌐 No local rules matched. Calling OpenAI for: {task}")
 
-        system_prompt = """You are a Windows Automation Agent (like Jarvis). 
+        system_prompt = """You are a Windows Automation Agent (like Jarvis).
 Break down the user request into executable actions.
 
-Available actions: 
+Available actions:
 - open_app(app_name) - Open an application (notepad, chrome, calc, etc.)
 - click(target) - Click on a UI element
 - type_text(text) - Type text into focused window
@@ -101,9 +100,7 @@ You MUST respond with valid JSON in this exact format:
 }"""
 
         if system_append:
-            system_prompt += (
-                f"\n\n=== ADDITIONAL SKILL INSTRUCTIONS ===\n{system_append}"
-            )
+            system_prompt += f"\n\n=== ADDITIONAL SKILL INSTRUCTIONS ===\n{system_append}"
 
         user_prompt = f"User Task: {task}\nContext: {context}"
 
@@ -149,7 +146,7 @@ You MUST respond with valid JSON in this exact format:
                 reply_text="I couldn't process that command. Try simpler commands like 'open notepad'.",
             )
 
-    def detect_intent_fallback(self, user_text: str) -> Optional[List[Dict[str, Any]]]:
+    def detect_intent_fallback(self, user_text: str) -> list[dict[str, Any]] | None:
         """
         Use centralized actions registry for local command matching.
         To add new actions, edit: assistant/agent/actions.py
@@ -158,6 +155,6 @@ You MUST respond with valid JSON in this exact format:
 
         return match_action(user_text)
 
-    def _get_fallback_plan(self, task: str) -> List[Dict[str, Any]]:
+    def _get_fallback_plan(self, task: str) -> list[dict[str, Any]]:
         # Alias for backward compatibility if needed
         return self.detect_intent_fallback(task) or []

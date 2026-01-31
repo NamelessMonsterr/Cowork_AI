@@ -2,10 +2,11 @@
 W15 Verification - Diagnostics API.
 """
 
-import sys
-import os
 import io
+import os
+import sys
 import zipfile
+
 from fastapi.testclient import TestClient
 
 # Add project root needed for imports

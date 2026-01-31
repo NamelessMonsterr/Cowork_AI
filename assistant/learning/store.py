@@ -3,10 +3,10 @@ W20.2 Feature Store.
 SQLite database for storing learned optimizations and personalization.
 """
 
-import sqlite3
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+import sqlite3
+from typing import Any
 
 logger = logging.getLogger("LearningStore")
 
@@ -57,7 +57,7 @@ class LearningStore:
         conn.commit()
         conn.close()
 
-    def get_app_profile(self, app_name: str) -> Optional[Dict[str, Any]]:
+    def get_app_profile(self, app_name: str) -> dict[str, Any] | None:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
@@ -66,9 +66,7 @@ class LearningStore:
         conn.close()
         return dict(row) if row else None
 
-    def update_app_stats(
-        self, app_name: str, strategy: str, success: bool, duration_ms: float
-    ):
+    def update_app_stats(self, app_name: str, strategy: str, success: bool, duration_ms: float):
         """Update success metrics for an app's strategy."""
         # Simple moving average logic would be complex in SQL,
         # for MVP we just increment counts if we had them split,
@@ -119,17 +117,17 @@ class LearningStore:
         c.execute("SELECT 1 FROM app_profiles WHERE app_name = ?", (app_name,))
         if c.fetchone():
             c.execute(
-                f"""UPDATE app_profiles SET 
-                          {col_name} = ?, 
-                          preferred_strategy = ?, 
+                f"""UPDATE app_profiles SET
+                          {col_name} = ?,
+                          preferred_strategy = ?,
                           sample_count = sample_count + 1,
-                          last_updated = ? 
+                          last_updated = ?
                           WHERE app_name = ?""",
                 (new_rate, best_strat, time.time(), app_name),
             )
         else:
             c.execute(
-                f"""INSERT INTO app_profiles 
+                f"""INSERT INTO app_profiles
                            (app_name, {col_name}, preferred_strategy, sample_count, last_updated)
                            VALUES (?, ?, ?, 1, ?)""",
                 (app_name, new_rate, best_strat, time.time()),

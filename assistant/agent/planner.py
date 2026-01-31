@@ -10,12 +10,12 @@ Note: Execution is handled by the ReliableExecutor, not this class.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
 
+from assistant.agent.llm import AgentResponse, LLMClient
 from assistant.computer.windows import WindowsComputer
-from assistant.agent.llm import LLMClient, AgentResponse
-from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 from assistant.recovery.context import RecoveryContext
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan
 
 logger = logging.getLogger("Planner")
 
@@ -37,7 +37,7 @@ class Planner:
         # self.tool_registry = ToolRegistry()
         # self.tool_router = ToolRouter(...)
 
-    async def create_plan(self, user_task: str) -> List[Dict[str, Any]]:
+    async def create_plan(self, user_task: str) -> list[dict[str, Any]]:
         """
         Generate a plan for the user task based on current state.
 
@@ -114,7 +114,7 @@ class Planner:
         [REPAIR MODE]
         The previous step failed.
         Context: {prompt_context}
-        
+
         Goal: Fix the state so we can retry the failed step.
         Rules:
         1. Max 5 steps.

@@ -10,12 +10,12 @@ Usage:
     python .agent/scripts/auto_preview.py status
 """
 
-import os
-import sys
-import json
-import signal
 import argparse
+import json
+import os
+import signal
 import subprocess
+import sys
 from pathlib import Path
 
 AGENT_DIR = Path(".agent")
@@ -40,7 +40,7 @@ def get_start_command(root):
     if not pkg_file.exists():
         return None
 
-    with open(pkg_file, "r") as f:
+    with open(pkg_file) as f:
         data = json.load(f)
 
     scripts = data.get("scripts", {})
@@ -99,9 +99,7 @@ def stop_server():
         pid = int(PID_FILE.read_text().strip())
         if is_running(pid):
             # Try gentle kill first
-            os.kill(
-                pid, signal.SIGTERM
-            ) if sys.platform != "win32" else subprocess.call(
+            os.kill(pid, signal.SIGTERM) if sys.platform != "win32" else subprocess.call(
                 ["taskkill", "/F", "/T", "/PID", str(pid)]
             )
             print(f"🛑 Preview stopped (PID: {pid})")

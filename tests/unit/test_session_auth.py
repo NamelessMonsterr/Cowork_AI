@@ -52,7 +52,7 @@ class TestSessionAuth:
 
     def test_ensure_raises_when_no_session(self):
         """Test ensure() raises PermissionDeniedError when no session."""
-        from assistant.session_auth import SessionAuth, PermissionDeniedError
+        from assistant.session_auth import PermissionDeniedError, SessionAuth
 
         auth = SessionAuth()
 

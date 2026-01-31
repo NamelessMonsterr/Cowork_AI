@@ -4,14 +4,13 @@ Recovery Manager - Orchestrates Self-Healing Loop (W9.1).
 Coordinates: Executor <-> Classifier <-> Planner (Repair)
 """
 
-import logging
 import asyncio
-from typing import Dict
+import logging
 
-from assistant.ui_contracts.schemas import ActionStep, StepResult
 from assistant.recovery.classifier import FailureClassifier
 from assistant.recovery.context import RecoveryContext
 from assistant.recovery.policy import RecoveryPolicy
+from assistant.ui_contracts.schemas import ActionStep, StepResult
 
 logger = logging.getLogger("RecoveryManager")
 
@@ -33,7 +32,7 @@ class RecoveryManager:
         self.classifier = FailureClassifier()
 
         # State tracking: plan_id -> step_id -> attempt_count
-        self._attempts: Dict[str, Dict[str, int]] = {}
+        self._attempts: dict[str, dict[str, int]] = {}
 
     async def handle_failure(
         self,
@@ -61,9 +60,7 @@ class RecoveryManager:
             return False
 
         if not self.policy.can_recover(f_type, current_attempts):
-            logger.warning(
-                f"Recovery limits exceeded for {failed_step.id} (Type: {f_type})"
-            )
+            logger.warning(f"Recovery limits exceeded for {failed_step.id} (Type: {f_type})")
             return False
 
         # 4. Prepare Context
@@ -81,9 +78,7 @@ class RecoveryManager:
             # TODO: Add screenshots
         )
 
-        logger.info(
-            f"Starting Recovery for {failed_step.id} (Attempt {current_attempts + 1})..."
-        )
+        logger.info(f"Starting Recovery for {failed_step.id} (Attempt {current_attempts + 1})...")
 
         try:
             # 5. Generate Repair Plan

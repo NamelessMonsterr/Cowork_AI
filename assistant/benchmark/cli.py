@@ -17,26 +17,16 @@ sys.path.append(os.getcwd())
 from assistant.benchmark.mode import benchmark_mode
 from assistant.benchmark.runner import BenchmarkRunner
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("BenchmarkCLI")
 
 
 async def main():
-    parser = argparse.ArgumentParser(
-        description="CoworkAI Reliability Benchmark Runner"
-    )
+    parser = argparse.ArgumentParser(description="CoworkAI Reliability Benchmark Runner")
     parser.add_argument("--suite", required=True, help="Path to suite YAML file")
-    parser.add_argument(
-        "--repeat", type=int, default=1, help="Number of iterations per task"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Validate setup without executing tasks"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None, help="RNG seed for failure injection"
-    )
+    parser.add_argument("--repeat", type=int, default=1, help="Number of iterations per task")
+    parser.add_argument("--dry-run", action="store_true", help="Validate setup without executing tasks")
+    parser.add_argument("--seed", type=int, default=None, help="RNG seed for failure injection")
 
     args = parser.parse_args()
 

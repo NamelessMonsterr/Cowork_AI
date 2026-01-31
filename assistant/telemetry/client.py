@@ -4,12 +4,12 @@ Collects anonymized usage stats (success/fail rates, timings)
 ONLY if user opts in.
 """
 
-import os
 import json
 import logging
-import uuid
+import os
 import time
-from typing import Dict, Any
+import uuid
+from typing import Any
 
 logger = logging.getLogger("Telemetry")
 
@@ -28,7 +28,7 @@ class TelemetryClient:
         config_path = os.path.join(os.getenv("APPDATA"), "CoworkAI", "telemetry.json")
         if os.path.exists(config_path):
             try:
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     data = json.load(f)
                     self.enabled = data.get("enabled", False)
             except:
@@ -39,7 +39,7 @@ class TelemetryClient:
         else:
             logger.info("Telemetry DISABLED (Opt-in required).")
 
-    def track(self, event: str, properties: Dict[str, Any] = None):
+    def track(self, event: str, properties: dict[str, Any] = None):
         if not self.enabled:
             return
 

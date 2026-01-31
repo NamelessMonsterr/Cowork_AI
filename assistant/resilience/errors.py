@@ -7,11 +7,12 @@ Provides:
 - Error classification & recovery
 """
 
-import time
 import functools
-from typing import Optional, Callable, Type, Tuple, Any, Dict
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class ErrorSeverity(str, Enum):
@@ -32,8 +33,8 @@ class ErrorContext:
     recoverable: bool
     retry_count: int
     max_retries: int
-    action: Optional[str] = None
-    suggestion: Optional[str] = None
+    action: str | None = None
+    suggestion: str | None = None
 
 
 class RetryConfig:
@@ -46,7 +47,7 @@ class RetryConfig:
         max_delay: float = 30.0,
         exponential: bool = True,
         jitter: bool = True,
-        retry_on: Tuple[Type[Exception], ...] = (Exception,),
+        retry_on: tuple[type[Exception], ...] = (Exception,),
     ):
         self.max_retries = max_retries
         self.base_delay = base_delay
@@ -56,7 +57,7 @@ class RetryConfig:
         self.retry_on = retry_on
 
 
-def retry(config: Optional[RetryConfig] = None):
+def retry(config: RetryConfig | None = None):
     """
     Retry decorator with exponential backoff.
 
@@ -204,8 +205,8 @@ class ResilienceManager:
     """
 
     def __init__(self):
-        self._circuits: Dict[str, CircuitBreaker] = {}
-        self._error_counts: Dict[str, int] = {}
+        self._circuits: dict[str, CircuitBreaker] = {}
+        self._error_counts: dict[str, int] = {}
 
     def get_circuit(self, name: str) -> CircuitBreaker:
         if name not in self._circuits:
@@ -224,7 +225,7 @@ class ResilienceManager:
     def can_execute(self, component: str) -> bool:
         return self.get_circuit(component).can_execute()
 
-    def get_health(self) -> Dict[str, Any]:
+    def get_health(self) -> dict[str, Any]:
         return {
             name: {
                 "state": cb.state.value,

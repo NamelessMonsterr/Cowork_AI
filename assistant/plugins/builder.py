@@ -8,11 +8,12 @@ Format:
   - manifest.json (Copy of plugin.json)
 """
 
-import os
 import json
-import zipfile
-import shutil
 import logging
+import os
+import shutil
+import zipfile
+
 from assistant.plugins.signing import PluginSigner
 
 logger = logging.getLogger("PluginBuilder")
@@ -22,9 +23,7 @@ class PluginBuilder:
     def __init__(self):
         pass
 
-    def build_package(
-        self, source_dir: str, private_key_path: str, output_dir: str
-    ) -> str:
+    def build_package(self, source_dir: str, private_key_path: str, output_dir: str) -> str:
         """
         Build a signed plugin package.
         Returns path to the created .cowork-plugin file.
@@ -33,7 +32,7 @@ class PluginBuilder:
             raise ValueError("Source directory missing plugin.json")
 
         # 1. Read Manifest
-        with open(os.path.join(source_dir, "plugin.json"), "r") as f:
+        with open(os.path.join(source_dir, "plugin.json")) as f:
             manifest_data = json.load(f)
             plugin_id = manifest_data.get("id", "unknown")
             version = manifest_data.get("version", "0.0.1")

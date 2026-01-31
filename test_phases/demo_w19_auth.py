@@ -2,14 +2,15 @@
 W19 Verification - Cloud Identity.
 """
 
-import sys
 import os
+import sys
+
 from fastapi.testclient import TestClient
 
 sys.path.append(os.getcwd())
 os.environ["COWORK_TEST_MODE"] = "true"  # Disable heavy startup
-from assistant.main import app
 from assistant.cloud.auth import OTP_STORE
+from assistant.main import app
 
 
 def test_auth():

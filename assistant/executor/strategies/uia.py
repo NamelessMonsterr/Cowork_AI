@@ -11,19 +11,20 @@ Priority: 10 (highest - tried first)
 """
 
 import time
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 try:
-    from pywinauto import Desktop, Application
-    from pywinauto.findwindows import ElementNotFoundError, ElementAmbiguousError
+    from pywinauto import Application, Desktop
     from pywinauto.controls.uiawrapper import UIAWrapper
+    from pywinauto.findwindows import ElementAmbiguousError, ElementNotFoundError
 
     HAS_PYWINAUTO = True
 except ImportError:
     HAS_PYWINAUTO = False
 
-from .base import Strategy, StrategyResult
 from assistant.ui_contracts.schemas import ActionStep, UISelector
+
+from .base import Strategy, StrategyResult
 
 
 class UIAStrategy(Strategy):
@@ -150,9 +151,7 @@ class UIAStrategy(Strategy):
                 element.set_focus()
 
             else:
-                return StrategyResult(
-                    success=False, error=f"Unsupported tool for UIA: {tool}"
-                )
+                return StrategyResult(success=False, error=f"Unsupported tool for UIA: {tool}")
 
             # Build selector for caching
             rect = element.rectangle()
@@ -179,15 +178,11 @@ class UIAStrategy(Strategy):
         except ElementNotFoundError as e:
             return StrategyResult(success=False, error=f"Element not found: {str(e)}")
         except ElementAmbiguousError as e:
-            return StrategyResult(
-                success=False, error=f"Multiple elements match criteria: {str(e)}"
-            )
+            return StrategyResult(success=False, error=f"Multiple elements match criteria: {str(e)}")
         except Exception as e:
-            return StrategyResult(
-                success=False, error=f"UIA execution failed: {str(e)}"
-            )
+            return StrategyResult(success=False, error=f"UIA execution failed: {str(e)}")
 
-    def _find_element(self, step: ActionStep) -> Optional[UIAWrapper]:
+    def _find_element(self, step: ActionStep) -> UIAWrapper | None:
         """
         Find the target UI element.
 
@@ -201,9 +196,7 @@ class UIAStrategy(Strategy):
         if window_title:
             # Find specific window
             try:
-                windows = self._desktop.windows(
-                    title_re=f".*{window_title}.*", visible_only=True
-                )
+                windows = self._desktop.windows(title_re=f".*{window_title}.*", visible_only=True)
                 if not windows:
                     return None
                 window = windows[0]
@@ -252,7 +245,7 @@ class UIAStrategy(Strategy):
         except Exception:
             return None
 
-    def find_element(self, step: ActionStep) -> Optional[UISelector]:
+    def find_element(self, step: ActionStep) -> UISelector | None:
         """
         Pre-find an element and return its selector.
 
@@ -302,9 +295,7 @@ class UIAStrategy(Strategy):
 
             # Try to find in the expected window
             if selector.window_title:
-                windows = self._desktop.windows(
-                    title_re=f".*{selector.window_title}.*", visible_only=True
-                )
+                windows = self._desktop.windows(title_re=f".*{selector.window_title}.*", visible_only=True)
                 if not windows:
                     return False
                 window = windows[0]
@@ -330,7 +321,7 @@ class UIAStrategy(Strategy):
         except Exception:
             return False
 
-    def get_window_elements(self, window_title: str) -> List[Dict[str, Any]]:
+    def get_window_elements(self, window_title: str) -> list[dict[str, Any]]:
         """
         Get all interactive elements in a window.
 
@@ -340,9 +331,7 @@ class UIAStrategy(Strategy):
             return []
 
         try:
-            windows = self._desktop.windows(
-                title_re=f".*{window_title}.*", visible_only=True
-            )
+            windows = self._desktop.windows(title_re=f".*{window_title}.*", visible_only=True)
             if not windows:
                 return []
 

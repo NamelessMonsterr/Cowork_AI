@@ -3,8 +3,8 @@ File reading utilities with size limits for token budget protection.
 P5A FIX: Prevents token exhaustion from large file reads.
 """
 
-import os
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def safe_read_file(file_path: str) -> str:
                 f"Please ask the user to provide a specific excerpt or handle this manually."
             )
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         logger.info(f"[SafeRead] Read file: {file_path} ({file_size:,} bytes)")

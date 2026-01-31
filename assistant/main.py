@@ -3,20 +3,20 @@ Flash Assistant - Main Application Entry Point.
 Production-grade architecture: Planner -> Guard -> Executor -> Strategies.
 """
 
-import logging
 import asyncio
-import time
+import datetime
+import logging
 import os
+import sys
+import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import List, Dict, Optional, Any, Tuple
+from typing import Any
 
-from fastapi import FastAPI, WebSocket, HTTPException, Response, Request
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
-import sys
-import datetime
+from starlette.middleware.sessions import SessionMiddleware
 
 # --- Platform Guard (P1) ---
 from assistant.platform_check import ensure_windows_os
@@ -27,9 +27,7 @@ ensure_windows_os()
 import secrets
 
 # P0-2: Dev/Debug endpoint control (SECURITY HARDENED: default false)
-FLASH_DEV_ENDPOINTS_ENABLED = (
-    os.getenv("FLASH_DEV_ENDPOINTS_ENABLED", "false").lower() == "true"
-)
+FLASH_DEV_ENDPOINTS_ENABLED = os.getenv("FLASH_DEV_ENDPOINTS_ENABLED", "false").lower() == "true"
 # P0-3: Session secret (REQUIRED for production)
 FLASH_SESSION_SECRET = os.getenv("FLASH_SESSION_SECRET")
 IS_PRODUCTION = os.getenv("ENV", "").lower() == "production"
@@ -63,78 +61,73 @@ logger = logging.getLogger(__name__)
 logging.getLogger().addFilter(SecretsRedactionFilter())
 
 # --- Config (P1) ---
-from assistant.config.paths import get_appdata_dir
-from assistant.config.settings import get_settings, AppSettings
-from assistant.config.startup import StartupValidator
-from assistant.config.port import write_port_file, clear_port_file
-
-# --- Core Modules ---
-from assistant.safety.session_auth import SessionAuth
-from assistant.voice.stt import STT
 from assistant.agent.planner import Planner
-
-# NEW: Missing imports that were causing startup failures
-from assistant.safety.environment import EnvironmentMonitor
-from assistant.safety.budget import ActionBudget
-from assistant.plugins.registry import PluginLoader
-
-
-# --- Safety & Execution ---
-# from assistant.agent.agent import Agent  # Module doesn't exist - commenting out
-from assistant.ui_contracts.schemas import ExecutionPlan, ActionStep
-# from assistant.config import Config  # Doesn't exist - we use get_settings instead
-
-from assistant.safety.plan_guard import PlanGuard, PlanValidationError
-from assistant.safety.focus_guard import FocusGuard
-from assistant.safety.rate_limiter import InputRateLimiter
+from assistant.api.plugins import router as plugins_router
+from assistant.api.safety_routes import router as safety_router
+from assistant.api.support import router as support_router
+from assistant.api.team import router as team_router
+from assistant.cloud.auth import router as auth_router
+from assistant.cloud.crypto import SyncCrypto
+from assistant.cloud.local_store import LocalSyncStore
+from assistant.cloud.sync_engine import SyncEngine
 from assistant.computer.windows import WindowsComputer
+from assistant.config.paths import get_appdata_dir
+from assistant.config.port import clear_port_file, write_port_file
+from assistant.config.settings import AppSettings, get_settings
+from assistant.config.startup import StartupValidator
 from assistant.executor.executor import ReliableExecutor
-from assistant.executor.verify import Verifier
-
 from assistant.executor.strategies import (
+    CoordsStrategy,
     SystemStrategy,
     UIAStrategy,
     VisionStrategy,
-    CoordsStrategy,
 )
-from assistant.ui_contracts.schemas import StepResult
+from assistant.executor.verify import Verifier
+from assistant.learning.collector import LearningCollector
+from assistant.learning.ranker import StrategyRanker
+from assistant.learning.store import LearningStore
+from assistant.plugins.ipc import IpcClient
+from assistant.plugins.lifecycle import PluginStateManager
+from assistant.plugins.permissions import PermissionManager
+
+# --- Plugins (W12/W13) ---
+from assistant.plugins.registry import PluginLoader, ToolRegistry
+from assistant.plugins.router import ToolRouter
+from assistant.plugins.secrets import PluginSecrets
+from assistant.recorder.context import ContextTracker
+from assistant.recorder.converter import SmartConverter
 
 # --- Recorder (W8) ---
 from assistant.recorder.input import InputRecorder
-from assistant.recorder.context import ContextTracker
-from assistant.recorder.converter import SmartConverter
 from assistant.recorder.storage import MacroStorage
 from assistant.recovery.manager import RecoveryManager
+from assistant.safety.budget import ActionBudget
 
-from assistant.ui_contracts.events import (
-    RECOVERY_STARTED,
-    RECOVERY_FAILED,
-    RECOVERY_SUCCEEDED,
-)
+# NEW: Missing imports that were causing startup failures
+from assistant.safety.environment import EnvironmentMonitor
+from assistant.safety.focus_guard import FocusGuard
 
-# --- Plugins (W12/W13) ---
-from assistant.plugins.registry import ToolRegistry
-from assistant.plugins.lifecycle import PluginStateManager
-from assistant.plugins.permissions import PermissionManager
-from assistant.plugins.secrets import PluginSecrets
-from assistant.plugins.router import ToolRouter
-from assistant.plugins.ipc import IpcClient
-from assistant.api.plugins import router as plugins_router
-from assistant.api.support import router as support_router
-from assistant.api.team import router as team_router
-from assistant.api.safety_routes import router as safety_router
-from assistant.cloud.auth import router as auth_router
+# from assistant.config import Config  # Doesn't exist - we use get_settings instead
+from assistant.safety.plan_guard import PlanGuard, PlanValidationError
+from assistant.safety.rate_limiter import InputRateLimiter
+
+# --- Core Modules ---
+from assistant.safety.session_auth import SessionAuth
+from assistant.skills.loader import SkillLoader
+from assistant.team.discovery import PeerDiscovery
 
 # --- Team/Cloud/Learning ---
 from assistant.telemetry.client import TelemetryClient
-from assistant.team.discovery import PeerDiscovery
-from assistant.skills.loader import SkillLoader
-from assistant.cloud.local_store import LocalSyncStore
-from assistant.cloud.crypto import SyncCrypto
-from assistant.cloud.sync_engine import SyncEngine
-from assistant.learning.store import LearningStore
-from assistant.learning.collector import LearningCollector
-from assistant.learning.ranker import StrategyRanker
+from assistant.ui_contracts.events import (
+    RECOVERY_FAILED,
+    RECOVERY_STARTED,
+    RECOVERY_SUCCEEDED,
+)
+
+# --- Safety & Execution ---
+# from assistant.agent.agent import Agent  # Module doesn't exist - commenting out
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan, StepResult
+from assistant.voice.stt import STT
 
 # Host Process Handle
 host_process = None
@@ -159,8 +152,8 @@ class AppState:
     def __init__(self):
         # Core
         self.session_auth = SessionAuth()
-        self.computer: Optional[WindowsComputer] = None
-        self.stt: Optional[STT] = None
+        self.computer: WindowsComputer | None = None
+        self.stt: STT | None = None
 
     def cleanup_pending_plans(self, max_age_seconds: int = 300):
         """
@@ -169,66 +162,64 @@ class AppState:
         """
         now = time.time()
         expired_ids = [
-            pid
-            for pid, (_, created_at) in list(self.pending_plans.items())
-            if now - created_at > max_age_seconds
+            pid for pid, (_, created_at) in list(self.pending_plans.items()) if now - created_at > max_age_seconds
         ]
         for pid in expired_ids:
             # Use .pop() to avoid KeyError if the plan was already removed by another request
             self.pending_plans.pop(pid, None)
 
         # Brain & Limbs
-        self.planner: Optional[Planner] = None
-        self.executor: Optional[ReliableExecutor] = None
-        self.plan_guard: Optional[PlanGuard] = None
+        self.planner: Planner | None = None
+        self.executor: ReliableExecutor | None = None
+        self.plan_guard: PlanGuard | None = None
 
         # Safety
-        self.budget: Optional[ActionBudget] = None
-        self.environment: Optional[EnvironmentMonitor] = None
-        self.verifier: Optional[Verifier] = None
+        self.budget: ActionBudget | None = None
+        self.environment: EnvironmentMonitor | None = None
+        self.verifier: Verifier | None = None
 
         # V24 Hardening
-        self.focus_guard: Optional[FocusGuard] = None
-        self.rate_limiter: Optional[InputRateLimiter] = None
+        self.focus_guard: FocusGuard | None = None
+        self.rate_limiter: InputRateLimiter | None = None
 
         # Recorder (W8)
-        self.input_recorder: Optional[InputRecorder] = None
+        self.input_recorder: InputRecorder | None = None
 
-        self.context_tracker: Optional[ContextTracker] = None
-        self.smart_converter: Optional[SmartConverter] = None
-        self.macro_storage: Optional[MacroStorage] = None
+        self.context_tracker: ContextTracker | None = None
+        self.smart_converter: SmartConverter | None = None
+        self.macro_storage: MacroStorage | None = None
 
-        self.recovery_manager: Optional[RecoveryManager] = None
+        self.recovery_manager: RecoveryManager | None = None
         self.current_recording_anchors = []
 
         # Plugins (W13)
-        self.tool_registry: Optional[ToolRegistry] = None
-        self.plugin_loader: Optional[PluginLoader] = None
-        self.plugin_manager: Optional[PluginStateManager] = None
-        self.tool_router: Optional[ToolRouter] = None
-        self.permission_manager: Optional[PermissionManager] = None
-        self.plugin_secrets: Optional[PluginSecrets] = None
+        self.tool_registry: ToolRegistry | None = None
+        self.plugin_loader: PluginLoader | None = None
+        self.plugin_manager: PluginStateManager | None = None
+        self.tool_router: ToolRouter | None = None
+        self.permission_manager: PermissionManager | None = None
+        self.plugin_secrets: PluginSecrets | None = None
 
         # Telemetry (W15.5)
         self.telemetry = TelemetryClient()
 
         # Team Mode (W17)
-        self.team_discovery: Optional[PeerDiscovery] = None
+        self.team_discovery: PeerDiscovery | None = None
 
         # Skill Packs (W18)
-        self.skill_loader: Optional[SkillLoader] = None
+        self.skill_loader: SkillLoader | None = None
 
         # Cloud Sync (W19)
-        self.sync_engine: Optional[SyncEngine] = None
+        self.sync_engine: SyncEngine | None = None
 
         # Learning (W20)
-        self.learning_ranker: Optional[StrategyRanker] = None
-        self.learning_collector: Optional[LearningCollector] = None
+        self.learning_ranker: StrategyRanker | None = None
+        self.learning_collector: LearningCollector | None = None
 
         # Runtime
-        self.current_task_id: Optional[str] = None
+        self.current_task_id: str | None = None
         self.is_executing = False
-        self.websocket_clients: List[WebSocket] = []
+        self.websocket_clients: list[WebSocket] = []
 
         # P2 FIX: Thread safety locks for concurrent access
         self._ws_lock = asyncio.Lock()
@@ -236,11 +227,11 @@ class AppState:
         self._logs_lock = asyncio.Lock()
 
         # Plan Preview Storage (Task B) - stores (plan, created_at)
-        self.pending_plans: Dict[str, Tuple[ExecutionPlan, float]] = {}
-        self.plan_cleanup_task: Optional[asyncio.Task] = None
+        self.pending_plans: dict[str, tuple[ExecutionPlan, float]] = {}
+        self.plan_cleanup_task: asyncio.Task | None = None
 
         # V23: Execution Logs (in-memory, last 50)
-        self.execution_logs: List[Dict[str, Any]] = []
+        self.execution_logs: list[dict[str, Any]] = []
 
     async def broadcast(self, event: str, data: dict):
         """Send event to all connected UI clients (thread-safe)."""
@@ -296,9 +287,7 @@ async def lifespan(app: FastAPI):
         # Safety: Wire session check directly into Input Engine
         state.computer.set_session_verifier(state.session_auth.ensure)
 
-        state.environment = EnvironmentMonitor(
-            on_unsafe=lambda s, r: handle_unsafe_environment(s, r)
-        )
+        state.environment = EnvironmentMonitor(on_unsafe=lambda s, r: handle_unsafe_environment(s, r))
         state.environment.start()
 
         # 2. Safety Components
@@ -349,8 +338,7 @@ async def lifespan(app: FastAPI):
         voice_settings = settings.voice
         state.stt = STT(
             prefer_mock=voice_settings.mock_stt,
-            openai_api_key=voice_settings.openai_api_key
-            or os.environ.get("OPENAI_API_KEY"),
+            openai_api_key=voice_settings.openai_api_key or os.environ.get("OPENAI_API_KEY"),
         )
 
         # 7. Recorder (W8)
@@ -370,14 +358,10 @@ async def lifespan(app: FastAPI):
             info = state.computer.get_active_window()
             if info:
                 title = info.title.lower()
-                return any(
-                    k in title for k in ["password", "login", "bank", "sign in", "otp"]
-                )
+                return any(k in title for k in ["password", "login", "bank", "sign in", "otp"])
             return False
 
-        state.input_recorder = InputRecorder(
-            on_event=on_input_event, check_privacy_func=check_privacy
-        )
+        state.input_recorder = InputRecorder(on_event=on_input_event, check_privacy_func=check_privacy)
 
         # 8. Recovery Manager (W9)
         state.recovery_manager = RecoveryManager(
@@ -393,9 +377,7 @@ async def lifespan(app: FastAPI):
         state.plugin_manager = PluginStateManager()
         state.permission_manager = PermissionManager()
         state.plugin_secrets = PluginSecrets()
-        state.tool_router = ToolRouter(
-            state.tool_registry, state.permission_manager, state.plugin_secrets
-        )
+        state.tool_router = ToolRouter(state.tool_registry, state.permission_manager, state.plugin_secrets)
 
         # Load Plugins
         # W14: Split Loading
@@ -420,9 +402,7 @@ async def lifespan(app: FastAPI):
         # No-op in headless mode usually, but nice to have.
 
         if os.environ.get("COWORK_TEST_MODE"):
-            logger.info(
-                "🧪 Test Mode: Skipping heavyweight startup (Remote Tools, Discovery, Skills)."
-            )
+            logger.info("🧪 Test Mode: Skipping heavyweight startup (Remote Tools, Discovery, Skills).")
             yield
             # Cleanup
             if state.environment:
@@ -436,9 +416,7 @@ async def lifespan(app: FastAPI):
         # Assuming port 8765 for this instance.
         # In real multi-agent usage, we'd need dynamic ports or config.
         my_id = str(uuid.uuid4())
-        state.team_discovery = PeerDiscovery(
-            agent_id=my_id, agent_name=f"Flash-{my_id[:4]}", port=8765
-        )
+        state.team_discovery = PeerDiscovery(agent_id=my_id, agent_name=f"Flash-{my_id[:4]}", port=8765)
         state.team_discovery.start()
 
         # 5. Load Skill Packs (W18)
@@ -516,11 +494,7 @@ async def cleanup_expired_plans():
     while True:
         await asyncio.sleep(60)  # Check every minute
         now = time.time()
-        expired = [
-            k
-            for k, (_, created_at) in state.pending_plans.items()
-            if now - created_at > PLAN_TTL_SEC
-        ]
+        expired = [k for k, (_, created_at) in state.pending_plans.items() if now - created_at > PLAN_TTL_SEC]
         for plan_id in expired:
             logger.info(f"[CLEANUP] Expiring pending plan: {plan_id}")
             del state.pending_plans[plan_id]
@@ -675,9 +649,7 @@ async def run_plan_execution(task: str):
         # 4. Execution Loop
         for step in plan.steps:
             if state.executor.is_paused():
-                await state.broadcast(
-                    "execution_paused", {"reason": state.executor._pause_reason}
-                )
+                await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
                 break  # Or wait loop? For now, break.
 
             # Execute in thread (Executor is sync)
@@ -698,9 +670,7 @@ async def run_plan_execution(task: str):
 
                 # W9: Try Recovery
                 logger.warning(f"Step {step.id} Failed. Attempting Recovery...")
-                await state.broadcast(
-                    RECOVERY_STARTED, {"step_id": step.id, "error": result.error}
-                )
+                await state.broadcast(RECOVERY_STARTED, {"step_id": step.id, "error": result.error})
 
                 # Capture recent steps for context
                 recent_steps = (
@@ -734,9 +704,7 @@ async def run_plan_execution(task: str):
                     break
 
         await state.broadcast("execution_finished", {"success": True})  # Or status
-        state.telemetry.track(
-            "task_completed", {"task_length": len(task), "steps": len(plan.steps)}
-        )
+        state.telemetry.track("task_completed", {"task_length": len(task), "steps": len(plan.steps)})
 
     except Exception as e:
         logger.error(f"Execution Error: {e}", exc_info=True)
@@ -964,9 +932,7 @@ async def plan_preview(req: PlanPreviewRequest):
 
     # Security: Require active session for preview (prevention of LLM abuse)
     if not state.session_auth.check():
-        raise HTTPException(
-            status_code=403, detail="Forbidden: Active session required"
-        )
+        raise HTTPException(status_code=403, detail="Forbidden: Active session required")
 
     if not state.planner:
         raise HTTPException(503, "Planner not initialized")
@@ -991,9 +957,7 @@ async def plan_preview(req: PlanPreviewRequest):
         # Estimate time (rough: 3 sec per step)
         estimated_time = len(action_steps) * 3
 
-        logger.info(
-            f"[PLAN] Generated | plan_id={plan_id} | step_count={len(action_steps)} | task_id={task_id}"
-        )
+        logger.info(f"[PLAN] Generated | plan_id={plan_id} | step_count={len(action_steps)} | task_id={task_id}")
 
         return {
             "plan": plan.dict(),
@@ -1017,15 +981,11 @@ async def plan_approve(request: Request, req: PlanApproveRequest):
         from assistant.safety.rate_limiter import RequestRateLimiter
 
         if not hasattr(state, "approve_limiter"):
-            state.approve_limiter = RequestRateLimiter(
-                max_requests=10, window_seconds=60
-            )
+            state.approve_limiter = RequestRateLimiter(max_requests=10, window_seconds=60)
 
         if not state.approve_limiter.is_allowed():
             logger.warning("[APPROVE] Rate limit exceeded")
-            raise HTTPException(
-                429, "Too many approval requests. Please wait a moment."
-            )
+            raise HTTPException(429, "Too many approval requests. Please wait a moment.")
 
         plan_id = req.plan_id
         logger.info(f"[APPROVE] Approve requested | plan_id={plan_id}")
@@ -1086,9 +1046,7 @@ async def execute_approved_plan(plan: ExecutionPlan):
 
     if not state.plan_guard:
         logger.error(f"[EXEC] Validation failed: No plan guard | plan_id={plan.id}")
-        await state.broadcast(
-            "execution_error", {"error": "Plan guard not initialized"}
-        )
+        await state.broadcast("execution_error", {"error": "Plan guard not initialized"})
         return
 
     state.is_executing = True
@@ -1118,13 +1076,9 @@ async def execute_approved_plan(plan: ExecutionPlan):
                 logger.error(f"[EXEC] Plan rejected: {e}")
 
             # PRODUCTION: Voice feedback on rejection
-            voice_message = (
-                "Blocked by safety policy. Open Settings to allow this action."
-            )
+            voice_message = "Blocked by safety policy. Open Settings to allow this action."
 
-            logger.info(
-                f"[WS] broadcast event=plan_rejected violations={len(violations)}"
-            )
+            logger.info(f"[WS] broadcast event=plan_rejected violations={len(violations)}")
             await state.broadcast(
                 "plan_rejected",
                 {"plan_id": plan.id, "error": str(e), "violations": violations},
@@ -1147,41 +1101,29 @@ async def execute_approved_plan(plan: ExecutionPlan):
                 has_clients = bool(state.websocket_clients)
 
             if not has_clients:
-                logger.warning(
-                    f"[EXEC] No clients connected, aborting zombie execution | plan_id={plan.id}"
-                )
-                await state.broadcast(
-                    "execution_error", {"error": "Client disconnected"}
-                )
+                logger.warning(f"[EXEC] No clients connected, aborting zombie execution | plan_id={plan.id}")
+                await state.broadcast("execution_error", {"error": "Client disconnected"})
                 break
 
             if state.executor.is_paused():
-                await state.broadcast(
-                    "execution_paused", {"reason": state.executor._pause_reason}
-                )
+                await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
                 break
 
             try:
-                await state.broadcast(
-                    "step_started", {"step_index": i, "step_id": step.id}
-                )
+                await state.broadcast("step_started", {"step_index": i, "step_id": step.id})
 
                 result = state.executor.execute(step)
 
                 if result.success:
                     consecutive_failures = 0
-                    await state.broadcast(
-                        "step_completed", {"step_index": i, "success": True}
-                    )
+                    await state.broadcast("step_completed", {"step_index": i, "success": True})
                 else:
                     consecutive_failures += 1
                     execution_error = result.error
 
                     # Circuit breaker check
                     if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
-                        logger.critical(
-                            f"[PANIC] {consecutive_failures} consecutive failures. Aborting."
-                        )
+                        logger.critical(f"[PANIC] {consecutive_failures} consecutive failures. Aborting.")
                         await state.broadcast(
                             "execution_abort",
                             {
@@ -1191,9 +1133,7 @@ async def execute_approved_plan(plan: ExecutionPlan):
                         )
                         break
                 if result.requires_takeover:
-                    await state.broadcast(
-                        "takeover_required", {"reason": result.takeover_reason}
-                    )
+                    await state.broadcast("takeover_required", {"reason": result.takeover_reason})
                     break
 
                 # Regular failure, continue to next step
@@ -1209,9 +1149,7 @@ async def execute_approved_plan(plan: ExecutionPlan):
 
                 # Circuit breaker check
                 if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
-                    logger.critical(
-                        f"[PANIC] {consecutive_failures} exceptions in a row. Aborting."
-                    )
+                    logger.critical(f"[PANIC] {consecutive_failures} exceptions in a row. Aborting.")
                     await state.broadcast(
                         "execution_abort",
                         {
@@ -1408,9 +1346,9 @@ async def update_settings(new_settings: AppSettings):
 
 
 class PermissionList(BaseModel):
-    apps: List[dict] = []
-    folders: List[dict] = []
-    network: List[dict] = []
+    apps: list[dict] = []
+    folders: list[dict] = []
+    network: list[dict] = []
     autopilot: bool = False
 
 
@@ -1420,7 +1358,7 @@ async def get_permissions():
     if os.path.exists(path):
         import json
 
-        with open(path, "r") as f:
+        with open(path) as f:
             return json.load(f)
     return PermissionList().dict()
 
@@ -1528,9 +1466,7 @@ async def drive_plan_execution(plan: ExecutionPlan):
         # 4. Loop
         for step in plan.steps:
             if state.executor.is_paused():
-                await state.broadcast(
-                    "execution_paused", {"reason": state.executor._pause_reason}
-                )
+                await state.broadcast("execution_paused", {"reason": state.executor._pause_reason})
                 break
 
             await state.broadcast("step_started", {"step_id": step.id})

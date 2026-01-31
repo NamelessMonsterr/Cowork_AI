@@ -12,7 +12,6 @@ When detected, the agent should pause and request human takeover.
 """
 
 import re
-from typing import List
 from dataclasses import dataclass
 from enum import Enum
 
@@ -104,21 +103,11 @@ class SensitiveDetector:
     def __init__(self):
         """Initialize detector with compiled patterns."""
         self._patterns = {
-            SensitiveType.LOGIN: [
-                re.compile(p, re.IGNORECASE) for p in self.LOGIN_PATTERNS
-            ],
-            SensitiveType.CAPTCHA: [
-                re.compile(p, re.IGNORECASE) for p in self.CAPTCHA_PATTERNS
-            ],
-            SensitiveType.OTP: [
-                re.compile(p, re.IGNORECASE) for p in self.OTP_PATTERNS
-            ],
-            SensitiveType.PAYMENT: [
-                re.compile(p, re.IGNORECASE) for p in self.PAYMENT_PATTERNS
-            ],
-            SensitiveType.ADMIN: [
-                re.compile(p, re.IGNORECASE) for p in self.ADMIN_PATTERNS
-            ],
+            SensitiveType.LOGIN: [re.compile(p, re.IGNORECASE) for p in self.LOGIN_PATTERNS],
+            SensitiveType.CAPTCHA: [re.compile(p, re.IGNORECASE) for p in self.CAPTCHA_PATTERNS],
+            SensitiveType.OTP: [re.compile(p, re.IGNORECASE) for p in self.OTP_PATTERNS],
+            SensitiveType.PAYMENT: [re.compile(p, re.IGNORECASE) for p in self.PAYMENT_PATTERNS],
+            SensitiveType.ADMIN: [re.compile(p, re.IGNORECASE) for p in self.ADMIN_PATTERNS],
         }
 
         # Actions for each type
@@ -161,9 +150,7 @@ class SensitiveDetector:
             recommended_action="Continue automation",
         )
 
-    def detect_from_window(
-        self, title: str, process_name: str = ""
-    ) -> SensitiveDetection:
+    def detect_from_window(self, title: str, process_name: str = "") -> SensitiveDetection:
         """
         Detect sensitive content from window title and process.
 
@@ -177,7 +164,7 @@ class SensitiveDetector:
         combined = f"{title} {process_name}"
         return self.detect_from_text(combined)
 
-    def detect_from_elements(self, elements: List[dict]) -> SensitiveDetection:
+    def detect_from_elements(self, elements: list[dict]) -> SensitiveDetection:
         """
         Detect sensitive content from UI elements.
 
@@ -220,7 +207,7 @@ class SensitiveDetector:
         self,
         window_title: str = "",
         screen_text: str = "",
-        elements: List[dict] = None,
+        elements: list[dict] = None,
     ) -> SensitiveDetection:
         """
         Comprehensive check using all available signals.

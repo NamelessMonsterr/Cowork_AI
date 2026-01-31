@@ -2,9 +2,10 @@
 W18 Verification - Skill Packs.
 """
 
-import sys
 import os
 import shutil
+import sys
+
 import yaml
 
 sys.path.append(os.getcwd())
@@ -30,9 +31,7 @@ def setup_mock_skill():
             "Use matplotlib for static plots.",
             "Use seaborn for statistical plots.",
         ],
-        "prompts": {
-            "inline": ["When asked to plot, always check for null values first."]
-        },
+        "prompts": {"inline": ["When asked to plot, always check for null values first."]},
     }
 
     with open(os.path.join(skill_dir, "skill.yaml"), "w") as f:

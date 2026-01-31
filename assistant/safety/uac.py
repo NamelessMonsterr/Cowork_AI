@@ -36,9 +36,7 @@ def is_secure_desktop() -> bool:
         name_buffer = ctypes.create_unicode_buffer(256)
         length = ctypes.c_ulong()
 
-        result = user32.GetUserObjectInformationW(
-            hdesk, UOI_NAME, name_buffer, 256 * 2, ctypes.byref(length)
-        )
+        result = user32.GetUserObjectInformationW(hdesk, UOI_NAME, name_buffer, 256 * 2, ctypes.byref(length))
 
         user32.CloseDesktop(hdesk)
 

@@ -7,10 +7,10 @@ Supports multiple STT backends with automatic fallback:
 3. MockSTT (dev mode only)
 """
 
+import asyncio
 import logging
 import os
-import asyncio
-from typing import Protocol, Optional, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger("STT")
 
@@ -52,7 +52,7 @@ class FasterWhisperSTT:
     """Primary STT engine using local faster-whisper model."""
 
     _model = None
-    _error: Optional[str] = None
+    _error: str | None = None
     _has_audio = False
 
     def __init__(self, model_size: str = "tiny", device: str = "cpu"):
@@ -78,12 +78,8 @@ class FasterWhisperSTT:
         try:
             from faster_whisper import WhisperModel
 
-            self._model = WhisperModel(
-                self._model_size, device=self._device, compute_type="int8"
-            )
-            logger.info(
-                f"[FasterWhisper] Model '{self._model_size}' loaded on {self._device}"
-            )
+            self._model = WhisperModel(self._model_size, device=self._device, compute_type="int8")
+            logger.info(f"[FasterWhisper] Model '{self._model_size}' loaded on {self._device}")
         except Exception as e:
             self._error = f"faster-whisper load failed: {e}"
             logger.warning(f"[FasterWhisper] {self._error}")
@@ -95,15 +91,13 @@ class FasterWhisperSTT:
     def is_available(self) -> bool:
         return self._model is not None and self._has_audio
 
-    def get_error(self) -> Optional[str]:
+    def get_error(self) -> str | None:
         return self._error
 
     async def transcribe_mic(self, seconds: int = 5) -> str:
         """Record from microphone and transcribe."""
         if not self.is_available():
-            raise STTError(
-                "stt_unavailable", f"FasterWhisperSTT not available: {self._error}"
-            )
+            raise STTError("stt_unavailable", f"FasterWhisperSTT not available: {self._error}")
 
         return await asyncio.to_thread(self._transcribe_sync, seconds)
 
@@ -134,10 +128,10 @@ class OpenAIWhisperSTT:
     """Fallback STT engine using OpenAI Whisper API."""
 
     _client = None
-    _error: Optional[str] = None
+    _error: str | None = None
     _has_audio = False
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self._init_dependencies()
 
@@ -150,10 +144,12 @@ class OpenAIWhisperSTT:
 
         # Audio dependencies
         try:
-            from .audio_recorder import AudioRecorder
-            import wave
             import tempfile
+            import wave
+
             import numpy as np
+
+            from .audio_recorder import AudioRecorder
 
             self._recorder = AudioRecorder()
             self._wave = wave
@@ -183,15 +179,13 @@ class OpenAIWhisperSTT:
     def is_available(self) -> bool:
         return self._client is not None and self._has_audio
 
-    def get_error(self) -> Optional[str]:
+    def get_error(self) -> str | None:
         return self._error
 
     async def transcribe_mic(self, seconds: int = 5) -> str:
         """Record from microphone and transcribe via API."""
         if not self.is_available():
-            raise STTError(
-                "stt_unavailable", f"OpenAIWhisperSTT not available: {self._error}"
-            )
+            raise STTError("stt_unavailable", f"OpenAIWhisperSTT not available: {self._error}")
 
         return await asyncio.to_thread(self._transcribe_sync, seconds)
 
@@ -218,9 +212,7 @@ class OpenAIWhisperSTT:
 
             # Send to API
             with open(temp_path, "rb") as audio_file:
-                response = self._client.audio.transcriptions.create(
-                    model="whisper-1", file=audio_file
-                )
+                response = self._client.audio.transcriptions.create(model="whisper-1", file=audio_file)
 
             # Cleanup
             os.unlink(temp_path)
@@ -251,7 +243,7 @@ class MockSTT:
     def is_available(self) -> bool:
         return True  # Always available
 
-    def get_error(self) -> Optional[str]:
+    def get_error(self) -> str | None:
         return None
 
     async def transcribe_mic(self, seconds: int = 5) -> str:
@@ -282,7 +274,7 @@ class STTEngineFactory:
     def __init__(
         self,
         prefer_mock: bool = False,
-        openai_api_key: Optional[str] = None,
+        openai_api_key: str | None = None,
         whisper_model: str = "tiny",
         whisper_device: str = "cpu",
     ):
@@ -293,7 +285,7 @@ class STTEngineFactory:
 
         # Initialize engines
         self._engines = []
-        self._selected_engine: Optional[STTEngine] = None
+        self._selected_engine: STTEngine | None = None
         self._init_engines()
 
     def _init_engines(self):
@@ -307,9 +299,7 @@ class STTEngineFactory:
             return
 
         # Try FasterWhisper first
-        fw = FasterWhisperSTT(
-            model_size=self._whisper_model, device=self._whisper_device
-        )
+        fw = FasterWhisperSTT(model_size=self._whisper_model, device=self._whisper_device)
         self._engines.append(fw)
         if fw.is_available():
             self._selected_engine = fw
@@ -365,7 +355,7 @@ class STT:
         model_size: str = "tiny",
         device: str = "cpu",
         prefer_mock: bool = False,
-        openai_api_key: Optional[str] = None,
+        openai_api_key: str | None = None,
     ):
         self._factory = STTEngineFactory(
             prefer_mock=prefer_mock,

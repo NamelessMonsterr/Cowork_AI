@@ -1,5 +1,7 @@
-import numpy as np
 from unittest import mock
+
+import numpy as np
+
 from assistant.voice.audio_recorder import AudioRecorder
 
 
@@ -20,9 +22,7 @@ class TestAudioRecorder:
     @mock.patch("assistant.voice.audio_recorder.sd")
     def test_record_success(self, mock_sd):
         # Mock query_devices to return a valid input device
-        mock_sd.query_devices.return_value = [
-            {"name": "Mock Mic", "max_input_channels": 1}
-        ]
+        mock_sd.query_devices.return_value = [{"name": "Mock Mic", "max_input_channels": 1}]
 
         # Mock recording
         mock_sd.rec.return_value = np.zeros((16000, 1), dtype="float32")

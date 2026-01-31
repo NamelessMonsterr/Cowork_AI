@@ -3,10 +3,10 @@ W19.4 Sync Crypto (AES-GCM).
 Default Mode: E2E Encryption using a generated key stored locally.
 """
 
-import os
 import base64
 import json
 import logging
+import os
 
 logger = logging.getLogger("SyncCrypto")
 
@@ -16,17 +16,13 @@ try:
     HAS_CRYPTO = True
 except ImportError:
     HAS_CRYPTO = False
-    logger.warning(
-        "cryptography not installed. E2E sync encryption valid only in mock."
-    )
+    logger.warning("cryptography not installed. E2E sync encryption valid only in mock.")
 
 
 class SyncCrypto:
     def __init__(self, key_hex: str = None):
         if not HAS_CRYPTO:
-            self.key = (
-                b"mock_key_32_bytes_len___________"  # Fallback for dev without libs
-            )
+            self.key = b"mock_key_32_bytes_len___________"  # Fallback for dev without libs
             return
 
         if key_hex:

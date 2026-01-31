@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 UI/UX Pro Max Core - BM25 search engine for UI/UX style guides
 """
 
 import csv
 import re
-from pathlib import Path
-from math import log
 from collections import defaultdict
+from math import log
+from pathlib import Path
 
 # ============ CONFIGURATION ============
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -287,9 +286,7 @@ class BM25:
                     tf = term_freqs[token]
                     idf = self.idf[token]
                     numerator = tf * (self.k1 + 1)
-                    denominator = tf + self.k1 * (
-                        1 - self.b + self.b * doc_len / self.avgdl
-                    )
+                    denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avgdl)
                     score += idf * numerator / denominator
 
             scores.append((idx, score))
@@ -300,7 +297,7 @@ class BM25:
 # ============ SEARCH FUNCTIONS ============
 def _load_csv(filepath):
     """Load CSV and return list of dicts"""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -439,10 +436,7 @@ def detect_domain(query):
         ],
     }
 
-    scores = {
-        domain: sum(1 for kw in keywords if kw in query_lower)
-        for domain, keywords in domain_keywords.items()
-    }
+    scores = {domain: sum(1 for kw in keywords if kw in query_lower) for domain, keywords in domain_keywords.items()}
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "style"
 
@@ -458,9 +452,7 @@ def search(query, domain=None, max_results=MAX_RESULTS):
     if not filepath.exists():
         return {"error": f"File not found: {filepath}", "domain": domain}
 
-    results = _search_csv(
-        filepath, config["search_cols"], config["output_cols"], query, max_results
-    )
+    results = _search_csv(filepath, config["search_cols"], config["output_cols"], query, max_results)
 
     return {
         "domain": domain,
@@ -474,9 +466,7 @@ def search(query, domain=None, max_results=MAX_RESULTS):
 def search_stack(query, stack, max_results=MAX_RESULTS):
     """Search stack-specific guidelines"""
     if stack not in STACK_CONFIG:
-        return {
-            "error": f"Unknown stack: {stack}. Available: {', '.join(AVAILABLE_STACKS)}"
-        }
+        return {"error": f"Unknown stack: {stack}. Available: {', '.join(AVAILABLE_STACKS)}"}
 
     filepath = DATA_DIR / STACK_CONFIG[stack]["file"]
 

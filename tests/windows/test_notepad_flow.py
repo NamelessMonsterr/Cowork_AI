@@ -18,8 +18,9 @@ This test should be run in BENCHMARK_MODE or on a dedicated Windows runner.
 """
 
 import os
-import time
 import tempfile
+import time
+
 import pytest
 
 # Skip if not on Windows
@@ -93,15 +94,11 @@ class TestNotepadFlow:
                 pass
 
             # 7. Verify file exists and content
-            assert os.path.exists(self.test_path), (
-                f"File should exist at {self.test_path}"
-            )
+            assert os.path.exists(self.test_path), f"File should exist at {self.test_path}"
 
-            with open(self.test_path, "r") as f:
+            with open(self.test_path) as f:
                 content = f.read()
-            assert self.test_content in content, (
-                f"File should contain '{self.test_content}'"
-            )
+            assert self.test_content in content, f"File should contain '{self.test_content}'"
 
         finally:
             # Force close Notepad if still running

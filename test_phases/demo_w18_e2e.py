@@ -2,17 +2,18 @@
 W18 Verification - E2E Skill Prompt Injection.
 """
 
-import sys
+import asyncio
 import os
 import shutil
-import yaml
-import asyncio
+import sys
 from unittest.mock import MagicMock
 
+import yaml
+
 sys.path.append(os.getcwd())
+from assistant.agent.planner import Planner
 from assistant.main import state
 from assistant.skills.loader import SkillLoader
-from assistant.agent.planner import Planner
 
 APPDATA = os.path.join(os.getenv("APPDATA"), "CoworkAI", "skills")
 
@@ -55,9 +56,7 @@ async def test_injection():
 
     # 3. Mock LLM Method to spy on args
     original_method = planner.llm.analyze_screen_and_plan
-    planner.llm.analyze_screen_and_plan = MagicMock(
-        return_value=None
-    )  # We don't need real return
+    planner.llm.analyze_screen_and_plan = MagicMock(return_value=None)  # We don't need real return
 
     # 4. Call Create Plan
     # This invokes LLM, which we mocked.
@@ -76,10 +75,7 @@ async def test_injection():
         print(system_append)
         print("------------------------------")
 
-        if (
-            "RULE: TEST_ACTIVE" in system_append
-            and "PROMPT: YOU ARE A WIZARD" in system_append
-        ):
+        if "RULE: TEST_ACTIVE" in system_append and "PROMPT: YOU ARE A WIZARD" in system_append:
             print("✅ Injection SUCCESS: Rules and Prompts found.")
         else:
             print("❌ Injection FAILED: Missing content.")

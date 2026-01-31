@@ -2,12 +2,14 @@
 Marketplace API endpoints (W16.3).
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from assistant.marketplace.client import MarketplaceClient
-from assistant.plugins.installer import PluginInstaller
 import logging
 import os
 import uuid
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
+from assistant.marketplace.client import MarketplaceClient
+from assistant.plugins.installer import PluginInstaller
 
 logger = logging.getLogger("MarketplaceAPI")
 
@@ -63,9 +65,7 @@ async def install_plugin(plugin_id: str, background_tasks: BackgroundTasks):
         # (I left a TODO in previous step).
         # I will update installer next to actually verify.
 
-        plugin_id, status = installer.install_package(
-            local_path, public_key_hex=plugin.publisher_key
-        )
+        plugin_id, status = installer.install_package(local_path, public_key_hex=plugin.publisher_key)
 
         return {
             "status": "success",

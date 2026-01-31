@@ -3,10 +3,10 @@ Marketplace Client (W16.2).
 Handles registry fetching and plugin downloads.
 """
 
-import os
 import logging
+import os
+
 import aiohttp
-from typing import List, Optional
 from pydantic import BaseModel
 
 logger = logging.getLogger("Marketplace")
@@ -18,9 +18,9 @@ class MarketplacePlugin(BaseModel):
     version: str
     description: str
     author: str
-    publisher_key: Optional[str] = None
+    publisher_key: str | None = None
     download_url: str
-    icon_url: Optional[str] = None
+    icon_url: str | None = None
     verified: bool = False
 
 
@@ -51,12 +51,10 @@ MOCK_REGISTRY = {
 
 class MarketplaceClient:
     def __init__(self, registry_url: str = None):
-        self.registry_url = registry_url or os.getenv(
-            "MARKETPLACE_URL", "https://api.cowork.ai/registry.json"
-        )
-        self.cache: List[MarketplacePlugin] = []
+        self.registry_url = registry_url or os.getenv("MARKETPLACE_URL", "https://api.cowork.ai/registry.json")
+        self.cache: list[MarketplacePlugin] = []
 
-    async def fetch_registry(self) -> List[MarketplacePlugin]:
+    async def fetch_registry(self) -> list[MarketplacePlugin]:
         """Fetch the plugin registry."""
         # For W16 Beta, return Stub if URL fails
         try:
@@ -64,20 +62,16 @@ class MarketplaceClient:
                 async with session.get(self.registry_url, timeout=2) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        self.cache = [
-                            MarketplacePlugin(**p) for p in data.get("plugins", [])
-                        ]
+                        self.cache = [MarketplacePlugin(**p) for p in data.get("plugins", [])]
                         return self.cache
         except Exception as e:
-            logger.warning(
-                f"Failed to fetch registry from {self.registry_url}: {e}. Using Mock."
-            )
+            logger.warning(f"Failed to fetch registry from {self.registry_url}: {e}. Using Mock.")
 
         # Fallback Mock
         self.cache = [MarketplacePlugin(**p) for p in MOCK_REGISTRY["plugins"]]
         return self.cache
 
-    async def get_plugin_details(self, plugin_id: str) -> Optional[MarketplacePlugin]:
+    async def get_plugin_details(self, plugin_id: str) -> MarketplacePlugin | None:
         if not self.cache:
             await self.fetch_registry()
 
@@ -95,7 +89,7 @@ class MarketplaceClient:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    raise IOError(f"Download failed: {resp.status}")
+                    raise OSError(f"Download failed: {resp.status}")
 
                 with open(dest_path, "wb") as f:
                     while True:

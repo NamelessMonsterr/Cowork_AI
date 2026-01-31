@@ -10,14 +10,14 @@ This test:
 Run with: python test_phase2_uia.py
 """
 
-import subprocess
-import time
-import sys
 import os
+import subprocess
+import sys
+import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from assistant.executor.strategies.uia import UIAStrategy, HAS_PYWINAUTO
+from assistant.executor.strategies.uia import HAS_PYWINAUTO, UIAStrategy
 from assistant.ui_contracts.schemas import ActionStep
 
 
@@ -69,13 +69,8 @@ def test_uia_notepad():
         else:
             # Element not found is OK in automated test environments
             # The UIA strategy itself works - just can't find Notepad window consistently
-            if (
-                "Element not found" in str(result.error)
-                or "not found" in str(result.error).lower()
-            ):
-                print(
-                    "   ⚠️ Could not find Notepad element (environment issue, not code bug)"
-                )
+            if "Element not found" in str(result.error) or "not found" in str(result.error).lower():
+                print("   ⚠️ Could not find Notepad element (environment issue, not code bug)")
                 print("   ✅ UIA strategy logic verified (can_handle works)")
                 success = True  # Pass - the strategy works, just environment issue
             else:

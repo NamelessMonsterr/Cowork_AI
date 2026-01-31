@@ -5,8 +5,8 @@ Tests sophisticated bypass attempts that attackers might try.
 """
 
 import pytest
-from assistant.tools.restricted_shell import RestrictedShellTool, SecurityError
 
+from assistant.tools.restricted_shell import RestrictedShellTool, SecurityError
 
 # Test Configuration
 ENABLED_CONFIG = {

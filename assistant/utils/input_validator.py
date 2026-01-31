@@ -4,7 +4,6 @@ Prevents path traversal, command injection, and other input-based attacks.
 """
 
 import os
-from typing import List, Optional
 
 
 class InputValidator:
@@ -63,9 +62,7 @@ class InputValidator:
         return True, app_lower
 
     @staticmethod
-    def validate_file_path(
-        file_path: str, allowed_dirs: Optional[List[str]] = None
-    ) -> tuple[bool, str]:
+    def validate_file_path(file_path: str, allowed_dirs: list[str] | None = None) -> tuple[bool, str]:
         """
         Validate file path to prevent directory traversal.
 
@@ -114,9 +111,7 @@ class InputValidator:
             Sanitized string
         """
         # Remove any shell metacharacters
-        sanitized = "".join(
-            c for c in arg if c not in InputValidator.SHELL_METACHARACTERS
-        )
+        sanitized = "".join(c for c in arg if c not in InputValidator.SHELL_METACHARACTERS)
         return sanitized
 
     @staticmethod
@@ -144,9 +139,7 @@ class InputValidator:
         return True, text
 
 
-def validate_session_permission_request(
-    apps: List[str], folders: List[str]
-) -> tuple[bool, str]:
+def validate_session_permission_request(apps: list[str], folders: list[str]) -> tuple[bool, str]:
     """
     Validate session permission grant request.
 

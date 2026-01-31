@@ -2,8 +2,8 @@
 W15 Verification - Telemetry.
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.getcwd())
 

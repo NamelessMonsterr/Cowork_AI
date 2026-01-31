@@ -1,18 +1,16 @@
 """Prometheus metrics endpoint for monitoring."""
 
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
 from fastapi import Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 # Define metrics
-request_count = Counter(
-    "flash_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
-)
+request_count = Counter("flash_requests_total", "Total HTTP requests", ["method", "endpoint", "status"])
 
 request_duration = Histogram(
     "flash_request_duration_seconds",
@@ -22,9 +20,7 @@ request_duration = Histogram(
 
 active_sessions = Gauge("flash_active_sessions", "Number of active permission sessions")
 
-plan_executions = Counter(
-    "flash_plan_executions_total", "Total plan executions", ["status"]
-)
+plan_executions = Counter("flash_plan_executions_total", "Total plan executions", ["status"])
 
 voice_transcriptions = Counter(
     "flash_voice_transcriptions_total",

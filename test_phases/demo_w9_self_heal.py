@@ -9,18 +9,18 @@ Scenario:
 5. Verify Retry happens.
 """
 
-import sys
-import os
-import logging
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
+import logging
+import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from assistant.main import state, run_plan_execution
-from assistant.ui_contracts.schemas import StepResult, ActionStep, ExecutionPlan
+from assistant.main import run_plan_execution, state
 from assistant.recovery.manager import RecoveryManager
+from assistant.ui_contracts.schemas import ActionStep, ExecutionPlan, StepResult
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
@@ -41,9 +41,7 @@ async def mock_execution_scenario():
     state.planner = Planner(state.computer)
 
     # Mock Planner to return a plan
-    mock_step_1 = ActionStep(
-        id="step1", tool="click", args={"name": "Submit"}, description="Click Submit"
-    )
+    mock_step_1 = ActionStep(id="step1", tool="click", args={"name": "Submit"}, description="Click Submit")
     # Using AsyncMock for async method
     state.planner.create_plan = AsyncMock(
         return_value=[
@@ -66,18 +64,14 @@ async def mock_execution_scenario():
     budget = MagicMock()
     env = MagicMock()
 
-    state.executor = ReliableExecutor(
-        strategies, verifier, state.session_auth, budget, env
-    )
+    state.executor = ReliableExecutor(strategies, verifier, state.session_auth, budget, env)
 
     # Init Recovery Manager
     # Use PlanGuard mock
     pg = MagicMock()
     state.plan_guard = pg
 
-    state.recovery_manager = RecoveryManager(
-        state.planner, state.executor, state.plan_guard, state.computer
-    )
+    state.recovery_manager = RecoveryManager(state.planner, state.executor, state.plan_guard, state.computer)
 
     # Mock Executor to Fail first, then Succeed
     # We can't easily mock internal method of real executor instance without replacing it.

@@ -1,10 +1,11 @@
 """Circuit breaker pattern for external service calls."""
 
-import time
 import logging
+import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, Any
 from functools import wraps
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,7 @@ class CircuitBreaker:
                 logger.info("Circuit breaker entering HALF_OPEN state")
             else:
                 raise CircuitBreakerOpenError(
-                    f"Circuit breaker OPEN. Service unavailable. "
-                    f"Retry after {self.recovery_timeout}s"
+                    f"Circuit breaker OPEN. Service unavailable. Retry after {self.recovery_timeout}s"
                 )
 
         try:
@@ -82,10 +82,7 @@ class CircuitBreaker:
 
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt recovery."""
-        return (
-            self.last_failure_time is not None
-            and time.time() - self.last_failure_time >= self.recovery_timeout
-        )
+        return self.last_failure_time is not None and time.time() - self.last_failure_time >= self.recovery_timeout
 
 
 class CircuitBreakerOpenError(Exception):

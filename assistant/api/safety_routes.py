@@ -6,6 +6,7 @@ Allows runtime management of trusted apps, domains, and safety policies.
 import json
 import logging
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -27,7 +28,7 @@ async def get_trusted_apps():
     """Get current trusted apps configuration."""
     try:
         config_path = Path(__file__).parent.parent / "config" / "trusted_apps.json"
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"[Safety] Failed to load trusted apps: {e}")
@@ -52,9 +53,7 @@ async def update_trusted_apps(apps: TrustedAppsUpdate):
         # Reload PlanGuard config
         from assistant.safety.plan_guard import load_trusted_apps
 
-        state.plan_guard.trusted_apps, state.plan_guard.app_aliases = (
-            load_trusted_apps()
-        )
+        state.plan_guard.trusted_apps, state.plan_guard.app_aliases = load_trusted_apps()
 
         logger.info(f"[Safety] Trusted apps updated: {len(apps.trusted_apps)} apps")
         return {"status": "updated", "count": len(apps.trusted_apps)}
@@ -69,7 +68,7 @@ async def get_trusted_domains():
     """Get current trusted domains configuration."""
     try:
         config_path = Path(__file__).parent.parent / "config" / "trusted_domains.json"
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"[Safety] Failed to load trusted domains: {e}")
@@ -96,9 +95,7 @@ async def update_trusted_domains(domains: TrustedDomainsUpdate):
 
         state.plan_guard.trusted_domains = load_trusted_domains()
 
-        logger.info(
-            f"[Safety] Trusted domains updated: {len(domains.trusted_domains)} domains"
-        )
+        logger.info(f"[Safety] Trusted domains updated: {len(domains.trusted_domains)} domains")
         return {"status": "updated", "count": len(domains.trusted_domains)}
 
     except Exception as e:

@@ -9,9 +9,9 @@ To add a new action:
 That's it! No other files to edit.
 """
 
-import re
 import logging
-from typing import Optional, List, Dict, Any
+import re
+from typing import Any
 
 logger = logging.getLogger("Actions")
 
@@ -181,7 +181,7 @@ HANDLERS = {
 }
 
 
-def match_action(user_text: str) -> Optional[List[Dict[str, Any]]]:
+def match_action(user_text: str) -> list[dict[str, Any]] | None:
     """
     Match user text against registered actions.
     Returns a plan (list of steps) or None if no match.
@@ -255,9 +255,7 @@ def match_action(user_text: str) -> Optional[List[Dict[str, Any]]]:
     return None
 
 
-async def execute_action(
-    action_name: str, computer, tts, target=None, value=None
-) -> bool:
+async def execute_action(action_name: str, computer, tts, target=None, value=None) -> bool:
     """Execute a single action by name."""
     handler = HANDLERS.get(action_name)
     if handler:

@@ -8,13 +8,14 @@ Responsibilities:
 4. Register tools in a central registry.
 """
 
-import os
+import importlib.util
 import json
 import logging
-import importlib.util
-from typing import Dict, List, Optional, Any
-from assistant.plugins.sdk import Tool, Plugin, ToolSpec
+import os
+from typing import Any
+
 from assistant.plugins.manifest import PluginManifest
+from assistant.plugins.sdk import Plugin, Tool, ToolSpec
 
 TRUSTED_PUBLISHERS = {"CoworkAI Team", "LocalDev"}
 
@@ -23,9 +24,9 @@ logger = logging.getLogger("PluginRegistry")
 
 class ToolRegistry:
     def __init__(self):
-        self.plugins: Dict[str, Plugin] = {}
-        self.manifests: Dict[str, PluginManifest] = {}
-        self.tools: Dict[str, Tool] = {}
+        self.plugins: dict[str, Plugin] = {}
+        self.manifests: dict[str, PluginManifest] = {}
+        self.tools: dict[str, Tool] = {}
 
     def register_plugin(self, manifest: PluginManifest, plugin_instance: Plugin):
         """Register a loaded plugin and its tools."""
@@ -40,13 +41,13 @@ class ToolRegistry:
             self.tools[tool.spec.name] = tool
             logger.debug(f"Registered Tool: {tool.spec.name}")
 
-    def get_tool(self, name: str) -> Optional[Tool]:
+    def get_tool(self, name: str) -> Tool | None:
         return self.tools.get(name)
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self) -> list[Tool]:
         return list(self.tools.values())
 
-    def get_manifest(self, plugin_id: str) -> Optional[PluginManifest]:
+    def get_manifest(self, plugin_id: str) -> PluginManifest | None:
         return self.manifests.get(plugin_id)
 
 
@@ -91,7 +92,7 @@ class PluginLoader:
 
         try:
             # 1. Parse Manifest
-            with open(manifest_path, "r") as f:
+            with open(manifest_path) as f:
                 data = json.load(f)
             manifest = PluginManifest(**data)
 
