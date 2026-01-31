@@ -5,16 +5,22 @@ import pytest
 from assistant.safety.rate_limiter import InputRateLimiter, RateLimitExceededError
 
 
-def test_rate_limiter_agent_bypass():
-    """Verify agent actions bypass rate limits."""
+def test_rate_limiter_agent_bypass_removed():
+    """
+    CRITICAL SECURITY FIX: Verify agent actions NO LONGER bypass rate limits.
+    
+    Previous behavior allowed agent="source" to bypass limits, creating runaway agent risk.
+    New secure behavior: ALL actions are rate limited, including agent actions.
+    """
     limiter = InputRateLimiter()
 
-    # Agent should be able to send many keystrokes without triggering limits
-    for _ in range(100):
-        limiter.record_keystroke(count=1, source="agent")
+    # Agent actions should NOW trigger rate limits (security fix)
+    with pytest.raises(RateLimitExceededError):
+        for _ in range(200):  # Exceed the limit
+            limiter.record_keystroke(count=1, source="agent")
 
-    # Should not be paused
-    assert not limiter._paused, "Agent actions should not trigger rate limits"
+    # Should be paused after hitting hard limit (prevents runaway agent)
+    assert limiter._paused, "Agent actions MUST trigger rate limits (security fix)"
 
 
 def test_rate_limiter_user_enforcement():
